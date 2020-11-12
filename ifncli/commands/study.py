@@ -134,6 +134,40 @@ class UpdateSurveyRules(Command):
         client.update_study_rules(study_key, rules)
 
 
+class ManageStudyMembers(Command):
+    """
+        Manage study members
+    """
+    name = 'study:manage-members'
+
+    def get_parser(self, prog_name):
+        parser = super(ManageStudyMembers, self).get_parser(prog_name)
+        parser.add_argument(
+            "--action", help="ADD or REMOVE", default='ADD')
+        parser.add_argument(
+            "--study_key", help="key of the study, the user should be added to or removed from", required=True)
+        parser.add_argument(
+            "--user_id", help="user id of the RESEARCHER user to be added", required=True)
+        parser.add_argument(
+            "--user_name", help="user name of the RESEARCHER user", required=True)
+
+    def take_action(self, args):
+        action = args.action
+        study_key = args.study_key
+        user_id = args.user_id
+        user_name = args.user_name
+
+        client = self.app.get_management_api()
+
+        if action == 'ADD':
+            client.add_study_member(study_key, user_id, user_name)
+        elif action == 'REMOVE':
+            client.remove_study_member(study_key, user_id)
+        else:
+            raise('unknown action: ' + action)
+
+
 register(ImportSurvey)
 register(CreateStudy)
 register(UpdateSurveyRules)
+register(ManageStudyMembers)
