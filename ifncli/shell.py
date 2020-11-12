@@ -53,7 +53,9 @@ class MyApp(App):
             return self._apis['management']
         user_credentials = self._configs["user_credentials"]
         management_api_url = self._configs["management_api_url"]
-        client = ManagementAPIClient(management_api_url, user_credentials)
+        participant_api_url = self._configs["participant_api_url"]
+
+        client = ManagementAPIClient(management_api_url, user_credentials, participant_api_url )
         self._apis['management'] = client
         return client
 
