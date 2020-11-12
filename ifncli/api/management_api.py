@@ -64,6 +64,18 @@ class ManagementAPIClient:
             raise ValueError(r.content)
         print('study created succcessfully')
 
+    def get_studies(self):
+        if self.auth_header is None:
+            raise ValueError('need to login first')
+        r = requests.get(self.management_api_url + '/v1/studies',
+                          headers=self.auth_header)
+        if r.status_code != 200:
+            raise ValueError(r.content)
+        data = r.json()
+        if 'studies' in data:
+            return data['studies']
+        return []
+
     def update_study_props(self, study_key, props):
         if self.auth_header is None:
             raise ValueError('need to login first')
@@ -141,14 +153,21 @@ class ManagementAPIClient:
         print('survey saved succcessfully')
 
     def get_surveys_in_study(self, study_key):
+        """
+            Get Surveys list in studies
+            return list() of object empty if unknown study of no survey
+        """
         if self.auth_header is None:
             raise ValueError('need to login first')
         r = requests.get(self.management_api_url + '/v1/study/' +
                          study_key + '/surveys', headers=self.auth_header)
         if r.status_code != 200:
             raise ValueError(r.content)
-        return r.json()
-
+        data = r.json()
+        if 'infos' in data:
+            return data['infos']
+        return []
+        
     def get_survey_definition(self, study_key, survey_key):
         if self.auth_header is None:
             raise ValueError('need to login first')

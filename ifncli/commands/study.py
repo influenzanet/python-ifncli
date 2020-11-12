@@ -1,11 +1,14 @@
 import os
 import json
 import base64
+import string
+from datetime import datetime
 
 from cliff.command import Command
+from cliff.lister import Lister
 from . import register
 
-from ifncli.utils import read_yaml, read_json
+from ifncli.utils import read_yaml, read_json, json_to_list, readable_yaml
 
 def yaml_obj_to_loc_object(obj):
     loc_obj = []
@@ -150,6 +153,7 @@ class ManageStudyMembers(Command):
             "--user_id", help="user id of the RESEARCHER user to be added", required=True)
         parser.add_argument(
             "--user_name", help="user name of the RESEARCHER user", required=True)
+        return parser
 
     def take_action(self, args):
         action = args.action
@@ -167,7 +171,72 @@ class ManageStudyMembers(Command):
             raise('unknown action: ' + action)
 
 
+def translatable_to_list(data, language=None):
+    values = []
+    for d in data:
+        s = []
+        if language is not None:
+            if d['code'] != language:
+                continue
+        else:
+            s.append("[%s] " % d['code'])
+        for p in d['parts']:
+            s.append(p['str'])
+        values.append(' '.join(s))
+    return values        
+
+
+class ListSurveys(Command):
+    """
+        List surveys
+    """
+    name = 'study:list-surveys'
+
+    def get_parser(self, prog_name):
+        parser = super(ListSurveys, self).get_parser(prog_name)
+        parser.add_argument(
+            "--study_key", help="key of the study, the user should be added to or removed from", required=True)
+        parser.add_argument(
+            "--json", help="get the json", required=False, action="store_true")
+        return parser
+
+    def take_action(self, args):
+        study_key = args.study_key
+       
+        client = self.app.get_management_api()
+
+        surveys = client.get_surveys_in_study(study_key)
+
+        if args.json:
+            print(to_json(surveys))
+
+        data = []
+
+        for s in surveys:
+            
+            d = {
+                'key': s['surveyKey'],
+                'name': translatable_to_list(s['name']),
+                'description': translatable_to_list(s['description'])
+            }
+            data.append(d)
+
+        print(readable_yaml(data))
+
+class ListStudies(Lister):
+    """
+        List studies
+    """
+    name = 'study:list'
+
+    def take_action(self, args):
+        client = self.app.get_management_api()
+        r = client.get_studies()
+        return json_to_list(r, ['id','key','status'])
+
 register(ImportSurvey)
 register(CreateStudy)
 register(UpdateSurveyRules)
 register(ManageStudyMembers)
+register(ListSurveys)
+register(ListStudies)
