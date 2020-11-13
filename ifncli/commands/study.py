@@ -253,7 +253,11 @@ class ShowStudy(Command):
 
 class ShowSurvey(Command):
     """
-        Show survey
+        Show survey 
+
+        Show a survey definition. By default render using a human readable presentation based on Yaml.
+        --json option will output the raw json definition as returned by the API
+
     """
     name = 'study:show-survey'
 
