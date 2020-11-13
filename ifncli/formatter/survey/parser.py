@@ -1,8 +1,8 @@
-from .translatable import to_translatable,parse_translatable
-from .models import Timestamp
-from .models.survey import SurveyGroupItem, SurveySingleItem, SurveyItemGroupComponent, SurveyItemResponseComponent, SurveyItemComponent
-from .expression import expression_parser
-from .readable import as_readable
+from ..translatable import to_translatable,parse_translatable
+from ..models import Timestamp
+from ..models.survey import SurveyGroupItem, SurveySingleItem, SurveyItemGroupComponent, SurveyItemResponseComponent, SurveyItemComponent
+from ..expression import expression_parser
+from ..readable import as_readable
 
 def component_parser(obj):
     role = obj['role']
