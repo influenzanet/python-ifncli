@@ -88,13 +88,13 @@ def survey_item_parser(obj):
 
     return item
 
-def survey_definition_parser(surveyDef):
-    ii = []
-    for item in surveyDef['items']:
-        item = survey_item_parser(item)
-        ii.append(item)
-    surveyDef['items'] = ii    
-    return surveyDef
+# def survey_definition_parser(surveyDef):
+#     ii = []
+#     for item in surveyDef['items']:
+#         item = survey_item_parser(item)
+#         ii.append(item)
+#     surveyDef['items'] = ii    
+#     return surveyDef
 
 def survey_parser(survey):
     pp =  survey['props']
@@ -102,7 +102,7 @@ def survey_parser(survey):
     survey['props'] = pp
     pp = survey['current']
     pp['published'] = Timestamp(pp['published'])
-    pp['surveyDefinition'] = survey_definition_parser(pp['surveyDefinition'])
+    pp['surveyDefinition'] = survey_item_parser(pp['surveyDefinition'])
     survey['current'] = pp
     return survey
     
