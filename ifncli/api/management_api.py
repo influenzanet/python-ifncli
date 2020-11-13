@@ -3,16 +3,20 @@ import requests
 
 
 class ManagementAPIClient:
+    
     def __init__(self, management_api_url, login_credentials=None, participant_api_url=None):
         self.management_api_url = management_api_url
         self.participant_api_url = participant_api_url
-
+        self.verbose = False
         self.token = None
         self._refresh_token = None
         self.auth_header = None
-        print('Initilize client')
+        #print('Initilize client')
         if login_credentials is not None:
             self.login(login_credentials)
+
+    def set_verbose(v):
+        self.verbose = v
 
     def login(self, credentials):
         r = requests.post(
@@ -34,7 +38,8 @@ class ManagementAPIClient:
         self.token = resp['token']['accessToken']
         self._refresh_token = resp['token']['refreshToken']
         self.auth_header = {'Authorization': 'Bearer ' + self.token}
-        print('Successfully logged in.')
+        if self.verbose:
+            print('Successfully logged in.')
 
     def renew_token(self):
         """
@@ -75,6 +80,14 @@ class ManagementAPIClient:
         if 'studies' in data:
             return data['studies']
         return []
+
+    def get_study(self, study_key):
+        if self.auth_header is None:
+            raise ValueError('need to login first')
+        r = requests.get(self.management_api_url + '/v1/study/' + study_key, headers=self.auth_header)
+        if r.status_code != 200:
+            raise ValueError(r.content)
+        return r.json()
 
     def update_study_props(self, study_key, props):
         if self.auth_header is None:
