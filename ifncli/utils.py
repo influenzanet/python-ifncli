@@ -15,6 +15,22 @@ def to_json(object):
 def readable_yaml(object):
     return yaml.dump(object, default_flow_style=False, sort_keys=False)
 
+
+def translatable_to_list(data, language=None):
+    values = []
+    for d in data:
+        s = []
+        if language is not None:
+            if d['code'] != language:
+                continue
+        else:
+            s.append("[%s] " % d['code'])
+        for p in d['parts']:
+            s.append(p['str'])
+        values.append(' '.join(s))
+    return values        
+
+
 # Create a list 
 # json json data
 # fields list of fields to extract

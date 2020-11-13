@@ -8,7 +8,9 @@ from cliff.command import Command
 from cliff.lister import Lister
 from . import register
 
-from ifncli.utils import read_yaml, read_json, json_to_list, readable_yaml
+from ifncli.utils import read_yaml, read_json, json_to_list, readable_yaml, translatable_to_list, to_json
+
+from ifncli.formatter import readable_expression, readable_study, readable_translatable, create_context
 
 def yaml_obj_to_loc_object(obj):
     loc_obj = []
@@ -136,7 +138,6 @@ class UpdateSurveyRules(Command):
         rules = read_json(rules_path)
         client.update_study_rules(study_key, rules)
 
-
 class ManageStudyMembers(Command):
     """
         Manage study members
@@ -170,22 +171,6 @@ class ManageStudyMembers(Command):
         else:
             raise('unknown action: ' + action)
 
-
-def translatable_to_list(data, language=None):
-    values = []
-    for d in data:
-        s = []
-        if language is not None:
-            if d['code'] != language:
-                continue
-        else:
-            s.append("[%s] " % d['code'])
-        for p in d['parts']:
-            s.append(p['str'])
-        values.append(' '.join(s))
-    return values        
-
-
 class ListSurveys(Command):
     """
         List surveys
@@ -198,6 +183,8 @@ class ListSurveys(Command):
             "--study_key", help="key of the study, the user should be added to or removed from", required=True)
         parser.add_argument(
             "--json", help="get the json", required=False, action="store_true")
+        parser.add_argument(
+            "--lang", help="Show only translation for lang", required=False, action="store", default=None)
         return parser
 
     def take_action(self, args):
@@ -212,12 +199,13 @@ class ListSurveys(Command):
 
         data = []
 
+        ctx = create_context(language=args.lang)
+
         for s in surveys:
-            
             d = {
                 'key': s['surveyKey'],
-                'name': translatable_to_list(s['name']),
-                'description': translatable_to_list(s['description'])
+                'name': readable_translatable(s['name'], ctx),
+                'description': readable_translatable(s['description'], ctx)
             }
             data.append(d)
 
@@ -234,9 +222,40 @@ class ListStudies(Lister):
         r = client.get_studies()
         return json_to_list(r, ['id','key','status'])
 
+
+class ShowStudy(Command):
+    """
+        Show study
+    """
+    name = 'study:show'
+
+    def get_parser(self, prog_name):
+        parser = super(ShowStudy, self).get_parser(prog_name)
+        parser.add_argument(
+            "--study_key", help="key of the study, the user should be added to or removed from", required=True)
+        parser.add_argument(
+            "--json", help="get the json", required=False, action="store_true")
+        parser.add_argument("--lang", help="Show only translation for lang", required=False, action="store", default=None)
+        return parser
+    
+    def take_action(self, args):
+        client = self.app.get_management_api()
+        study = client.get_study(args.study_key)
+        if args.json:
+            print(to_json(study))
+            return
+        
+        ctx = create_context(language=args.lang)
+
+        ss = readable_study(study, ctx)
+        
+        print(readable_yaml(ss))
+        
+
 register(ImportSurvey)
 register(CreateStudy)
 register(UpdateSurveyRules)
 register(ManageStudyMembers)
 register(ListSurveys)
 register(ListStudies)
+register(ShowStudy)

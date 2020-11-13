@@ -33,6 +33,6 @@ def render_translatable(t, context):
         values.append(text)
     return values           
 
-def readable_translatable(values):
+def readable_translatable(values, context):
    tt = parse_translatable(values)
-   return render_translatable(tt)
+   return render_translatable(tt, context)
