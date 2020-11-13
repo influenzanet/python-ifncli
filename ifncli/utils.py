@@ -13,7 +13,7 @@ def to_json(object):
     return json.dumps(object)
 
 def readable_yaml(object):
-    return yaml.dump(object, default_flow_style=False, sort_keys=False)
+    return yaml.dump(object, default_flow_style=False, sort_keys=False, width=1000)
 
 
 def translatable_to_list(data, language=None):
