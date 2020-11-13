@@ -1,3 +1,9 @@
+from .dictionnary import DataDictionnary
+
+TYPE_PAGE_BREAK = 'pageBreak'
+ROLE_RESPONSE_GROUP = 'responseGroup'
+ROLE_TEXT = 'text'
+DISPLAY_ROLES = [ROLE_TEXT, 'label']
 
 class SurveyItem:
     
@@ -15,6 +21,9 @@ class SurveyItem:
         if self.version is not None:
             label += "[%d]" % (self.version)
         return label
+
+    def get_dictionnary(self):
+        return None
     
 class SurveySingleItem(SurveyItem):
 
@@ -35,6 +44,62 @@ class SurveySingleItem(SurveyItem):
             o['validations'] = self.validations
         return o
 
+    def get_dictionnary(self):
+        rg = self.get_response_group()
+        
+        if rg is None:
+            return None
+        
+        if len(rg) > 1:
+            raise Exception("Several response group for %s "  % str(self) )
+        
+        if len(rg) == 0:
+                print("Warning no response group for %s" % str(self) )
+                
+        if len(rg) == 1:
+                rg = rg[0]
+                # print("ResponseGroup of %s %s" %  (self.key, type(rg)))
+                for rg_item in rg.items:
+                    role = rg_item.role
+                    # Find the component item with options
+                    d = {'key': self.key, 'type': role}
+                    if rg_item.is_group():
+                        # If it's a group let's find options
+                        d['options'] = self._get_response_options(rg_item)
+                    return d
+        return None   
+            
+    def _get_response_options(self, responseGroup, root_key=None):
+        key = responseGroup.key
+        if root_key is not None:
+            key = root_key + '.' + responseGroup.key
+        options = []
+        for item in responseGroup.items:
+            if item.role in DISPLAY_ROLES:
+                continue
+            if item.is_group():
+                options.extend( self._get_response_options(item, key) )
+            else:
+                options.append(
+                    {
+                        "key": key + '.' + item.key,
+                        "role": item.role,
+                        "item_key": item.key
+                    }
+                )
+        return options    
+
+    def get_response_group(self):
+        if self.components is None:
+            return None
+
+        if self.type == TYPE_PAGE_BREAK:
+            # No response for page break
+            return None
+
+        return self.components.items_by_role(ROLE_RESPONSE_GROUP)
+        
+
     def __str__(self):
         return '<SurveySingleItem key=%s, type=%s>' % (self.key, self.type)
 
@@ -51,6 +116,18 @@ class SurveyGroupItem(SurveyItem):
             'items': self.items,
             'selection': self.selection
         }
+
+    def get_dictionnary(self):
+        d = []
+        for item in self.items:
+            item_dict = item.get_dictionnary()
+            if item_dict is None:
+                continue
+            if isinstance(item_dict, list):
+                d.extend(item_dict)
+            else:
+                d.append(item_dict)
+        return d
 
     def __str__(self):
         return '<SurveyGroupItem %s, %s>' % (self.key, str(self.items))
@@ -83,6 +160,12 @@ class SurveyItemComponent:
         self.get_common_fields(o)
         return o
 
+    def is_group(self):
+        return False
+
+    def is_response(self):
+        return False
+
        
 class SurveyItemGroupComponent(SurveyItemComponent):
     
@@ -100,6 +183,21 @@ class SurveyItemGroupComponent(SurveyItemComponent):
         self.get_common_fields(o)
         return o
 
+    def items_by_role(self, role):
+        if self.items is None:
+            return None
+        ii = []
+        for item in self.items:
+            if item.role == role:
+                ii.append(item)
+        return ii
+    
+    def is_group(self):
+        return True
+
+    def is_response(self):
+        return True
+
 class SurveyItemResponseComponent(SurveyItemComponent):
     
     def __init__(self, key, role, dtype, props):
@@ -115,3 +213,9 @@ class SurveyItemResponseComponent(SurveyItemComponent):
         }
         self.get_common_fields(o)
         return o
+
+    def is_group(self):
+        return True
+
+    def is_response(self):
+        return True

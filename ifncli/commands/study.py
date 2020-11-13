@@ -10,7 +10,7 @@ from . import register
 
 from ifncli.utils import read_yaml, read_json, json_to_list, readable_yaml, translatable_to_list, to_json
 
-from ifncli.formatter import readable_expression, readable_study, readable_translatable, readable_survey, create_context
+from ifncli.formatter import readable_expression, readable_study, readable_translatable, readable_survey, create_context, survey_to_dictionnary
 
 def yaml_obj_to_loc_object(obj):
     loc_obj = []
@@ -263,13 +263,11 @@ class ShowSurvey(Command):
 
     def get_parser(self, prog_name):
         parser = super(ShowSurvey, self).get_parser(prog_name)
-        parser.add_argument(
-            "--study_key", help="key of the study", required=True)
-        parser.add_argument(
-            "--survey", help="key of the survey, ", required=True)
-        parser.add_argument(
-            "--json", help="get the json", required=False, action="store_true")
+        parser.add_argument("--study_key", help="key of the study", required=True)
+        parser.add_argument("--survey", help="key of the survey, ", required=True)
+        parser.add_argument("--json", help="get the json (raw data from api)", required=False, action="store_true")
         parser.add_argument("--lang", help="Show only translation for lang", required=False, action="store", default=None)
+        parser.add_argument("--format", help="Output format available 'human', 'dict-yaml','dict-json' default is 'human'", required=False, action="store", default=None)
         return parser
     
     def take_action(self, args):
@@ -283,13 +281,18 @@ class ShowSurvey(Command):
             print(to_json(survey))
             return
         
-        ctx = create_context(language=args.lang)
+        out_format = args.format 
+        if out_format is None:
+            out_format = "human"
 
-        ss = readable_survey(survey, ctx)
+        if out_format == "human":
+            ctx = create_context(language=args.lang)
+            ss = readable_survey(survey, ctx)
+            print(readable_yaml(ss))
         
-        print(readable_yaml(ss))
-        
-
+        if out_format in ["dict-json", "dict-yaml"]:
+            ss = survey_to_dictionnary(survey)
+            print(readable_yaml(ss))
 
 
 register(ImportSurvey)
