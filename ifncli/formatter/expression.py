@@ -56,16 +56,17 @@ def render_expression(ee, context):
         Render an Expression object to a Yaml-ready readable data structure
     """
     if ee.is_expression():
-        d = {}
         pp = []
         index = 0
         for p in ee.params:
             name = ee.param_name(index)
             pp.append( (name, render_expression(p, context)) )
             index = index + 1
+        d = {}
         if ee.has_expression_param():
             pp = with_default_names(pp)
             pp = dict(pp)
+            d[ee.name] = pp
         else:
             # All args are scalars
             ss = []
@@ -76,7 +77,7 @@ def render_expression(ee, context):
                     s = str(p[1])
                 ss.append(s)
             pp = ', '.join(ss)
-        d[ee.name] = pp
+            d = "%s(%s)" % (ee.name, pp)
         return d
     if ee.is_scalar():
         return str(ee.value)

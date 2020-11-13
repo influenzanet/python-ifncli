@@ -1,6 +1,14 @@
 
 from .models import Translatable, TranslatableList
 
+def to_translatable(data, fields):
+    """
+        Transform some fields of a dictionnary to translatable object
+    """
+    for field in fields:
+        data[field] = parse_translatable(data[field])
+    return data
+
 def parse_translatable(values):
     """
         Parse a translatable data structure {code:, parts: [...]} to an object based structure
@@ -31,7 +39,11 @@ def render_translatable(t, context):
         else:
             text = t.value_as_text()
         values.append(text)
-    return values           
+    if len(values) == 0:
+        return ''
+    if len(values) == 1:
+        return values[0]
+    return values 
 
 def readable_translatable(values, context):
    tt = parse_translatable(values)

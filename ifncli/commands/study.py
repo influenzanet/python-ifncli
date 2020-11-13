@@ -10,7 +10,7 @@ from . import register
 
 from ifncli.utils import read_yaml, read_json, json_to_list, readable_yaml, translatable_to_list, to_json
 
-from ifncli.formatter import readable_expression, readable_study, readable_translatable, create_context
+from ifncli.formatter import readable_expression, readable_study, readable_translatable, readable_survey, create_context
 
 def yaml_obj_to_loc_object(obj):
     loc_obj = []
@@ -251,6 +251,42 @@ class ShowStudy(Command):
         
         print(readable_yaml(ss))
 
+class ShowSurvey(Command):
+    """
+        Show survey
+    """
+    name = 'study:show-survey'
+
+    def get_parser(self, prog_name):
+        parser = super(ShowSurvey, self).get_parser(prog_name)
+        parser.add_argument(
+            "--study_key", help="key of the study", required=True)
+        parser.add_argument(
+            "--survey", help="key of the survey, ", required=True)
+        parser.add_argument(
+            "--json", help="get the json", required=False, action="store_true")
+        parser.add_argument("--lang", help="Show only translation for lang", required=False, action="store", default=None)
+        return parser
+    
+    def take_action(self, args):
+        client = self.app.get_management_api()
+        survey = client.get_survey_definition(args.study_key, args.survey)
+        
+        if survey is None:
+            raise Exception("No survey available for %s:%s" % (args.study_key, args.survey))
+        
+        if args.json:
+            print(to_json(survey))
+            return
+        
+        ctx = create_context(language=args.lang)
+
+        ss = readable_survey(survey, ctx)
+        
+        print(readable_yaml(ss))
+        
+
+
 
 register(ImportSurvey)
 register(CreateStudy)
@@ -259,3 +295,4 @@ register(ManageStudyMembers)
 register(ListSurveys)
 register(ListStudies)
 register(ShowStudy)
+register(ShowSurvey)

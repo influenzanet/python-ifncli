@@ -1,6 +1,7 @@
 from .expression import expression_parser, render_expression
-from .translatable import parse_translatable, render_translatable
+from .translatable import parse_translatable, render_translatable, to_translatable
 from .readable import as_readable
+from .models import Timestamp
 
 def study_parser(study):
     """"
@@ -15,10 +16,7 @@ def study_parser(study):
         study['rules'] = rr
     if 'props' in study:
         pp = study['props']
-        if 'name' in pp:
-            pp['name'] = parse_translatable(pp['name'])
-        if 'description' in pp:
-            pp['description'] = parse_translatable(pp['description'])
+        pp = to_translatable(pp, ['name','description'])
         if 'tags' in pp:
             tt = []
             for tag in pp['tags']:
@@ -34,3 +32,6 @@ def readable_study(study, context):
     ss = study_parser(study)
     return as_readable(ss, context)
     
+def readable_survey(survey, context):
+    ss = survey_parser(survey)
+    return as_readable(survey, context)
