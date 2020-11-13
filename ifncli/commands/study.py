@@ -180,7 +180,7 @@ class ListSurveys(Command):
     def get_parser(self, prog_name):
         parser = super(ListSurveys, self).get_parser(prog_name)
         parser.add_argument(
-            "--study_key", help="key of the study, the user should be added to or removed from", required=True)
+            "--study_key", help="key of the study", required=True)
         parser.add_argument(
             "--json", help="get the json", required=False, action="store_true")
         parser.add_argument(
@@ -232,7 +232,7 @@ class ShowStudy(Command):
     def get_parser(self, prog_name):
         parser = super(ShowStudy, self).get_parser(prog_name)
         parser.add_argument(
-            "--study_key", help="key of the study, the user should be added to or removed from", required=True)
+            "--study_key", help="key of the study", required=True)
         parser.add_argument(
             "--json", help="get the json", required=False, action="store_true")
         parser.add_argument("--lang", help="Show only translation for lang", required=False, action="store", default=None)
@@ -250,7 +250,7 @@ class ShowStudy(Command):
         ss = readable_study(study, ctx)
         
         print(readable_yaml(ss))
-        
+
 
 register(ImportSurvey)
 register(CreateStudy)
