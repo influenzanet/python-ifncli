@@ -292,7 +292,10 @@ class ShowSurvey(Command):
         
         if out_format in ["dict-json", "dict-yaml"]:
             ss = survey_to_dictionnary(survey)
-            print(readable_yaml(ss))
+            if out_format ==  "dict-yaml":
+                print(readable_yaml(ss))
+            else:
+                print(json.dumps(ss))
 
 
 register(ImportSurvey)
