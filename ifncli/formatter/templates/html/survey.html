@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% macro block_open(name, title) %}
+
+{% endmacro %}
+
+{% macro tagList(name, tags, style) %}
+<h5>{{name}}</h5> 
+<ul class="tags {{ styles(style) }}">
+{% for tag in tags %}
+    <li>{{tag}}</li>
+{% endfor %}
+</ul>
+{% endmacro %}
+
+{% macro translate(list) %}
+  {% set tt = list.get_with_context(context)%}
+  <ul class="{{ styles('translate-list') }}">
+  {% for t in tt %}
+  <li><span class="{{ styles('trans-code') }}">{{ t.code }}</span><span class="{{ styles('trans-text') }}">{{ t.value_as_text() }}</span></li>
+  {% endfor %}
+  </ul>
+{% endmacro %}
+
+{% macro render_item(item) %}
+<div class="survey-item">
+  <h3>{{item['key']}} {% if item['version'] %}(Version <span class="{{ styles('item-version') }}">{{item['version']}}</span>){% endif %}</h3>
+  {% if item['versionTags'] %}
+   {{ tagList('Tags', item['versionTags'], 'version-tags') }}
+  {% endif %} {# versionTags #}
+  {% if item['follows'] %}
+    {{ tagList('Follows', item['follows'], 'follows') }}
+    </div>
+  {% endif %} {# follows #}
+  {% if item['condition'] %}
+    <div class="condition">
+        <h5>Condition</h5>
+        {{ render_expression(item['condition']) }}
+    </div>
+  {% endif %} {# condition #}
+  
+  {% if item.is_group() %}
+    <div class="items">
+    {% for sub in item.items %}
+        {{ render_item(sub) }}
+    {% endfor %}
+    </div>
+    <div class="selection-method">
+    <h5>Selection method</h5>
+    {{ render_expression(item.selection) }}
+    </div>
+  {% else %}
+    {% if item.type %}
+    <div class="item-type">Type : {{ item.type }}</div>
+    {% endif %}
+    <div class="item-components">
+    <h5>Components</h5>
+    {{ render_item_components(item.components) }}
+    </div>
+    <div class="item-validations">
+    <h5>Validations</h5>
+    {{ render_validations(item.validations) }}
+    </div>
+  {% endif %} {# is_group #}
+</div>
+{% endmacro %}
+
+{% macro render_item_components(components) %}
+
+{% set comp_type= components.get_type() %}
+
+<div class="{{ styles('component-'  ~ comp_type ) }}">
+   {% if components.key %}
+     <var class="{{styles('key')}}">{{components.key}}</var>
+   {% endif %}
+   
+   {% if components.is_group() %}
+        {% set rr=components.items_by_roles() %}
+        {% for role, comps in rr.items() %}
+            <div class="{{ styles('components') }} role-{{ role }}">
+            <div>
+            <span class="{{ styles('role') }}">{{ role }}</span>
+            {% if components.order %}(<span class="order">Order {{ render_expression(components.order) }}</span>){% endif %}
+            </div>
+            {% for comp in comps %}
+                {{ render_item_components(comp) }}
+            {% endfor %}
+            </div>
+        {% endfor %}  
+        
+    {% endif %}
+
+    {% if components.is_response() %}
+       {% if components.dtype %}
+            <div class="{{ styles('component-dtype') }}"><code>{{components.dtype}}</code></div>
+       {% endif %}
+       {% if components.props %}
+        <div class="{{ styles('component-properties') }}">
+            <dl>
+                {% for name, value in components.props.items() %}
+                <dt>{{name}}</dt>
+                <dd>{{value}}</dd>
+                {% endfor %}
+            </dl>
+        </div>
+        {% endif %}
+    {% endif %}
+
+    {% if components.style %} 
+        {<dl class="{{ styles('style') }} ">
+           {% for key, value in components.style.items() %}
+            <dt>{{ key }}</dt><dd> {{ value }}</dd>
+           {% endfor %}
+        </dl>}
+    {% endif %}
+    {% if components.content %}
+        <div class="component-content">
+            {{ translate(components.content) }}
+        </div>
+    {% endif %}
+
+    {% if components.disabled %}
+        <div>
+            <h6>Disabled</h6>
+        {{ render_expression(components.disabled) }}
+        </div> 
+    {% endif %}
+    
+    {% if components.description %}
+         <div>
+            <h6>Description</h6>
+            {{ translate(components.description) }}
+        </div>
+    {% endif %}
+    
+    {% if components.displayCondition %}
+         <div>
+            <h6>displayCondition</h6>
+            {{ render_expression(components.displayCondition) }}
+        </div>
+    {% endif %}
+  
+   {% if components.properties %}
+         <div>
+            <h6>Properties</h6>
+            <ul class="list-unstyled">
+            {% for name, p  in components.properties.items() %}
+                <li>{{ name }} {{ render_expression(p) }}</li>
+            {% endfor %}
+            </ul>
+        </div>
+   {% endif %}
+
+</div>
+{% endmacro %}
+
+{% macro render_validations(validations) %}
+{% if validations %}
+    <dl class="row">
+    {% for v in validations %}
+        <dt class="col-2">{{ v['key'] }} <span class="badge badge-danger">{{ v['type'] }}</dt>
+        <dd class="col-10">{{ render_expression(v['rule']) }}</dd>
+    {% endfor %}
+    </dl>
+{% endif %}
+{% endmacro %}
+
+
+{% macro render_expression(expr) %}
+ {{ expr|render_expression }}
+{% endmacro %}
+
+{% block survey %}
+  <dl class="survey-props">
+     <dt>name</dt> <dd>{{ translate(survey.props.name) }}</dd>
+     <dt>description</dt><dd>{{ translate(survey.props.description)}}</dd>
+     <dt>typicalDuration</dt><dd>{{ translate(survey.props.typicalDuration) }}</dd>
+  </dl>
+  {% set survey_version=survey['current'] %}
+  <div class="survey-definition">
+  {% if survey_version['published'] %}
+    Published on {{ survey_version['published'].to_time() }}
+  {% endif %}
+  {% set definition = survey_version['surveyDefinition'] %}
+  {{ render_item(definition) }}
+  </div>
+{% endblock survey %}

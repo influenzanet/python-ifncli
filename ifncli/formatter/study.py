@@ -21,7 +21,7 @@ def study_parser(study):
             tt = []
             for tag in pp['tags']:
                 if 'label' in tag:
-                    tag['label'] =parse_translatable(tag['label'])
+                    tag['label'] = parse_translatable(tag['label'])
                 tt.append(tag)
             pp['tags'] = tt
         study['props'] = pp
@@ -32,6 +32,3 @@ def readable_study(study, context):
     ss = study_parser(study)
     return as_readable(ss, context)
     
-def readable_survey(survey, context):
-    ss = survey_parser(survey)
-    return as_readable(survey, context)

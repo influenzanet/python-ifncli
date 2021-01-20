@@ -1,8 +1,17 @@
 from ..translatable import to_translatable,parse_translatable
 from ..models import Timestamp
 from ..models.survey import SurveyGroupItem, SurveySingleItem, SurveyItemGroupComponent, SurveyItemResponseComponent, SurveyItemComponent
-from ..expression import expression_parser
+from ..expression import expression_arg_parser, expression_parser
 from ..readable import as_readable
+
+class Survey(dict):
+
+    def get_name(self):
+        return self['props']['name']
+        
+    def getCurrent(self):
+        return self['current']['surveyDefinition']
+     
 
 def component_parser(obj):
     role = obj['role']
@@ -25,12 +34,7 @@ def component_parser(obj):
         # ResponseComponent
         if comp is not None:
             raise Exception("Component cannot be group and response type")
-        if 'properties' in obj:
-            # Todo parsing
-            props = obj['properties']
-        else:
-            props = None
-        comp = SurveyItemResponseComponent(key=key, role=role, dtype=obj['dtype'], props=props)
+        comp = SurveyItemResponseComponent(key=key, role=role, dtype=obj['dtype'])
 
     if comp is None:
         # ItemComponent base (Display ?)
@@ -39,6 +43,13 @@ def component_parser(obj):
     if 'content' in obj:
         comp.content = parse_translatable(obj['content'])
     
+    if 'properties' in obj:
+            # Todo parsing
+            pp = {}
+            for k, p in obj['properties'].items():
+                pp[k] = expression_arg_parser(p)
+            comp.properties = pp
+
     if 'description' in obj:
         comp.description = parse_translatable(obj['description'])
 
@@ -101,10 +112,12 @@ def survey_parser(survey):
     pp = to_translatable(pp, ['name','description', 'typicalDuration'])
     survey['props'] = pp
     pp = survey['current']
-    pp['published'] = Timestamp(pp['published'])
+    if 'published' in pp:
+        # published is not present when survey is only a draft from editor
+        pp['published'] = Timestamp(pp['published'])
     pp['surveyDefinition'] = survey_item_parser(pp['surveyDefinition'])
     survey['current'] = pp
-    return survey
+    return Survey(survey)
     
 def readable_survey(survey, context):
     ss = survey_parser(survey)

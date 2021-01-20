@@ -2,10 +2,13 @@ from ifncli.formatter.models import Expression, Scalar
 
 # Expression to object nodes
 def expression_arg_parser(expr, level=0, idx=0):
-    dtype = expr['dtype']
+    if not 'dtype' in expr:
+        dtype = 'str'
+    else:
+        dtype = expr['dtype']
+    
     if not dtype in expr:
-        print("Invalid expression at %d:%d" % (level, idx))
-        print()
+        print("Invalid expression claim to be %s but no entry" % (dtype, ))
     value = expr[dtype]
     if dtype == 'exp':
         return expression_parser(value)
