@@ -161,7 +161,6 @@ class SendCustom(Command):
     """ Send a custom email message
 
         Expect a folder with a settings.yaml file
-        
     """
 
     name = "email:send-custom"
