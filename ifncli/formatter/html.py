@@ -20,11 +20,6 @@ def styles(name):
 
 def survey_to_html(survey, context):
 
-    def filter_expression(expr):
-        if expr is None:
-            return '<EmptyExpr>'
-        return render_expression(expr, context)
-
     survey = survey_parser(survey)
 
     path = os.path.dirname(os.path.abspath(__file__))
@@ -36,9 +31,7 @@ def survey_to_html(survey, context):
     env.globals['language'] = context.get_language()
     env.globals['context'] = context
     env.globals['styles'] = styles
-
-    env.filters['render_expression'] = filter_expression
-
+    
     template = env.get_template('survey.html')
     
     with open(path + '/templates/html/survey.css') as f:
