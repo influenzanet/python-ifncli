@@ -1,5 +1,9 @@
 .survey {
-    margin: 1rem;
+    margin: .4rem;
+}
+
+.survey-props {
+    margin: .2rem 2rem;
 }
 
 .translate-list {
@@ -7,11 +11,18 @@
 }
 
 .survey-item {
-    margin: 1rem;
+    margin: .4rem;
     padding: .5rem;
-    border-left: 5px solid var(--info);
+    border-left: 4px solid var(--info);
     border-top: 1px dashed var(--info);
-    border-bottom: 1px dashed var(--info);
+}
+
+/**
+Dont visual guides for first level item
+*/
+.survey-definition > .survey-item {
+   margin:0;
+   border: 0; 
 }
 
 .item-components {
@@ -39,7 +50,6 @@
 var {
     vertical-align: top;
     display: inline-block;
-    background-color: lightgray;
     color: darkred;
 }
 
@@ -57,4 +67,12 @@ var {
 }
 .style dt::before{
     content: " = "
+}
+
+.expr-name {
+    color: navy;
+}
+
+.expr-param-name {
+    color: steelblue;
 }
