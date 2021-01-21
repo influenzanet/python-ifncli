@@ -65,7 +65,7 @@ var {
 .style dt {
     margin-right: .3em;
 }
-.style dt::before{
+.style dt::after {
     content: " = "
 }
 
