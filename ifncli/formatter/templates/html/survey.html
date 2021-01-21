@@ -24,7 +24,7 @@
 
 {% macro render_item(item) %}
 <div class="survey-item">
-  <h3>{{item['key']}} {% if item['version'] %}(Version <span class="{{ styles('item-version') }}">{{item['version']}}</span>){% endif %}</h3>
+  <h3><var class="{{ styles('key') }} ">{{item['key']}}</var> {% if item['version'] %}(v<span class="{{ styles('item-version') }}">{{item['version']}}</span>){% endif %}</h3>
   {% if item['versionTags'] %}
    {{ tagList('Tags', item['versionTags'], 'version-tags') }}
   {% endif %} {# versionTags #}
@@ -71,7 +71,7 @@
 
 <div class="{{ styles('component-'  ~ comp_type ) }}">
    {% if components.key %}
-     <var class="{{styles('key')}}">{{components.key}}</var>
+     <var class="{{ styles('key') }}">{{components.key}}</var>
    {% endif %}
    
    {% if components.is_group() %}
@@ -80,7 +80,7 @@
             <div class="{{ styles('components') }} role-{{ role }}">
             <div>
             <span class="{{ styles('role') }}">{{ role }}</span>
-            {% if components.order %}(<span class="order">Order {{ render_expression(components.order) }}</span>){% endif %}
+            {% if components.order %}(<span class="order">order {{ render_expression(components.order) }}</span>){% endif %}
             </div>
             {% for comp in comps %}
                 {{ render_item_components(comp) }}
@@ -167,21 +167,41 @@
 
 
 {% macro render_expression(expr) %}
- {{ expr|render_expression }}
+ {% if expr %}
+    {% if expr.is_expression() -%}
+      <span class="expr-name">{{ expr.name }}</span>(
+      {% for p in expr.params -%}
+        <span class="expr-param-item">
+        {% set np = expr.param_name(loop.index0) %}
+        {% if np %}<span class="expr-param-name">{{np}}</span>={%endif%}    
+        <span class="expr-param">{{ render_expression(p) }}</span>
+        </span>
+        {% if not loop.last %},{% endif %} 
+      {% endfor %})
+    {% else %} {# is_expression #} 
+     {{ expr }}
+    {% endif %}  {# is_expression #} 
+ {% endif %} {# expr #}
 {% endmacro %}
 
+{% set survey_version = survey['current'] %}
+{% set definition = survey_version['surveyDefinition'] %}
+  
 {% block survey %}
-  <dl class="survey-props">
-     <dt>name</dt> <dd>{{ translate(survey.props.name) }}</dd>
-     <dt>description</dt><dd>{{ translate(survey.props.description)}}</dd>
-     <dt>typicalDuration</dt><dd>{{ translate(survey.props.typicalDuration) }}</dd>
+<h1>Survey Definition of <em>{{ definition.key }}</em></h1>
+  <dl class="survey-props row">
+     <dt class="col-3">name</dt> 
+     <dd class="col-9">{{ translate(survey.props.name) }}</dd>
+     <dt class="col-3">description</dt>
+     <dd class="col-9">{{ translate(survey.props.description)}}</dd>
+     <dt class="col-3">typicalDuration</dt>
+     <dd class="col-9">{{ translate(survey.props.typicalDuration) }}</dd>
   </dl>
-  {% set survey_version=survey['current'] %}
   <div class="survey-definition">
+  <h2>Current Definition</h2>
   {% if survey_version['published'] %}
     Published on {{ survey_version['published'].to_time() }}
   {% endif %}
-  {% set definition = survey_version['surveyDefinition'] %}
   {{ render_item(definition) }}
   </div>
 {% endblock survey %}
