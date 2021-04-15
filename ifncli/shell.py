@@ -40,6 +40,9 @@ class MyApp(App):
 
     def prepare_to_run_command(self, cmd):
         cfg_path = self.options.config
+        
+        cfg_path = os.getenv('IFN_CONFIG', cfg_path)
+        
         if not Path(cfg_path).is_file():
             raise Exception("Unable to find config file at %s" % (cfg_path,))
         try:
