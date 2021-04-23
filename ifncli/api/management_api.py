@@ -190,8 +190,10 @@ class ManagementAPIClient:
             self.management_api_url + '/v1/study/' + study_key + '/survey/' + survey_key,
             headers={'Authorization': 'Bearer ' + self.token})
         if r.status_code != 200:
-            print(r.content)
-            return None
+            if json.loads(r.content.decode())["error"] == "mongo: no documents in result":
+                print('Survey key does not exist in this study yet.')
+            else:
+                return None
         return r.json()
 
     def remove_survey_from_study(self, study_key, survey_key):

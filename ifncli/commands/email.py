@@ -9,6 +9,13 @@ from ifncli.utils import read_yaml, read_json
 
 
 ########  PARAMETERS #############
+
+default_language = 'en'
+
+email_template_folder = 'resources/email_templates'
+##################################
+
+########  PARAMETERS #############
 message_types = [
     'registration',
     'invitation',
@@ -17,14 +24,8 @@ message_types = [
     'password-reset',
     'password-changed',
     'account-id-changed',  # email address changed
-    # 'weekly',
     'account-deleted'
 ]
-
-default_language = 'en'
-
-email_template_folder = 'resources/email_templates'
-##################################
 
 
 def find_template_file(m_type, folder_with_templates):
@@ -135,17 +136,27 @@ class EmailTemplate(Command):
         languages = [{"code": d, "path": os.path.join(email_template_folder, d)} for d in os.listdir(
             email_template_folder) if os.path.isdir(os.path.join(email_template_folder, d))]
 
+        try:
+            headerOverrides = read_yaml(os.path.join(email_template_folder, 'header-overrides.yaml'))
+        except:
+            headerOverrides = None
+
         for m_type in message_types:
             template_def = {
                 'messageType': m_type,
                 'defaultLanguage': default_language,
-                'translations': []
+                'translations': [],
             }
+
+            if headerOverrides is not None:
+                currentHeaderOverrides = headerOverrides[m_type]
+                if  currentHeaderOverrides is not None:
+                    template_def['headerOverrides'] = currentHeaderOverrides
 
             for lang in languages:
                 translated_template = find_template_file(m_type, lang["path"])
                 subject_lines = read_yaml(os.path.join(lang["path"], 'subjects.yaml'))
-                   
+
                 template_def["translations"].append(
                     {
                         "lang": lang["code"],
@@ -156,6 +167,7 @@ class EmailTemplate(Command):
 
             r = client.save_email_template(template_def)
             print('saved templates for: ' + m_type)
+
 
 class SendCustom(Command):
     """ Send a custom email message
@@ -179,6 +191,8 @@ class SendCustom(Command):
 
         study_key = args.to_study_participants
         email_folder_path = args.email_folder
+
+        
 
         print(study_key, email_folder_path)
 

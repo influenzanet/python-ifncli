@@ -77,8 +77,6 @@ class ImportSurvey(Command):
     def get_parser(self, prog_name):
         parser = super(ImportSurvey, self).get_parser(prog_name)
         parser.add_argument(
-            "--replace", help="if to replace any existing survey definition, without keeping the history", default=False)
-        parser.add_argument(
             "--study_key", help="study key to which study the survey should be saved", required=True)
         parser.add_argument(
             "--survey_json", help="path to the survey json", required=True)
@@ -89,8 +87,7 @@ class ImportSurvey(Command):
         
         study_key = args.study_key
         survey_path = args.survey_json
-        replaceExisting = args.replace
-
+        
         client = self.app.get_management_api()
 
         survey_def = read_json(survey_path)
@@ -102,20 +99,56 @@ class ImportSurvey(Command):
 
         existing_survey_def = client.get_survey_definition(study_key, survey_key)
 
-        if existing_survey_def is None or replaceExisting:
+        if existing_survey_def is None:
+            print("Creating new survey '%s' in study '%s'" % (survey_key, study_key))
             client.save_survey_to_study(study_key, survey_def)
         else:
             history = []
             if 'history' in existing_survey_def.keys():
                 history = existing_survey_def['history']
 
-            existing_survey_def['current']['unpublished'] = int(
-                datetime.now().timestamp())
+            existing_survey_def['current']['unpublished'] = int(datetime.now().timestamp())
             history.append(
                 existing_survey_def['current']
             )
             survey_def['survey']['history'] = history
+            print("Replacing current version in survey '%s' in study '%s'" % (survey_key, study_key))
             client.save_survey_to_study(study_key, survey_def)
+
+class ReplaceSurvey(Command):
+    """
+        Replace survey definition into a study
+    """
+
+    name = 'study:replace-survey'
+
+    def get_parser(self, prog_name):
+        parser = super(ReplaceSurvey, self).get_parser(prog_name)
+        parser.add_argument(
+            "--study_key", help="study key to which study the survey should be saved", required=True)
+        parser.add_argument(
+            "--survey_json", help="path to the survey json", required=True)
+
+        return parser
+
+    def take_action(self, args):
+
+        value = input('This will override any existing survey versions with the same key in the database. Continue? (yes/no)')
+        if value != "yes":
+            print("Abort")
+            exit()
+
+        study_key = args.study_key
+        survey_path = args.survey_json
+
+        client = self.app.get_management_api()
+
+        survey_def = read_json(survey_path)
+
+        survey_key = survey_def['survey']['current']['surveyDefinition']['key']
+        survey_def['studyKey'] = study_key
+
+        client.save_survey_to_study(study_key, survey_def)
 
 class UpdateSurveyRules(Command):
     """
@@ -335,3 +368,4 @@ register(ListSurveys)
 register(ListStudies)
 register(ShowStudy)
 register(ShowSurvey)
+register(ReplaceSurvey)

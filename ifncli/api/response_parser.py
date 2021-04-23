@@ -1,7 +1,7 @@
 
 class ResponseParser:
     def __init__(self, survey_def):
-        print('init structure')
+        # print('init structure')
         self.survey_key = None
         self.questions = self.parse_definition(survey_def)
 
@@ -19,13 +19,14 @@ class ResponseParser:
         }
 
         for q in self.questions:
-            q_response = self._find_and_process_response(q, response['responses'])
+            q_response = self._find_and_process_response(
+                q, response['responses'])
             parsed_response = {**parsed_response, **q_response}
 
         return parsed_response
 
     def parse_definition(self, survey_def):
-        current_survey_def = survey_def['current']['surveyDefinition']
+        current_survey_def = survey_def
 
         # check if corrent survey key:
         if self.survey_key is None:
@@ -39,7 +40,8 @@ class ResponseParser:
         questions = []
         for innerSurveyItem in survey_item['items']:
             if 'items' in innerSurveyItem.keys():
-                questions.extend(self._process_survey_group_item(innerSurveyItem))
+                questions.extend(
+                    self._process_survey_group_item(innerSurveyItem))
             else:
                 q = self._process_survey_single_item(innerSurveyItem)
                 if q is not None:
@@ -135,7 +137,8 @@ class ResponseParser:
         current_response = {}
         # print(response['response'])
         for option in question['response_options']:
-            resp = self._get_response_option_value(response['response'], option['key'])
+            resp = self._get_response_option_value(
+                response['response'], option['key'])
 
             target_key = question['key'] + '-' + option['key']
 
@@ -150,7 +153,8 @@ class ResponseParser:
         current_response = {}
         # print(response['response'])
         for option in question['response_options']:
-            resp = self._get_response_option_value(response['response'], option['key'])
+            resp = self._get_response_option_value(
+                response['response'], option['key'])
 
             target_key = question['key'] + '-' + option['key']
 
@@ -165,7 +169,8 @@ class ResponseParser:
         current_response = {}
         # print(response['response'])
         for option in question['response_options']:
-            resp = self._get_response_option_value(response['response'], option['key'])
+            resp = self._get_response_option_value(
+                response['response'], option['key'])
 
             target_key = question['key'] + '-' + option['key']
 
@@ -197,7 +202,8 @@ class ResponseParser:
         # print(response['response'])
 
         for option in question['response_options']:
-            resp = self._get_response_option_value(response['response'], option['key'])
+            resp = self._get_response_option_value(
+                response['response'], option['key'])
 
             target_key = question['key'] + '-' + option['key']
 
@@ -212,7 +218,8 @@ class ResponseParser:
         current_response = {}
 
         for option in question['response_options']:
-            resp = self._get_response_option_value(response['response'], option['key'])
+            resp = self._get_response_option_value(
+                response['response'], option['key'])
 
             target_key = question['key'] + '-' + option['key']
 
@@ -231,14 +238,18 @@ class ResponseParser:
                 # found directly
                 break
             elif 'items' in current_item.keys():
+                notFound = True
                 for it in current_item['items']:
                     try:
                         if kp == it['key']:
                             current_item = it
+                            notFound = False
                             break
                     except KeyError:
                         # print("unexpected response in ", response)
                         return None
+                if notFound:
+                    break
 
 
         if current_item['key'] == key_parts[-1]:
