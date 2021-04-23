@@ -1,5 +1,23 @@
 import yaml
 import json
+import os
+
+def read_content(path, must_exist=False, default=None):
+    found = os.path.exists(path)
+    if not found:
+        if must_exist:
+            raise IOError("File %s doesnt exist" % path)
+        return default
+    with open(path, 'r', encoding='UTF-8') as f:
+        content = f.read()
+        f.close()
+    return content
+
+def write_content(path, content):
+    with open(path, 'w') as f:
+        f.write(content)
+        f.close()
+    
 
 def read_yaml(path):
     obj = yaml.load(open(path, 'r', encoding='UTF-8'),  Loader=yaml.FullLoader)
@@ -14,7 +32,6 @@ def to_json(object):
 
 def readable_yaml(object):
     return yaml.dump(object, default_flow_style=False, sort_keys=False, width=1000)
-
 
 def translatable_to_list(data, language=None):
     values = []
