@@ -62,6 +62,12 @@ class MyApp(App):
         self._apis['management'] = client
         return client
 
+    def get_configs(self):
+        """
+            Get App configs
+        """
+        return self._configs
+
 def main(argv=sys.argv[1:]):
     app = MyApp(
             description="InfluenzaNet CLI",
