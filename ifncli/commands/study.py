@@ -306,7 +306,7 @@ class ShowSurvey(Command):
         parser.add_argument("--output", help="path of file to output results", required=False)
         parser.add_argument("--json", help="get the json (raw data from api)", required=False, action="store_true")
         parser.add_argument("--lang", help="Show only translation for lang", required=False, action="store", default=None)
-        parser.add_argument("--format", help="Output format available 'human', 'dict-yaml','dict-json' default is 'human'", required=False, action="store", default=None)
+        parser.add_argument("--format", help="Output format available 'human', 'dict-yaml','dict-json', html default is 'human'", required=False, action="store", default=None)
         return parser
     
     def take_action(self, args):
