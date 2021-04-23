@@ -40,7 +40,7 @@ def read_and_convert_html(path):
     content = open(path, 'r', encoding='UTF-8').read()
     return base64.b64encode(content.encode()).decode()
 
-def read_and_endcode_template(path):
+def read_and_encode_template(path):
     return read_and_convert_html(path)
 
 class EmailAutoReminder(Command):
@@ -120,7 +120,7 @@ class EmailTemplate(Command):
     """
         Import email templates
 
-        Emai templates are described here https://github.com/influenzanet/messaging-service/blob/master/docs/email-templates.md
+        Email templates are described here https://github.com/influenzanet/messaging-service/blob/master/docs/email-templates.md
     """
     
     name = 'email:import-templates'
@@ -140,6 +140,8 @@ class EmailTemplate(Command):
             headerOverrides = read_yaml(os.path.join(email_template_folder, 'header-overrides.yaml'))
         except:
             headerOverrides = None
+
+            
 
         for m_type in message_types:
             template_def = {
@@ -161,7 +163,7 @@ class EmailTemplate(Command):
                     {
                         "lang": lang["code"],
                         "subject": subject_lines[m_type],
-                        "templateDef": read_and_endcode_template(translated_template)
+                        "templateDef": read_and_encode_template(translated_template)
                     }
                 )
 
@@ -191,8 +193,6 @@ class SendCustom(Command):
 
         study_key = args.to_study_participants
         email_folder_path = args.email_folder
-
-        
 
         print(study_key, email_folder_path)
 
