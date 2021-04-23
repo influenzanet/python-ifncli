@@ -11,7 +11,7 @@ from ifncli.utils import read_yaml, read_json, read_content, write_content
 
 default_language = 'en'
 
-email_template_folder = 'resources/email_templates'
+default_email_template_folder = 'resources/email_templates'
 ##################################
 
 ########  PARAMETERS #############
@@ -25,7 +25,6 @@ message_types = [
     'account-id-changed',  # email address changed
     'account-deleted'
 ]
-
 
 def find_template_file(m_type, folder_with_templates):
     found = False
@@ -145,12 +144,16 @@ class EmailTemplate(Command):
     def get_parser(self, prog_name):
         parser = super(EmailTemplate, self).get_parser(prog_name)
         parser.add_argument("--dry-run", help="Just prepare template, dont update", default=False, action="store_true")
-        
+        parser.add_argument("--default_language", help="Default language", default='en', required=False)
+        parser.add_argument("--email_template_folder", help="Email template folder", default=default_email_template_folder, required=False)
         return parser
         
     def take_action(self, args):
 
         dry_run = args.dry_run
+
+        default_language = args.default_language
+        email_template_folder = args.email_template_folder
 
         client = self.app.get_management_api()
         
