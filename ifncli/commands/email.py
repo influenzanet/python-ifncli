@@ -5,8 +5,14 @@ import base64
 from cliff.command import Command
 from . import register
 
-from ifncli.utils import read_yaml, read_json
+from ifncli.utils import read_yaml, read_json, read_content, write_content
 
+########  PARAMETERS #############
+
+default_language = 'en'
+
+default_email_template_folder = 'resources/email_templates'
+##################################
 
 ########  PARAMETERS #############
 message_types = [
@@ -17,30 +23,41 @@ message_types = [
     'password-reset',
     'password-changed',
     'account-id-changed',  # email address changed
-    # 'weekly',
     'account-deleted'
 ]
 
-default_language = 'en'
-
-email_template_folder = 'resources/email_templates'
-##################################
-
-
 def find_template_file(m_type, folder_with_templates):
-    c = [f for f in os.listdir(folder_with_templates)
-         if f.split('.')[0] == m_type]
-    if len(c) != 1:
+    found = False
+    for ext in ['','.html','.htm','.txt']:
+        file = os.path.join(folder_with_templates, m_type + ext)
+        if os.path.exists(file):
+            found = True
+            break
+    if not found:
         raise ValueError("no template file found to message type: " + m_type)
-    return os.path.join(folder_with_templates, c[0])
+    return file
 
-
-def read_and_convert_html(path):
+def read_and_convert_html(path, vars=None, layout=None):
     content = open(path, 'r', encoding='UTF-8').read()
+
+    built = False
+    if vars is not None:
+        built = True
+        for name, value in vars.items():
+            var = '{=' + name + '=}'
+            content = content.replace(var, value)
+
+    if layout is not None:
+        content = layout.replace('{=main_content=}', content)
+        built = True
+
+    if built:
+        write_content(path + '.built', content)
+
     return base64.b64encode(content.encode()).decode()
 
-def read_and_endcode_template(path):
-    return read_and_convert_html(path)
+def read_and_encode_template(path, vars=None, layout=None):
+    return read_and_convert_html(path, vars=vars, layout=layout)
 
 class EmailAutoReminder(Command):
     """
@@ -119,49 +136,79 @@ class EmailTemplate(Command):
     """
         Import email templates
 
-        Emai templates are described here https://github.com/influenzanet/messaging-service/blob/master/docs/email-templates.md
+        Email templates are described here https://github.com/influenzanet/messaging-service/blob/master/docs/email-templates.md
     """
     
     name = 'email:import-templates'
 
     def get_parser(self, prog_name):
         parser = super(EmailTemplate, self).get_parser(prog_name)
+        parser.add_argument("--dry-run", help="Just prepare template, dont update", default=False, action="store_true")
+        parser.add_argument("--default_language", help="Default language", default='en', required=False)
+        parser.add_argument("--email_template_folder", help="Email template folder", default=default_email_template_folder, required=False)
         return parser
         
     def take_action(self, args):
-        client = self.app.get_management_api()
 
+        dry_run = args.dry_run
+
+        default_language = args.default_language
+        email_template_folder = args.email_template_folder
+
+        client = self.app.get_management_api()
+        
         # Automatically extract languages:
         languages = [{"code": d, "path": os.path.join(email_template_folder, d)} for d in os.listdir(
             email_template_folder) if os.path.isdir(os.path.join(email_template_folder, d))]
 
+        try:
+            headerOverrides = read_yaml(os.path.join(email_template_folder, 'header-overrides.yaml'))
+        except:
+            headerOverrides = None
+
+        layout = read_content(os.path.join(email_template_folder, 'layout.html'), default=None)
+        if layout is not None:
+            print("Using layout")
+
+        template_vars = self.app.get_configs('email_vars', must_exist=False)
+        
         for m_type in message_types:
             template_def = {
                 'messageType': m_type,
                 'defaultLanguage': default_language,
-                'translations': []
+                'translations': [],
             }
+
+            if headerOverrides is not None:
+                currentHeaderOverrides = headerOverrides[m_type]
+                if  currentHeaderOverrides is not None:
+                    template_def['headerOverrides'] = currentHeaderOverrides
 
             for lang in languages:
                 translated_template = find_template_file(m_type, lang["path"])
                 subject_lines = read_yaml(os.path.join(lang["path"], 'subjects.yaml'))
-                   
+
+                tpl_content = read_and_encode_template(translated_template, layout=layout, vars=template_vars)
+                
                 template_def["translations"].append(
                     {
                         "lang": lang["code"],
                         "subject": subject_lines[m_type],
-                        "templateDef": read_and_endcode_template(translated_template)
+                        "templateDef": tpl_content
                     }
                 )
 
-            r = client.save_email_template(template_def)
-            print('saved templates for: ' + m_type)
+            if dry_run:
+                print("dry-run mode, template %s" % m_type)
+            else:
+                r = client.save_email_template(template_def)
+                print('saved templates for: ' + m_type)
+
 
 class SendCustom(Command):
     """ Send a custom email message
 
         Expect a folder with a settings.yaml file
-        
     """
 
     name = "email:send-custom"

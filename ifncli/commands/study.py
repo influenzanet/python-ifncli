@@ -2,6 +2,7 @@ import os
 import json
 import base64
 import string
+import sys
 from datetime import datetime
 
 from cliff.command import Command
@@ -10,7 +11,7 @@ from . import register
 
 from ifncli.utils import read_yaml, read_json, json_to_list, readable_yaml, translatable_to_list, to_json
 
-from ifncli.formatter import readable_expression, readable_study, readable_translatable, readable_survey, create_context, survey_to_dictionnary
+from ifncli.formatter import readable_expression, readable_study, readable_translatable, readable_survey, create_context, survey_to_dictionnary, survey_parser, survey_to_html
 
 def yaml_obj_to_loc_object(obj):
     loc_obj = []
@@ -76,8 +77,6 @@ class ImportSurvey(Command):
     def get_parser(self, prog_name):
         parser = super(ImportSurvey, self).get_parser(prog_name)
         parser.add_argument(
-            "--replace", help="if to replace any existing survey definition, without keeping the history", default=False)
-        parser.add_argument(
             "--study_key", help="study key to which study the survey should be saved", required=True)
         parser.add_argument(
             "--survey_json", help="path to the survey json", required=True)
@@ -88,8 +87,7 @@ class ImportSurvey(Command):
         
         study_key = args.study_key
         survey_path = args.survey_json
-        replaceExisting = args.replace
-
+        
         client = self.app.get_management_api()
 
         survey_def = read_json(survey_path)
@@ -101,20 +99,56 @@ class ImportSurvey(Command):
 
         existing_survey_def = client.get_survey_definition(study_key, survey_key)
 
-        if existing_survey_def is None or replaceExisting:
+        if existing_survey_def is None:
+            print("Creating new survey '%s' in study '%s'" % (survey_key, study_key))
             client.save_survey_to_study(study_key, survey_def)
         else:
             history = []
             if 'history' in existing_survey_def.keys():
                 history = existing_survey_def['history']
 
-            existing_survey_def['current']['unpublished'] = int(
-                datetime.now().timestamp())
+            existing_survey_def['current']['unpublished'] = int(datetime.now().timestamp())
             history.append(
                 existing_survey_def['current']
             )
             survey_def['survey']['history'] = history
+            print("Replacing current version in survey '%s' in study '%s'" % (survey_key, study_key))
             client.save_survey_to_study(study_key, survey_def)
+
+class ReplaceSurvey(Command):
+    """
+        Replace survey definition into a study
+    """
+
+    name = 'study:replace-survey'
+
+    def get_parser(self, prog_name):
+        parser = super(ReplaceSurvey, self).get_parser(prog_name)
+        parser.add_argument(
+            "--study_key", help="study key to which study the survey should be saved", required=True)
+        parser.add_argument(
+            "--survey_json", help="path to the survey json", required=True)
+
+        return parser
+
+    def take_action(self, args):
+
+        value = input('This will override any existing survey versions with the same key in the database. Continue? (yes/no)')
+        if value != "yes":
+            print("Abort")
+            exit()
+
+        study_key = args.study_key
+        survey_path = args.survey_json
+
+        client = self.app.get_management_api()
+
+        survey_def = read_json(survey_path)
+
+        survey_key = survey_def['survey']['current']['surveyDefinition']['key']
+        survey_def['studyKey'] = study_key
+
+        client.save_survey_to_study(study_key, survey_def)
 
 class UpdateSurveyRules(Command):
     """
@@ -263,39 +297,67 @@ class ShowSurvey(Command):
 
     def get_parser(self, prog_name):
         parser = super(ShowSurvey, self).get_parser(prog_name)
-        parser.add_argument("--study_key", help="key of the study", required=True)
-        parser.add_argument("--survey", help="key of the survey, ", required=True)
+
+        g = parser.add_mutually_exclusive_group(required=True)
+        g.add_argument("--from-file", help="load survey from json file. Cannot be used with study_key", required=False, action="store")
+        g.add_argument("--study_key", help="key of the study (survey from api). Cannot be used with from-file", required=False)
+        
+        parser.add_argument("--survey", help="key of the survey, ", required=False)
+        parser.add_argument("--output", help="path of file to output results", required=False)
         parser.add_argument("--json", help="get the json (raw data from api)", required=False, action="store_true")
         parser.add_argument("--lang", help="Show only translation for lang", required=False, action="store", default=None)
-        parser.add_argument("--format", help="Output format available 'human', 'dict-yaml','dict-json' default is 'human'", required=False, action="store", default=None)
+        parser.add_argument("--format", help="Output format available 'human', 'dict-yaml','dict-json', html default is 'human'", required=False, action="store", default=None)
         return parser
     
     def take_action(self, args):
-        client = self.app.get_management_api()
-        survey = client.get_survey_definition(args.study_key, args.survey)
         
-        if survey is None:
-            raise Exception("No survey available for %s:%s" % (args.study_key, args.survey))
-        
+        if args.from_file is not None:
+            survey = read_json(args.from_file)
+            if 'survey' in survey and isinstance(survey['survey'], dict):
+                survey = survey['survey']
+        else:
+            if args.survey is None:
+                raise Exception("survey argumen is missing. I need this to get the survey from the study")
+            client = self.app.get_management_api()
+            survey = client.get_survey_definition(args.study_key, args.survey)
+            if survey is None:
+                raise Exception("No survey available for %s:%s" % (args.study_key, args.survey))
+
+        if args.output:
+            need_close = True
+            out = open(args.output, 'w')
+        else:
+            need_close = False
+            out = sys.stdout
+
         if args.json:
-            print(to_json(survey))
+            out.write(to_json(survey))
             return
         
         out_format = args.format 
         if out_format is None:
             out_format = "human"
 
+        ctx = create_context(language=args.lang)
+            
         if out_format == "human":
-            ctx = create_context(language=args.lang)
             ss = readable_survey(survey, ctx)
-            print(readable_yaml(ss))
+            out.write(readable_yaml(ss))
         
         if out_format in ["dict-json", "dict-yaml"]:
             ss = survey_to_dictionnary(survey)
             if out_format ==  "dict-yaml":
-                print(readable_yaml(ss))
+                out.write(readable_yaml(ss))
             else:
-                print(json.dumps(ss))
+                out.write(json.dumps(ss))
+
+        if out_format == "html":
+            ss = survey_to_html(survey, ctx)
+            out.write(ss)
+
+        if need_close:
+            out.close()
+
 
 
 register(ImportSurvey)
@@ -306,3 +368,4 @@ register(ListSurveys)
 register(ListStudies)
 register(ShowStudy)
 register(ShowSurvey)
+register(ReplaceSurvey)

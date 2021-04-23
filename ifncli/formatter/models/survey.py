@@ -24,6 +24,12 @@ class SurveyItem:
 
     def get_dictionnary(self):
         return None
+
+    def is_group(self):
+        """
+        is Item a group Item (with sub items)
+        """
+        return False
     
 class SurveySingleItem(SurveyItem):
 
@@ -132,6 +138,12 @@ class SurveyGroupItem(SurveyItem):
     def __str__(self):
         return '<SurveyGroupItem %s, %s>' % (self.key, str(self.items))
 
+    def is_group(self):
+        """
+        is Item a group Item (with sub items)
+        """
+        return True
+
 
 class SurveyItemComponent:
     
@@ -148,7 +160,7 @@ class SurveyItemComponent:
         return label
 
     def get_common_fields(self, o):
-        for a in ['content', 'description', 'disabled', 'displayCondition','style']:
+        for a in ['content', 'description', 'disabled', 'displayCondition','style', 'properties']:
             v = getattr(self, a, None)
             if v is not None:
                 o[a] = v
@@ -166,6 +178,11 @@ class SurveyItemComponent:
     def is_response(self):
         return False
 
+    def is_base(self):
+        return True
+
+    def get_type(self):
+        return 'base'
        
 class SurveyItemGroupComponent(SurveyItemComponent):
     
@@ -191,31 +208,54 @@ class SurveyItemGroupComponent(SurveyItemComponent):
             if item.role == role:
                 ii.append(item)
         return ii
+
+    def items_by_roles(self):
+        ## Group items by roles
+        if self.items is None:
+            return None
+        roles = {}
+        for item in self.items:
+            r = item.role
+            if not r in roles:
+                roles[r] = []
+            roles[r].append(item)
+        return roles 
     
     def is_group(self):
         return True
 
     def is_response(self):
-        return True
+        return False
+
+    def is_base(self):
+        return False
+
+    def get_type(self):
+        return 'group'
+
 
 class SurveyItemResponseComponent(SurveyItemComponent):
     
-    def __init__(self, key, role, dtype, props):
+    def __init__(self, key, role, dtype):
         super(SurveyItemResponseComponent, self).__init__(key=key, role=role)
         self.dtype = dtype
-        self.props = props
-
+    
     def to_readable(self):
         o = {
             '_ref': self.get_readable_label('ResponseComponent'),
             'dtype': self.dtype,
-            'properties': self.props
         }
         self.get_common_fields(o)
         return o
 
     def is_group(self):
-        return True
+        return False
 
     def is_response(self):
         return True
+
+    def is_base(self):
+        return False
+
+    def get_type(self):
+        return 'response'

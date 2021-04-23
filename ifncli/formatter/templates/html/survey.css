@@ -1,0 +1,78 @@
+.survey {
+    margin: .4rem;
+}
+
+.survey-props {
+    margin: .2rem 2rem;
+}
+
+.translate-list {
+    border-left: 2px solid lightgray;
+}
+
+.survey-item {
+    margin: .4rem;
+    padding: .5rem;
+    border-left: 4px solid var(--info);
+    border-top: 1px dashed var(--info);
+}
+
+/**
+Dont visual guides for first level item
+*/
+.survey-definition > .survey-item {
+   margin:0;
+   border: 0; 
+}
+
+.item-components {
+  margin-left: .3em;
+}
+
+.trans-code {
+    margin-right: .3em;
+}
+
+.components {
+ margin: .3rem;
+ border-left: 5px solid var(--warning);
+ padding: .3rem;
+}
+
+.component-base {
+ padding: .1rem;
+}
+
+.component-content {
+    display: inline-block;
+}
+
+var {
+    vertical-align: top;
+    display: inline-block;
+    color: darkred;
+}
+
+.style {
+    display: inline-block;
+    font-style: italic ;
+    margin: 0;
+}
+
+.style * {
+    display:inline-block;
+}
+.style dt {
+    margin-right: .3em;
+}
+.style dt::after {
+    content: " = "
+}
+
+.expr-name {
+    color: navy;
+}
+
+.expr-param-name {
+    color: steelblue;
+}

@@ -1,7 +1,7 @@
 
 class ResponseParser:
     def __init__(self, survey_def):
-        print('init structure')
+        # print('init structure')
         self.survey_key = None
         self.questions = self.parse_definition(survey_def)
 
@@ -26,7 +26,7 @@ class ResponseParser:
         return parsed_response
 
     def parse_definition(self, survey_def):
-        current_survey_def = survey_def['current']['surveyDefinition']
+        current_survey_def = survey_def
 
         # check if corrent survey key:
         if self.survey_key is None:
@@ -238,14 +238,18 @@ class ResponseParser:
                 # found directly
                 break
             elif 'items' in current_item.keys():
+                notFound = True
                 for it in current_item['items']:
                     try:
                         if kp == it['key']:
                             current_item = it
+                            notFound = False
                             break
                     except KeyError:
                         # print("unexpected response in ", response)
                         return None
+                if notFound:
+                    break
 
 
         if current_item['key'] == key_parts[-1]:
