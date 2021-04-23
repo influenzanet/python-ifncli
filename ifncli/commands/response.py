@@ -59,12 +59,12 @@ class ResponseDownloader(Command):
         study_key = filter_config['study_key']
         survey_keys = filter_config['survey_keys']
 
-        time_filter = {
-            "from": datetime.strptime(filter_config['from'], "%Y-%m-%d"),
-            "until": datetime.strptime(filter_config['until'], "%Y-%m-%d"),
-        }
+        date_format = "%Y-%m-%d"
 
-        client = ManagementAPIClient(management_api_url, user_credentials)
+        time_filter = {
+            "from": datetime.strptime(filter_config['from'], date_format),
+            "until": datetime.strptime(filter_config['until'], date_format),
+        }
 
         # download survey definitions:
         survey_definitions = {}
@@ -135,7 +135,9 @@ class ResponseDownloader(Command):
                 print(r['key'], e)
                 continue
 
-        export_folder = os.path.join(os.path.dirname(__file__), 'export_' + datetime.now().strftime('%Y-%m-%d'))
+        export_df = '%Y-%m-%d'
+
+        export_folder = os.path.join(os.path.dirname(__file__), 'export_' + datetime.now().strftime(export_df))
         os.makedirs(export_folder,
                     exist_ok=True)
         for p in survey_parsers:
@@ -155,8 +157,8 @@ class ResponseDownloader(Command):
                 end = time_filter['until']
 
             filename = study_key + '_' + p['key'] + '_' + \
-                    start.strftime('%Y-%m-%d') + '-' + \
-                    end.strftime('%Y-%m-%d') + \
+                    start.strftime(export_df) + '-' + \
+                    end.strftime(export_df) + \
                     '.csv'
 
             filename = os.path.join(export_folder, filename)
