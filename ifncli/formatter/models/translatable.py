@@ -9,8 +9,11 @@ class TranslatableList:
         if language is None:
             return self.values
         tt = []
+        if isinstance(language, str):
+            language = [language]
+
         for t in self.values:
-            if t.code == language:
+            if t.code in language:
                 tt.append(t)
         return tt
 
