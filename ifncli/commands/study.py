@@ -157,13 +157,11 @@ class UpdateSurveyRules(Command):
     name = 'study:update-rules'
 
     def get_parser(self, prog_name):
-        parser = super(UpdateSurveyRules, self).get_parser(prog_name)
+        parser = super(ImportSurvey, self).get_parser(prog_name)
         parser.add_argument(
                 "--rules_json_path", help="file path to the survey rules json", required=True)
         parser.add_argument(
             "--study_key", help="study key, the rules should be updated for", required=True)
-
-        return parser
 
     def take_action(self, args):
         study_key = args.study_key
