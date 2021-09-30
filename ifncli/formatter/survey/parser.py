@@ -99,15 +99,13 @@ def survey_item_parser(obj):
 
     return item
 
-# def survey_definition_parser(surveyDef):
-#     ii = []
-#     for item in surveyDef['items']:
-#         item = survey_item_parser(item)
-#         ii.append(item)
-#     surveyDef['items'] = ii    
-#     return surveyDef
-
 def survey_parser(survey):
+    """
+    Parse a json based survey (loaded from a json definition file) model into a python object model
+    
+    Returns: Survey
+
+    """
     pp =  survey['props']
     pp = to_translatable(pp, ['name','description', 'typicalDuration'])
     survey['props'] = pp
@@ -120,5 +118,10 @@ def survey_parser(survey):
     return Survey(survey)
     
 def readable_survey(survey, context):
+    """
+        Transform a json based survey model into a 'readable' model (simpler and easier to read model) with a context
+        
+        context is a parameters set determining how to simplify the model (e.g. language..)
+    """
     ss = survey_parser(survey)
     return as_readable(ss, context)
