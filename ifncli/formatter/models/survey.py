@@ -1,9 +1,18 @@
-from .dictionnary import DataDictionnary
+from .dictionnary import ItemDictionnary, OptionDictionnary
 
 TYPE_PAGE_BREAK = 'pageBreak'
 ROLE_RESPONSE_GROUP = 'responseGroup'
 ROLE_TEXT = 'text'
 DISPLAY_ROLES = [ROLE_TEXT, 'label']
+TYPE_SURVEY_END = 'surveyEnd'
+# Response group types
+RG_TYPE_SINGLE = 'singleChoiceGroup'
+RG_TYPE_TEXT = 'text'
+RG_TYPE_MATRIX = 'matrix'
+RG_TYPE_MULTIPLE = 'multipleChoiceGroup'
+RG_TYPE_DATE = 'dateInput'
+
+RESPONSE_GROUP_TYPES = [RG_TYPE_SINGLE, RG_TYPE_TEXT, RG_TYPE_MATRIX, RG_TYPE_MULTIPLE, RG_TYPE_DATE]
 
 class SurveyItem:
     
@@ -23,6 +32,9 @@ class SurveyItem:
         return label
 
     def get_dictionnary(self):
+        """
+        Get flat list of data elements
+        """
         return None
 
     def is_group(self):
@@ -31,6 +43,9 @@ class SurveyItem:
         """
         return False
     
+    def flatten(self):
+        yield self
+
 class SurveySingleItem(SurveyItem):
 
     def __init__(self, key, components, validations, type, id=None, version=None):
@@ -53,6 +68,9 @@ class SurveySingleItem(SurveyItem):
     def get_dictionnary(self):
         rg = self.get_response_group()
         
+        if self.type == TYPE_SURVEY_END:
+            return None
+
         if rg is None:
             return None
         
@@ -68,12 +86,13 @@ class SurveySingleItem(SurveyItem):
                 for rg_item in rg.items:
                     role = rg_item.role
                     # Find the component item with options
-                    d = {'key': self.key, 'type': role}
+                    oo = None
                     if rg_item.is_group():
                         # If it's a group let's find options
-                        d['options'] = self._get_response_options(rg_item)
+                        oo = self._get_response_options(rg_item)
+                    d = ItemDictionnary(self.key, role, oo, self)
                     return d
-        return None   
+        return None  
             
     def _get_response_options(self, responseGroup, root_key=None):
         key = responseGroup.key
@@ -87,11 +106,7 @@ class SurveySingleItem(SurveyItem):
                 options.extend( self._get_response_options(item, key) )
             else:
                 options.append(
-                    {
-                        "key": key + '.' + item.key,
-                        "role": item.role,
-                        "item_key": item.key
-                    }
+                    OptionDictionnary(key + '.' + item.key, item.role, item.key)
                 )
         return options    
 
@@ -144,6 +159,10 @@ class SurveyGroupItem(SurveyItem):
         """
         return True
 
+    def flatten(self):
+        yield self
+        for item in self.items:
+            yield from item.flatten()
 
 class SurveyItemComponent:
     
@@ -232,7 +251,6 @@ class SurveyItemGroupComponent(SurveyItemComponent):
 
     def get_type(self):
         return 'group'
-
 
 class SurveyItemResponseComponent(SurveyItemComponent):
     
