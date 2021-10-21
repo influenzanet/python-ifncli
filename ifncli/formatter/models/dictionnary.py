@@ -1,6 +1,13 @@
+"""
+dictionary model
 
+
+dictionary is a simplified view of the Influenzanet survey model centered on data collection and encoding
+
+It's used to export as a simple structure (into 'readable' format) or to compare with the standard
+
+"""
 from typing import List
-
 
 class OptionDictionnary:
 
@@ -22,15 +29,6 @@ class OptionDictionnary:
             'item_key': self.item_key
         }
 
-"""
-dictionary model
-
-
-dictionary is a simplified view of the Influenzanet survey model centered on data collection and encoding
-
-It's used to export as a simple structure (into 'readable' format) or to compare with the standard
-
-"""
 class ItemDictionnary:
     """
         Item dictionnary implements a simple question model from the Survey model, centered on data collection
