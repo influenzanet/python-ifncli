@@ -1,4 +1,6 @@
 from typing import List, Optional
+
+from ifncli.formatter.models.responses import RG_ROLES, RG_ROLES_DATA
 from .dictionnary import ItemDictionnary, OptionDictionnary
 
 TYPE_PAGE_BREAK = 'pageBreak'
@@ -6,14 +8,9 @@ ROLE_RESPONSE_GROUP = 'responseGroup'
 ROLE_TEXT = 'text'
 DISPLAY_ROLES = [ROLE_TEXT, 'label']
 TYPE_SURVEY_END = 'surveyEnd'
-# Response group types
-RG_TYPE_SINGLE = 'singleChoiceGroup'
-RG_TYPE_TEXT = 'text'
-RG_TYPE_MATRIX = 'matrix'
-RG_TYPE_MULTIPLE = 'multipleChoiceGroup'
-RG_TYPE_DATE = 'dateInput'
 
-RESPONSE_GROUP_TYPES = [RG_TYPE_SINGLE, RG_TYPE_TEXT, RG_TYPE_MATRIX, RG_TYPE_MULTIPLE, RG_TYPE_DATE]
+
+# Response group roles
 
 class SurveyItem:
     
@@ -86,6 +83,10 @@ class SurveySingleItem(SurveyItem):
                 # print("ResponseGroup of %s %s" %  (self.key, type(rg)))
                 for rg_item in rg.items:
                     role = rg_item.role
+                    if not role in RG_ROLES:
+                        print("Warning unknown role %s" % (role, ))
+                    if not role in RG_ROLES_DATA:
+                        continue
                     # Find the component item with options
                     oo = None
                     if rg_item.is_group():
