@@ -1,3 +1,4 @@
+from typing import List, Optional
 from .dictionnary import ItemDictionnary, OptionDictionnary
 
 TYPE_PAGE_BREAK = 'pageBreak'
@@ -31,7 +32,7 @@ class SurveyItem:
             label += "[%d]" % (self.version)
         return label
 
-    def get_dictionnary(self):
+    def get_dictionnary(self)-> Optional[ItemDictionnary]:
         """
         Get flat list of data elements
         """
@@ -65,7 +66,7 @@ class SurveySingleItem(SurveyItem):
             o['validations'] = self.validations
         return o
 
-    def get_dictionnary(self):
+    def get_dictionnary(self)-> Optional[ItemDictionnary]:
         rg = self.get_response_group()
         
         if self.type == TYPE_SURVEY_END:
@@ -94,7 +95,7 @@ class SurveySingleItem(SurveyItem):
                     return d
         return None  
             
-    def _get_response_options(self, responseGroup, root_key=None):
+    def _get_response_options(self, responseGroup, root_key=None)->List[OptionDictionnary]:
         key = responseGroup.key
         if root_key is not None:
             key = root_key + '.' + responseGroup.key
