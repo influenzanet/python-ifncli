@@ -38,9 +38,10 @@ class ValidatorProblem:
     OPT_NOT_DEFINED = 'option_unknown'
     OPT_MISSING = 'option_missing'
 
-    def __init__(self, type:str, name:str, expected:Optional[str]=None) -> None:
+    def __init__(self, type:str, name:str, expected:Optional[str]=None, given:Optional[str]=None) -> None:
         self.type = type
         self.name = name
+        self.given = given
         self.expected = expected
         self.known = False
 
@@ -48,6 +49,8 @@ class ValidatorProblem:
         d = {'type': self.type, 'name': self.name, 'known': self.known}
         if self.expected is not None:
             d['expected'] = self.expected
+        if self.given is not None:
+            d['given'] = self.given
         return d
 
 ValidatorProblem.TYPES = [
@@ -92,7 +95,12 @@ class ValidatorProfile:
 
         """
         p = ValidatorProfile()
-        p.prefix = data['prefix']
+        
+        prefixes = data['prefix']
+        if isinstance(prefixes, str):
+            prefixes = [prefixes]
+        p.prefixes = prefixes
+
         if not 'standard' in data:
             raise ConfigError("standard entry expected")
         std = data['standard']
@@ -135,13 +143,11 @@ class ValidatorProfile:
 
         self.standard = json_parser_survey_standard(standard_json)
 
-
-
 COMPATIBLE_TYPES = {
-    standard.SINGLE_CHOICE_TYPE : models.RG_TYPE_SINGLE,
-    standard.MULTIPLE_CHOICE_TYPE : models.RG_TYPE_MULTIPLE,
-    standard.DATE_TYPE: models.RG_TYPE_DATE,
-    standard.MATRIX_CHOICE_TYPE: models.RG_TYPE_MATRIX,
+    standard.SINGLE_CHOICE_TYPE : [models.RGROLES.SINGLE, models.RGROLES.DROPDOWN],
+    standard.MULTIPLE_CHOICE_TYPE : models.RGROLES.MULTIPLE,
+    standard.DATE_TYPE: models.RGROLES.DATE,
+    standard.MATRIX_CHOICE_TYPE: models.RGROLES.MATRIX,
 }
 
 class SurveyStandardValidator:
@@ -199,9 +205,8 @@ class SurveyStandardValidator:
                 continue
 
             item_key = item.key
-            if self.profile.prefix is not None:
-                if item_key.startswith(self.profile.prefix):
-                    item_key = item_key[len(self.profile.prefix):]
+            
+            item_key = self.remove_prefix(item_key)
             if not item_key in expected:
                 problems.append(ValidatorProblem(ValidatorProblem.NOT_DEFINED, item_key))
                 continue
@@ -210,37 +215,62 @@ class SurveyStandardValidator:
             del expected[item_key]
             
         if len(expected) > 0:
+            # Question not found, mark them as missing
             for e in expected:
                 problems.append(ValidatorProblem(ValidatorProblem.MISSING, e))
 
+        # Flag problems with expected rules
         self.validate_problems(problems)
 
         return problems
 
+    def remove_prefix(self,  item_key):
+        """
+            Remove prefix for item key from registred ones
+        """
+        if self.profile.prefixes is None:
+            return item_key
+        for prefix in self.profile.prefixes:
+            if item_key.startswith(prefix):
+                return item_key[len(prefix):]
+        return item_key
+
     def validate_problems(self, problems:List[ValidatorProblem]):
+        """
+            Flag problems as known considering expected rules
+            rules can be a question, a pattern (* for starting with), or a option with the form [question].[option key]
+        """
         expected = self.profile.expected
         if expected is None:
             return
         for problem in problems:
-            for pb_type in [ValidatorProblem.MISSING_VALIDATION, ValidatorProblem.NOT_DEFINED, ValidatorProblem.MISSING, ValidatorProblem.WRONG_TYPE]:
+            for pb_type in ValidatorProblem.TYPES:
                 if(problem.type == pb_type):
-                    if self.problem_in_list(expected.get(pb_type, None), problem.name):
+                    if self.problem_in_list(expected, pb_type , problem.name):
                         problem.known = True
 
-    def problem_in_list(self, knowns, name):
+    def problem_in_list(self, expected: Dict, problem_type, name):
+        knowns = expected.get(problem_type, None)
         if knowns is None:
             return False
         for known in knowns:
             if known.find('*') >= 0:
                 pattern = known.replace('*', '')
                 return name.startswith(pattern)
-            return name == known
+            else:
+                if name == known:
+                    return True
+        return False
 
     def compare_question(self, item:SurveySingleItem, rg: Optional[ItemDictionnary], std: StandardQuestion, problems: List[ValidatorProblem]):
-        expected_type = COMPATIBLE_TYPES.get(std.type, None)
-        if expected_type is not None:
-            if rg.type != expected_type:
-                problems.append(ValidatorProblem(ValidatorProblem.WRONG_TYPE, item.key, expected_type))
+        expected_types = COMPATIBLE_TYPES.get(std.type, None)
+        if expected_types is not None:
+            if isinstance(expected_types, list):
+                found = rg.type in expected_types
+            else:
+                found = rg.type == expected_types
+            if not found:
+                problems.append(ValidatorProblem(ValidatorProblem.WRONG_TYPE, std.data_name, expected_types, rg.type))
         if std.mandatory:
             if item.validations is None:
                 problems.append(ValidatorProblem(ValidatorProblem.MISSING_VALIDATION, item.key))
@@ -267,5 +297,3 @@ class SurveyStandardValidator:
                 continue
             pp.append(p)
         return pp
-            
-
