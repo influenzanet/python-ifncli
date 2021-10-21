@@ -1,6 +1,7 @@
 from .expression import expression_parser, render_expression
 from .translatable import parse_translatable, render_translatable, to_translatable
 from .readable import as_readable
+from .context import Context
 from .models import Timestamp
 
 def study_parser(study):
@@ -28,7 +29,7 @@ def study_parser(study):
     return study
 
 
-def readable_study(study, context):
+def readable_study(study, context:Context):
     ss = study_parser(study)
     return as_readable(ss, context)
     

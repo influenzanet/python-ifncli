@@ -1,3 +1,4 @@
+from .context import Context
 from ifncli.formatter.models import Expression, Scalar
 
 # Expression to object nodes
@@ -54,7 +55,7 @@ def with_default_names(args):
     return pp
 
 
-def render_expression(ee, context):
+def render_expression(ee, context:Context):
     """
         Render an Expression object to a Yaml-ready readable data structure
     """

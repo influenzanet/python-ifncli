@@ -2,6 +2,8 @@
 from .models import Expression, TranslatableList, Translatable, Timestamp
 from .expression import render_expression
 from .translatable import render_translatable
+from .context import Context
+
 
 class RedeableRenderer:
     """
@@ -15,7 +17,7 @@ class RedeableRenderer:
 
     """
 
-    def __init__(self, context):
+    def __init__(self, context:Context):
         self.context = context
 
     def render(self, value):
@@ -47,7 +49,7 @@ class RedeableRenderer:
 
         
 
-def as_readable(value, context):
+def as_readable(value, context:Context):
     """
         Transform a structure to a readable one
         value should first be parsed using parsers function to prepare some elements into more useable objects
