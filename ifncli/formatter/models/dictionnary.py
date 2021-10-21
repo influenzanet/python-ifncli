@@ -1,3 +1,27 @@
+
+from typing import List
+
+
+class OptionDictionnary:
+
+    def __init__(self, key:str, role:str, item_key:str):
+        self.key = key
+        self.role = role
+        self.item_key = item_key
+    
+    def __repr__(self):
+        return self.to_readable().__repr__()
+
+    def to_readable(self):
+        """
+            To readable representation (simple structure serializable as simple json or yaml)
+        """
+        return {
+            'key': self.key, 
+            'role': self.role, 
+            'item_key': self.item_key
+        }
+
 """
 dictionary model
 
@@ -12,7 +36,7 @@ class ItemDictionnary:
         Item dictionnary implements a simple question model from the Survey model, centered on data collection
         It only embeds information about data collection and encoding
     """
-    def __init__(self, key, type, options, obj):
+    def __init__(self, key:str, type:str, options:List[OptionDictionnary], obj):
         self.key = key
         self.type = type
         self.options = options
@@ -29,24 +53,4 @@ class ItemDictionnary:
             'key': self.key,
             'type': self.type,
             'options': self.options,
-        }
-
-class OptionDictionnary(dict):
-
-    def __init__(self, key, role, item_key):
-        self.key = key
-        self.role = role
-        self.item_key = item_key
-    
-    def __repr__(self):
-        return self.to_readable().__repr__()
-
-    def to_readable(self):
-        """
-            To readable representation (simple structure serializable as simple json or yaml)
-        """
-        return {
-            'key': self.key, 
-            'role': self.role, 
-            'item_key': self.item_key
         }
