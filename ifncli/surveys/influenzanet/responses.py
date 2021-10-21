@@ -20,7 +20,7 @@ class RGRole:
     def __repr__(self) -> str:
         return '<%s,%s>' % (self.__class__.name, self.name)
 
-    def to_readable(self):
+    def to_readable(self, ctx):
         return self.name
 
 class RGROLES:

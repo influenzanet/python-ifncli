@@ -2,15 +2,15 @@ from collections import OrderedDict
 import json
 from typing import Dict, List, Optional
 from ifncli.commands import survey
-from ifncli.formatter.models.dictionnary import ItemDictionnary
-from ifncli.formatter.models.survey import SurveyItem, SurveySingleItem
-from ifncli.formatter.survey import standard
-from ifncli.formatter.survey.standard.models import (MATRIX_CHOICE_TYPE, MULTIPLE_CHOICE_TYPE)
-from ifncli.formatter.survey.standard.parser import json_parser_survey_standard
+from ifncli.surveys.influenzanet.dictionnary import ItemDictionnary
+from ifncli.surveys.influenzanet.survey import SurveyItem, SurveySingleItem
+from ifncli.surveys import standard
+from ifncli.surveys.standard.models import (MATRIX_CHOICE_TYPE, MULTIPLE_CHOICE_TYPE)
+from ifncli.surveys.standard.parser import json_parser_survey_standard
 from ifncli.utils import read_json, read_yaml
 
-from .. import models
-from .standard import StandardQuestion, StandardSurvey
+from .. import influenzanet
+from ..standard import StandardQuestion, StandardSurvey
 
 from urllib import request
 from urllib.error import URLError
@@ -45,7 +45,7 @@ class ValidatorProblem:
         self.expected = expected
         self.known = False
 
-    def to_readable(self):
+    def to_readable(self, ctx):
         d = {'type': self.type, 'name': self.name, 'known': self.known}
         if self.expected is not None:
             d['expected'] = self.expected
@@ -144,10 +144,10 @@ class ValidatorProfile:
         self.standard = json_parser_survey_standard(standard_json)
 
 COMPATIBLE_TYPES = {
-    standard.SINGLE_CHOICE_TYPE : [models.RGROLES.SINGLE, models.RGROLES.DROPDOWN],
-    standard.MULTIPLE_CHOICE_TYPE : models.RGROLES.MULTIPLE,
-    standard.DATE_TYPE: models.RGROLES.DATE,
-    standard.MATRIX_CHOICE_TYPE: models.RGROLES.MATRIX,
+    standard.SINGLE_CHOICE_TYPE : [influenzanet.RGROLES.SINGLE, influenzanet.RGROLES.DROPDOWN],
+    standard.MULTIPLE_CHOICE_TYPE : influenzanet.RGROLES.MULTIPLE,
+    standard.DATE_TYPE: influenzanet.RGROLES.DATE,
+    standard.MATRIX_CHOICE_TYPE: influenzanet.RGROLES.MATRIX,
 }
 
 class SurveyStandardValidator:
@@ -177,12 +177,12 @@ class SurveyStandardValidator:
         profile.load_standard()
         return profile
     
-    def validate(self, definition:models.SurveyItem):
+    def validate(self, definition:influenzanet.SurveyItem):
         """Validate survey definition to the standard
 
         Parameters
         ------
-            definition: models.SurveyItem
+            definition: influenzanet.SurveyItem
                 Survey definition to validate (usually the "current" component)
 
             options: ValidatorProfile

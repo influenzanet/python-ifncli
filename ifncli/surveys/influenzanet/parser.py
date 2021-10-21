@@ -1,8 +1,7 @@
-from ..translatable import to_translatable,parse_translatable
-from ..models import Timestamp
-from ..models.survey import SurveyGroupItem, SurveySingleItem, SurveyItemGroupComponent, SurveyItemResponseComponent, SurveyItemComponent
-from ..expression import expression_arg_parser, expression_parser
-from ..readable import as_readable
+from .translatable import to_translatable,parse_translatable
+from .time import Timestamp
+from .survey import SurveyGroupItem, SurveySingleItem, SurveyItemGroupComponent, SurveyItemResponseComponent, SurveyItemComponent
+from .expression import expression_arg_parser, expression_parser
 
 class Survey(dict):
 
@@ -116,12 +115,3 @@ def survey_parser(survey):
     pp['surveyDefinition'] = survey_item_parser(pp['surveyDefinition'])
     survey['current'] = pp
     return Survey(survey)
-    
-def readable_survey(survey, context):
-    """
-        Transform a json based survey model into a 'readable' model (simpler and easier to read model) with a context
-        
-        context is a parameters set determining how to simplify the model (e.g. language..)
-    """
-    ss = survey_parser(survey)
-    return as_readable(ss, context)

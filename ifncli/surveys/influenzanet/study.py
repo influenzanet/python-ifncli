@@ -1,8 +1,7 @@
-from .expression import expression_parser, render_expression
-from .translatable import parse_translatable, render_translatable, to_translatable
-from .readable import as_readable
-from .context import Context
-from .models import Timestamp
+from ..readable import as_readable
+from ..context import Context
+from .expression import  expression_parser
+from .translatable import parse_translatable, to_translatable
 
 def study_parser(study):
     """"
@@ -27,7 +26,6 @@ def study_parser(study):
             pp['tags'] = tt
         study['props'] = pp
     return study
-
 
 def readable_study(study, context:Context):
     ss = study_parser(study)

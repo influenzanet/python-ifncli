@@ -1,6 +1,5 @@
-from .models import Expression, TranslatableList, Translatable, Timestamp
-from .survey import survey_parser
-from .expression import render_expression
+from .influenzanet import Expression, TranslatableList, Translatable, Timestamp, render_expression
+from .influenzanet import survey_parser
 from jinja2 import Template, FileSystemLoader, Environment
 import os
 

@@ -19,7 +19,7 @@ class OptionDictionnary:
     def __repr__(self):
         return self.to_readable().__repr__()
 
-    def to_readable(self):
+    def to_readable(self, ctx):
         """
             To readable representation (simple structure serializable as simple json or yaml)
         """
@@ -43,7 +43,7 @@ class ItemDictionnary:
     def __repr__(self):
         return {'key': self.key, 'type': self.type}.__repr__()
 
-    def to_readable(self):
+    def to_readable(self, ctx):
         """
             Transforms the object into readable format
         """

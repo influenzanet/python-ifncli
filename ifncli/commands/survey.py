@@ -1,14 +1,14 @@
 from datetime import datetime
 import json
 import sys
-from ifncli.formatter import create_context
-from ifncli.formatter.readable import as_readable
-from ifncli.formatter.survey.validator import SurveyStandardValidator, ValidatorProfile
+from ifncli.surveys import create_context
+from ifncli.surveys.readable import as_readable
+from ifncli.surveys.tools.validator import SurveyStandardValidator
+from ifncli.surveys.influenzanet import survey_parser
 
 from cliff.command import Command
 from . import register
 
-from ifncli.formatter.survey import survey_parser
 from ifncli.utils import read_json, readable_yaml
 
 class SurveyValidateStandard(Command):

@@ -1,9 +1,5 @@
 
-from .models import Expression, TranslatableList, Translatable, Timestamp
-from .expression import render_expression
-from .translatable import render_translatable
 from .context import Context
-
 
 class RedeableRenderer:
     """
@@ -21,17 +17,8 @@ class RedeableRenderer:
         self.context = context
 
     def render(self, value):
-        if isinstance(value, Expression):
-            return render_expression(value, self.context)
-
-        if isinstance(value, TranslatableList):
-            return render_translatable(value, self.context)
-
-        if isinstance(value, Timestamp):
-            return value.to_time()
-
         if hasattr(value, 'to_readable'):
-            r = value.to_readable()
+            r = value.to_readable(self.context)
             return self.render(r)
 
         if isinstance(value, dict):
@@ -46,8 +33,7 @@ class RedeableRenderer:
             return dd
         
         return value
-
-        
+    
 
 def as_readable(value, context:Context):
     """
@@ -57,3 +43,5 @@ def as_readable(value, context:Context):
     """
     renderer = RedeableRenderer(context)
     return renderer.render(value)
+
+

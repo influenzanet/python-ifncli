@@ -14,3 +14,6 @@ class Timestamp:
 
     def to_time(self):
         return datetime.fromtimestamp(self.value)
+
+    def to_readable(self, ctx):
+        return self.to_time()

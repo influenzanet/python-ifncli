@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from ifncli.formatter.models.responses import RG_ROLES, RG_ROLES_DATA
+from ifncli.surveys.influenzanet.responses import RG_ROLES, RG_ROLES_DATA
 from .dictionnary import ItemDictionnary, OptionDictionnary
 
 TYPE_PAGE_BREAK = 'pageBreak'
@@ -52,7 +52,7 @@ class SurveySingleItem(SurveyItem):
         self.validations = validations
         self.type = type
 
-    def to_readable(self):
+    def to_readable(self, ctx):
         o = {
             '_ref': self.get_readable_label('SingleItem'),
         }
@@ -133,14 +133,14 @@ class SurveyGroupItem(SurveyItem):
         self.items = items
         self.selection = selection
 
-    def to_readable(self):
+    def to_readable(self, ctx):
         return {
             '_ref': self.get_readable_label('GroupsItem'),
             'items': self.items,
             'selection': self.selection
         }
 
-    def get_dictionnary(self):
+    def get_dictionnary(self)-> Optional[ItemDictionnary]:
         d = []
         for item in self.items:
             item_dict = item.get_dictionnary()
@@ -186,7 +186,7 @@ class SurveyItemComponent:
             if v is not None:
                 o[a] = v
 
-    def to_readable(self):
+    def to_readable(self, ctx):
         o = {
             '_ref': self.get_readable_label('DisplayComponent')
         }
@@ -212,7 +212,7 @@ class SurveyItemGroupComponent(SurveyItemComponent):
         self.items = items
         self.order = order
         
-    def to_readable(self):
+    def to_readable(self, ctx):
         o = {
             '_ref': self.get_readable_label('GroupComponent'),
             'items': self.items,

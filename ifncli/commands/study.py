@@ -1,7 +1,5 @@
 import os
 import json
-import base64
-import string
 import sys
 from datetime import datetime
 
@@ -9,9 +7,9 @@ from cliff.command import Command
 from cliff.lister import Lister
 from . import register
 
-from ifncli.utils import read_yaml, read_json, json_to_list, readable_yaml, translatable_to_list, to_json
+from ifncli.utils import read_yaml, read_json, json_to_list, readable_yaml, to_json
 
-from ifncli.formatter import readable_expression, readable_study, readable_translatable, readable_survey, create_context, survey_to_dictionnary, survey_parser, survey_to_html
+from ifncli.surveys import readable_study, readable_translatable, readable_survey, create_context, survey_to_dictionnary, survey_to_html
 
 def yaml_obj_to_loc_object(obj):
     loc_obj = []
