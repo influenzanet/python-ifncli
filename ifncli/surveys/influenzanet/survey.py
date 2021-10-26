@@ -1,6 +1,6 @@
-from typing import List, Optional
+from typing import List, Optional, Dict
 
-from ifncli.surveys.influenzanet.responses import RG_ROLES, RG_ROLES_DATA
+from .responses import RG_ROLES, RG_ROLES_DATA
 from .dictionnary import ItemDictionnary, OptionDictionnary
 
 TYPE_PAGE_BREAK = 'pageBreak'
@@ -9,162 +9,19 @@ ROLE_TEXT = 'text'
 DISPLAY_ROLES = [ROLE_TEXT, 'label']
 TYPE_SURVEY_END = 'surveyEnd'
 
-
-# Response group roles
-
-class SurveyItem:
-    
-    def __init__(self, key, id=None, version=None  ):
-        self.key = key
-        self.id = id
-        self.version = version
-
-    def get_readable_label(self, name):
-        if self.id is not None:
-            k = "key=%s, id=%s" % (self.key, self.id)
-        else:
-            k = str(self.key)
-        label = "%s<key=%s>" % (name, k, )
-        if self.version is not None:
-            label += "[%d]" % (self.version)
-        return label
-
-    def get_dictionnary(self)-> Optional[ItemDictionnary]:
-        """
-        Get flat list of data elements
-        """
-        return None
-
-    def is_group(self):
-        """
-        is Item a group Item (with sub items)
-        """
-        return False
-    
-    def flatten(self):
-        yield self
-
-class SurveySingleItem(SurveyItem):
-
-    def __init__(self, key, components, validations, type, id=None, version=None):
-        super(SurveySingleItem, self).__init__(key=key, id=id, version=version)
-        self.components = components
-        self.validations = validations
-        self.type = type
-
-    def to_readable(self, ctx):
-        o = {
-            '_ref': self.get_readable_label('SingleItem'),
-        }
-        if self.type is not None:
-            o['type'] = self.type
-        o['components'] = self.components
-        if self.validations is not None:
-            o['validations'] = self.validations
-        return o
-
-    def get_dictionnary(self)-> Optional[ItemDictionnary]:
-        rg = self.get_response_group()
-        
-        if self.type == TYPE_SURVEY_END:
-            return None
-
-        if rg is None:
-            return None
-        
-        if len(rg) > 1:
-            raise Exception("Several response group for %s "  % str(self) )
-        
-        if len(rg) == 0:
-                print("Warning no response group for %s" % str(self) )
-                
-        if len(rg) == 1:
-                rg = rg[0]
-                # print("ResponseGroup of %s %s" %  (self.key, type(rg)))
-                for rg_item in rg.items:
-                    role = rg_item.role
-                    if not role in RG_ROLES:
-                        print("Warning unknown role %s" % (role, ))
-                    if not role in RG_ROLES_DATA:
-                        continue
-                    # Find the component item with options
-                    oo = None
-                    if rg_item.is_group():
-                        # If it's a group let's find options
-                        oo = self._get_response_options(rg_item)
-                    d = ItemDictionnary(self.key, role, oo, self)
-                    return d
-        return None  
-            
-    def _get_response_options(self, responseGroup, root_key=None)->List[OptionDictionnary]:
-        key = responseGroup.key
-        if root_key is not None:
-            key = root_key + '.' + responseGroup.key
-        options = []
-        for item in responseGroup.items:
-            if item.role in DISPLAY_ROLES:
-                continue
-            if item.is_group():
-                options.extend( self._get_response_options(item, key) )
-            else:
-                options.append(
-                    OptionDictionnary(key + '.' + item.key, item.role, item.key)
-                )
-        return options    
-
-    def get_response_group(self):
-        if self.components is None:
-            return None
-
-        if self.type == TYPE_PAGE_BREAK:
-            # No response for page break
-            return None
-
-        return self.components.items_by_role(ROLE_RESPONSE_GROUP)
-        
-
-    def __str__(self):
-        return '<SurveySingleItem key=%s, type=%s>' % (self.key, self.type)
-
-class SurveyGroupItem(SurveyItem):
-
-    def __init__(self, key, items, selection, id=None, version=None):
-        super(SurveyGroupItem, self).__init__(key=key, id=id, version=version)
-        self.items = items
-        self.selection = selection
-
-    def to_readable(self, ctx):
-        return {
-            '_ref': self.get_readable_label('GroupsItem'),
-            'items': self.items,
-            'selection': self.selection
-        }
-
-    def get_dictionnary(self)-> Optional[ItemDictionnary]:
-        d = []
-        for item in self.items:
-            item_dict = item.get_dictionnary()
-            if item_dict is None:
-                continue
-            if isinstance(item_dict, list):
-                d.extend(item_dict)
-            else:
-                d.append(item_dict)
-        return d
-
-    def __str__(self):
-        return '<SurveyGroupItem %s, %s>' % (self.key, str(self.items))
-
-    def is_group(self):
-        """
-        is Item a group Item (with sub items)
-        """
-        return True
-
-    def flatten(self):
-        yield self
-        for item in self.items:
-            yield from item.flatten()
+###
+#  SurveyItem # Abstract
+#  SurveyGroupItem(SurveyItem)
+#    items: [SurveyItem, SurveyGroupItem, SurveySingleItem]
+#  SurveySingleItem(SurveyItem):
+#     role:
+#     components:  List[SurveyItemComponent]
+#  SurveyItemGroupComponent(SurveyItemComponent)
+#    items: [SurveyItemComponent, SurveyItemGroupComponent, SurveyItemResponseComponent]
+#  SurveyItemComponent:
+#    role
+#
+#
 
 class SurveyItemComponent:
     
@@ -221,7 +78,7 @@ class SurveyItemGroupComponent(SurveyItemComponent):
         self.get_common_fields(o)
         return o
 
-    def items_by_role(self, role):
+    def items_by_role(self, role)->Optional[List[SurveyItemComponent]]:
         if self.items is None:
             return None
         ii = []
@@ -230,7 +87,7 @@ class SurveyItemGroupComponent(SurveyItemComponent):
                 ii.append(item)
         return ii
 
-    def items_by_roles(self):
+    def items_by_roles(self)->Optional[Dict[str, List[SurveyItemComponent]]]:
         ## Group items by roles
         if self.items is None:
             return None
@@ -279,3 +136,169 @@ class SurveyItemResponseComponent(SurveyItemComponent):
 
     def get_type(self):
         return 'response'
+class SurveyItem:
+    
+    def __init__(self, key, id=None, version=None  ):
+        self.key = key
+        self.id = id
+        self.version = version
+
+    def get_readable_label(self, name):
+        if self.id is not None:
+            k = "key=%s, id=%s" % (self.key, self.id)
+        else:
+            k = str(self.key)
+        label = "%s<key=%s>" % (name, k, )
+        if self.version is not None:
+            label += "[%d]" % (self.version)
+        return label
+
+    def get_dictionnary(self, parent_key:Optional[str]=None)-> Optional[List[ItemDictionnary]]:
+        """
+        Get flat list of data elements
+        """
+        return None
+
+    def is_group(self):
+        """
+        is Item a group Item (with sub items)
+        """
+        return False
+    
+    def flatten(self):
+        yield self
+
+class SurveySingleItem(SurveyItem):
+
+    def __init__(self, key, components: SurveyItemGroupComponent, validations, type, id=None, version=None):
+        super(SurveySingleItem, self).__init__(key=key, id=id, version=version)
+        self.components = components
+        self.validations = validations
+        self.type = type
+
+    def to_readable(self, ctx):
+        o = {
+            '_ref': self.get_readable_label('SingleItem'),
+        }
+        if self.type is not None:
+            o['type'] = self.type
+        o['components'] = self.components
+        if self.validations is not None:
+            o['validations'] = self.validations
+        return o
+
+    def get_dictionnary(self, parent_key:Optional[str]=None)-> Optional[ItemDictionnary]:
+        rg = self.get_response_group()
+        
+        if self.type == TYPE_SURVEY_END:
+            return None
+
+        if rg is None:
+            return None
+        
+        if len(rg) > 1:
+            raise Exception("Several response group for %s "  % str(self) )
+        
+        if len(rg) == 0:
+                print("Warning no response group for %s" % str(self) )
+                
+        if len(rg) == 1:
+                rg = rg[0]
+                # print("ResponseGroup of %s %s" %  (self.key, type(rg)))
+                for rg_item in rg.items:
+                    role = rg_item.role
+                    if not role in RG_ROLES:
+                        print("Warning unknown role %s" % (role, ))
+                    if not role in RG_ROLES_DATA:
+                        continue
+                    # Find the component item with options
+                    oo = None
+                    if rg_item.is_group():
+                        # If it's a group let's find options
+                        oo = self._get_response_options(rg_item)
+                    d = ItemDictionnary(self.key, role, oo, parent_key, self)
+                    d.rg_key = rg.key
+                    return d
+        return None  
+            
+    def _get_response_options(self, itemComponent:SurveyItemComponent, root_key=None)->List[OptionDictionnary]:
+        key = itemComponent.key
+        if root_key is not None:
+            key = root_key + '.' + itemComponent.key
+        options = []
+        for item in itemComponent.items:
+            if item.role in DISPLAY_ROLES:
+                continue
+            if item.is_group():
+                options.extend( self._get_response_options(item, key) )
+            else:
+                options.append(
+                    OptionDictionnary(key + '.' + item.key, item.role, item.key, itemComponent.key)
+                )
+        return options    
+
+    def get_response_group(self)->Optional[List[SurveyItemComponent]]:
+        if self.components is None:
+            return None
+
+        if self.type == TYPE_PAGE_BREAK:
+            # No response for page break
+            return None
+
+        return self.components.items_by_role(ROLE_RESPONSE_GROUP)
+
+    def __str__(self):
+        return '<SurveySingleItem key=%s, type=%s>' % (self.key, self.type)
+
+class SurveyGroupItem(SurveyItem):
+
+    def __init__(self, key, items, selection, id=None, version=None):
+        super(SurveyGroupItem, self).__init__(key=key, id=id, version=version)
+        self.items = items
+        self.selection = selection
+
+    def to_readable(self, ctx):
+        return {
+            '_ref': self.get_readable_label('GroupsItem'),
+            'items': self.items,
+            'selection': self.selection
+        }
+
+    def get_dictionnary(self, parent_key: Optional[str]=None)-> Optional[List[ItemDictionnary]]:
+        d = []
+        parent_key = self.key
+        for item in self.items:
+            item_dict = item.get_dictionnary(parent_key)
+            if item_dict is None:
+                continue
+            if isinstance(item_dict, list):
+                d.extend(item_dict)
+            else:
+                d.append(item_dict)
+        return d
+
+    def __str__(self):
+        return '<SurveyGroupItem %s, %s>' % (self.key, str(self.items))
+
+    def is_group(self):
+        """
+        is Item a group Item (with sub items)
+        """
+        return True
+
+    def flatten(self):
+        yield self
+        for item in self.items:
+            yield from item.flatten()
+
+class Study(dict):
+    pass
+
+
+class Survey(dict):
+    
+    def get_name(self):
+        return self['props']['name']
+        
+    def getCurrent(self)->SurveyItem:
+        return self['current']['surveyDefinition']

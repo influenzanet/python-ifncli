@@ -1,16 +1,7 @@
 from .translatable import to_translatable,parse_translatable
 from .time import Timestamp
-from .survey import SurveyGroupItem, SurveySingleItem, SurveyItemGroupComponent, SurveyItemResponseComponent, SurveyItemComponent
+from .survey import Study, Survey, SurveyGroupItem, SurveySingleItem, SurveyItemGroupComponent, SurveyItemResponseComponent, SurveyItemComponent
 from .expression import expression_arg_parser, expression_parser
-
-class Survey(dict):
-
-    def get_name(self):
-        return self['props']['name']
-        
-    def getCurrent(self):
-        return self['current']['surveyDefinition']
-     
 
 def component_parser(obj):
     role = obj['role']
@@ -67,7 +58,6 @@ def component_parser(obj):
     return comp
 
 def survey_item_parser(obj):
-    
     _id = obj.get('id')
     version = obj.get('version')
     key = obj['key']
@@ -115,3 +105,27 @@ def survey_parser(survey):
     pp['surveyDefinition'] = survey_item_parser(pp['surveyDefinition'])
     survey['current'] = pp
     return Survey(survey)
+
+def study_parser(study):
+    """"
+     Parse study to have some elements easier to represents (like expression)
+    """
+    if 'rules' in study:
+        # Replace
+        rr = []
+        for rule in study['rules']:
+            r = expression_parser(rule)
+            rr.append(r)
+        study['rules'] = rr
+    if 'props' in study:
+        pp = study['props']
+        pp = to_translatable(pp, ['name','description'])
+        if 'tags' in pp:
+            tt = []
+            for tag in pp['tags']:
+                if 'label' in tag:
+                    tag['label'] = parse_translatable(tag['label'])
+                tt.append(tag)
+            pp['tags'] = tt
+        study['props'] = pp
+    return Study(study)

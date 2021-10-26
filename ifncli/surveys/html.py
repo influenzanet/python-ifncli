@@ -1,6 +1,6 @@
-from .influenzanet import Expression, TranslatableList, Translatable, Timestamp, render_expression
 from .influenzanet import survey_parser
 from jinja2 import Template, FileSystemLoader, Environment
+from .context import Context
 import os
 
 known_styles = {
@@ -17,7 +17,7 @@ def styles(name):
         return known_styles[name] + ' '+ name
     return name
 
-def survey_to_html(survey, context):
+def survey_to_html(survey, context: Context):
 
     survey = survey_parser(survey)
 

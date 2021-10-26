@@ -2,8 +2,9 @@ from .parser import survey_parser, Survey
 from .dictionnary import ItemDictionnary
 from ..readable import  as_readable
 from typing import List, Optional
+from ..context import Context
 
-def readable_survey(survey, context):
+def readable_survey(survey, context:Context):
     """
         Transform a json based survey model into a 'readable' model (simpler and easier to read model) with a context
         
@@ -18,6 +19,10 @@ def render_to_dict(survey: Survey)-> Optional[ItemDictionnary]:
     """
     item = survey['current']['surveyDefinition']
     return item.get_dictionnary()
+
+def readable_study(study, context:Context):
+    ss = study_parser(study)
+    return as_readable(ss, context)
 
 def survey_to_dictionnary(survey):
     """
