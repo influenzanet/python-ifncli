@@ -1,8 +1,13 @@
+from __future__ import annotations
+
+from ifncli.surveys.context import Context
 from . import KNOWN_EXPRESSIONS
+from .types import Arg
+from typing import Optional, List
 
 class Expression:
     
-    def __init__(self, name, params=None):
+    def __init__(self, name, params=Optional[List]):
         self.name = name
         if params is None:
             params = []
@@ -34,6 +39,9 @@ class Expression:
 
     def to_readable(self, ctx):
         return render_expression(self, ctx)
+
+    def __repr__(self) -> str:
+        return render_expression(self, Context()).__repr__()
 
 class Scalar:
 

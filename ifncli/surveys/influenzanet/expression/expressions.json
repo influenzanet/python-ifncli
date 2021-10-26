@@ -1,0 +1,301 @@
+{
+    "$schema": "http://influenzanet.info/schemas/survey-engine/expressions/0.1",
+    "engineVersion": "0.10",
+    "expressions":{
+        "IF": {
+            "kind":"action",
+            "params":[{"name":"actions", "variadic": true}]
+        },
+        "DO": {
+            "kind":"action",
+            "params":[{"name":"actions", "variadic": true}]
+        },
+        "IFTHEN": {
+            "kind":"action",
+            "params":["condition", {"name":"actions", "variadic":true}]
+        },
+        "UPDATE_FLAG": {
+            "kind":"action",
+            "params":[{"name":"key", "role":"flag_key"}, "value"]
+        },
+        "REMOVE_FLAG": {
+            "kind":"action",
+            "params":[{"name":"key", "role":"flag_key"}]
+        },
+        "UPDATE_STUDY_STATUS": {
+            "kind":"action",
+            "params":[{"name": "status", "role":"study_status"}]
+        },
+        "ADD_NEW_SURVEY": {
+            "description":"assign a new survey to a participant",
+            "params": [
+                {"name":"survey", "role":"survey_key"}
+            ]
+        },
+        "REMOVE_ALL_SURVEYS": {
+            "description":"Remove all survey assigned to a participant",
+            "params": [],
+            "comment": "No argument"
+        },
+        "REMOVE_SURVEY_BY_KEY": {
+            "description":"Remove survey assigned to a participant by key",
+            "params":[
+                {"name": "key", "role":"survey_key"},
+                {"name":"position", "role": "position"}
+            ]
+        },
+        "REMOVE_SURVEYS_BY_KEY": {
+            "kind":"action",
+            "params":[
+                {"name": "survey", "role":"survey_key"}
+            ]
+        },
+        "ADD_REPORT": {
+            "description": "Add response item to the response object",
+            "params": [
+                {"name":"item_key", "role":"item_key"}
+            ]
+        },
+        "REMOVE_ALL_REPORTS": {
+            "description":"Remove all reports in response object",
+            "params": [],
+            "comment":"No argument"
+        },
+        "REMOVE_REPORT_BY_KEY": [
+            {"name":"item", "role":"item_key"},
+            {"name":"position", "role":"position"}
+        ],
+        "REMOVE_REPORTS_BY_KEY": [
+            {"name":"item", "role":"item_key"}
+        ],
+        "LAST_RESPONSES_BY_KEY": {},
+        "ALL_RESPONSES_SINCE": {},
+        "RESPONSES_SINCE_BY_KEY": {},
+        "GET_LAST_SURVEY_ITEM": {},
+        "checkEventType": {
+            "kind":"action",
+            "params":[
+                {"name":"type", "role": "event_type"}
+            ]
+        },
+        "checkConditionForOldResponses": {
+            "params": [
+                {"name":"condition"},
+                {"name":"check"},
+                {"name":"survey", "role":"survey_key", "optional": true},
+                {"name": "since", "role":"timestamp", "optional": true},
+                {"name": "until", "role":"timestamp", "optional": true}
+            ]
+        },
+        "checkResponseValueWithRegex": {
+            "params": [
+                {"name":"item", "role":"item_key"},
+                {"name":"response", "role":"rg_full_path"},
+                {"name":"pattern"}
+            ],
+            "roles": [
+                {"role":"item_path", "params": {"item_key": "item", "path": ["response"]} }
+            ]
+        },
+        "checkSurveyResponseKey": [
+            {"name":"survey", "role":"survey_key"}
+        ],
+        "countResponseItems": {
+            "description": "Counts the number of selected response items of a response group.",
+            "params": [
+                {"name":"item", "role":"item_key"},
+                {"name":"rg", "role":"rg_key"}
+            ],
+            "roles": [
+                {"role":"item_path", "params": {"item_key": "item", "path": ["rg"]} }
+            ]
+        },
+        "responseHasKeysAny": {
+            "description": "checks if the participant has selected any of the specified item keys.",
+            "params": [
+                {"name":"item", "role":"item_key"},
+                {"name":"rg", "role":"rg_comp_prefix"},
+                {"name":"component", "role":"rg_comp_key"}
+            ],
+            "roles": [
+                {"role": "item_path", "params": {"item_key": "item", "path": ["rg","component"]}}
+            ]
+        },
+        "responseHasOnlyKeysOtherThan": {
+            "description": "checks if the participant has selected none of the specified item keys.",
+            "params": [
+                {"name":"item", "role":"item_key"},
+                {"name":"rg", "role":"rg_comp_prefix"},
+                {"name":"component", "role":"rg_comp_key", "variadic": true}
+            ],
+            "roles": [
+                {"role": "item_path", "params": {"item_key": "item", "path": ["rg", "component"]}}
+            ]
+        },
+        "getResponseValueAsNum": {
+            "description": "returns the entered numerical value of the specified response group item.",
+            "params": [
+                {"name":"item", "role":"item_key"},
+                {"name":"rg", "role":"rg_key"}
+            ],
+            "roles": [
+                {"role": "item_path", "params": {"item_key": "item", "path": ["rg"]}}
+            ]
+        },
+        "getResponseValueAsStr": {
+            "description": "returns the entered string value of the specified response group item.",
+            "params": [
+                {"name":"item", "role":"item_key"},
+                {"name":"rg", "role":"rg_key"}
+            ],
+            "roles": [
+                {"role": "item_path", "params": {"item_key": "item", "path": ["rg"]} }
+            ]
+        },
+        "getStudyEntryTime": {
+            "description": "returns the time (as posix time stamp) the participant entered the study",
+            "params": []
+        },
+        "hasSurveyKeyAssigned": {
+            "description": "checks if the specified survey key is included in the keys of the surveys assigned to the participant.",
+            "params": [
+                {"name":"survey", "role":"survey_key"}
+            ]
+        },
+        "getSurveyKeyAssignedFrom": {
+            "description": "returns the date when the specified survey was assigned to the participant as posix timestamp.",
+            "params": [
+                {"name":"survey", "role":"survey_key"}
+            ]
+        },
+        "getSurveyKeyAssignedUntil": {
+            "description": "returns the date when the specified survey was assigned to the participant as posix timestamp.",
+            "params": [
+                {"name":"survey", "role":"survey_key"}
+            ]
+        },
+        "hasStudyStatus": {
+            "description": "checks if the participant has the specified status",
+            "params": [
+                {"name":"status", "role":"participant_status"}
+            ]
+        },
+        "hasParticipantFlag": {
+            "description": "checks if the participant has the specified flag",
+            "params": [
+                {"name":"flag", "role":"flag_key"}
+            ]
+        },
+        "lastSubmissionDateOlderThan": {
+            "description": "checks if the participant has the specified flag",
+            "params": [
+                {"name":"time", "role":"timestamp"},
+                {"name":"survey", "role":"survey_key"}
+            ]
+        },
+        "eq": [],
+        "lt": [],
+        "lte": [],
+        "gt": [],
+        "gte": [],
+        "or": [],
+        "and": [],
+        "not": [],
+
+        "getArrayItemAtIndex": {
+            "kind": "client",
+            "params": [
+                {"name": "array"},
+                {"name":"index"}
+            ]
+        },
+        "getArrayItemByKey": {
+            "kind":"client",
+            "params": [
+                {"name": "array"},
+                {"name":"key"}
+            ]
+        },
+        "getAttribute": {
+            "params":[
+                {"name":"item_key", "role":"item_key"},
+                {"name": "name"}
+            ]
+        },
+        "getObjByHierarchicalKey": {
+            "params": [
+                {"name":"item"},
+                {"name":"key"}
+            ],
+            "refs": [
+                {"role":"item_path", "params": {"item_key": "item", "path": ["key"]}}
+            ]
+        },
+        "getContext": [],
+        "getResponseItem": {
+            "params":[
+                {"name":"item_key", "role":"item_key"},
+                {"name": "", "role":"rg_full_path"}
+            ],
+            "refs": [
+                {"role":"item_path", "params": {"item_key": "item", "path": ["response"]}}
+            ]
+        },
+        "getSurveyItemValidation":{
+            
+            
+        },
+        "getPreviousResponses": {
+            "params": [
+                {"name": "key", "role":"item_key"}
+            ]
+        },
+        "getResponses": {
+            "kind": "client",
+            "params": []
+        },
+        "getRenderedItems": {
+            "kind": "client",
+            "params": []
+        },
+        "hasResponse": {
+           "params": [ 
+             {"name":"item", "role":"item_key"},
+             {"name":"response", "role": "rg_key"}
+           ],
+           "roles": [
+               {"role": "item_path", "params":{"item_key": "item", "path": ["response"]}}
+           ]
+        },
+        "isDefined": {},
+        "sequential":[],
+        "getSecondsSince": {
+            "params": [
+                {"name":"time", "role":"timestamp"}
+            ]
+        },
+        "timestampWithOffset":{
+            "params": [
+                {"name": "offset", "role":"timestamp"},
+                {"name": "ref", "role":"timestamp"}
+            ]
+        }
+    },
+    "enums": {
+        "event_type": [
+            "SUBMISSION",
+            "TIMER",
+            "ENTER"
+        ],
+        "position": [
+            "first",
+            "last"
+        ],
+        "participant_status": [
+            "active", 
+            "inactive", 
+            "paused", 
+            "finished"
+        ]
+    }
+}

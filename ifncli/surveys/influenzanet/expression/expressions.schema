@@ -1,0 +1,164 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "$id": "http://influenzanet.info/schemas/survey-engine/expressions/0.1",
+    "type": "object",
+    "title": "Function description schema",
+    "description": "This schema describes json format to describe influenzanet engine functions useable in expressions",
+    "properties": {
+        "expressions": {
+            "type":"object",
+            "additionalProperties": {
+                "$ref": "#/definitions/Expression"
+            }
+        },
+        "enums": {
+            "type":"object",
+            "additionalProperties": {
+                "$ref": "#/definitions/EnumList"
+            }
+        }
+    },
+    "definitions": {
+        "Expression": {
+            "anyOf": [
+                {
+                    "$ref": "#/definitions/ExpressionDef"
+                },
+                {
+                    "comment": "Short for, if not any other args as argument list, can be defined directly by argument list",
+                    "$ref": "#/definitions/ArgumentList"
+                }
+            ]
+        },
+        "ExpressionDef":{
+            "type": "object",
+            "properties": {
+                "params": {
+                    "$ref": "#/definitions/ArgumentList"
+                },
+                "description": {
+                    "type":"string"
+                },
+                "roles": {
+                    "type":"array",
+                    "items": {
+                        "$ref": "#/definitions/RoleDef"
+                    }
+                }
+            }
+        },
+        "ArgumentList": {
+            "type": "array",
+            "items": {
+                "anyOf": [
+                    {"type": "string"},
+                    {
+                        "$ref":"#/definitions/Argument"
+                    }
+                ]
+            }
+        },
+
+        "Argument": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type":"string"
+                },
+                "description":{
+                    "description": "Description of the argument role",
+                    "type":"string"
+                },
+                "comment": {
+                   "$refs": "#/definitions/Comment"
+                },
+                "array": {
+                    "type": "boolean"
+                },
+                "choices": {
+                    "description": "List of acceptable values",
+                    "type": "array",
+                    "items": {
+                        "type":"string"
+                    }
+                },
+                "role": {
+                    "$ref":"#/definitions/RoleType"
+                }
+            }
+        },
+        "RoleDef": {
+            "oneOf": [
+                {
+                    "type":"object",
+                    "properties": {
+                        "role": { "const" : "item_path"},
+                        "params": {
+                            "type":"object",
+                            "properties": {
+                                "item_key": {
+                                    "type":"string",
+                                    "description": "Name of the argument containing the item_key"
+                                },
+                                "path": {
+                                    "description": "List of arguments names used to construct the path, in order for their concatenation",
+                                    "$ref": "#/definitions/EnumList"
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "RoleType": {
+            "type":"string",
+            "enum": [
+                "flag_key",
+                "study_status",
+                "event_type",
+                "participant_status",
+                "position",
+                "survey_key",
+                "item_key",
+                "rg_key",
+                "rg_comp_prefix",
+                "rg_comp_key",
+                "rg_full_path",
+                "timestamp"
+            ]
+        },
+
+        "RoleTypeDesc": {
+            "description": "Description of roles",
+            "oneOf": [
+                {"const": "flag_key", "description": "Name of a flag"},
+                {"const": "study_status", "description": "Status of a study"},
+                {"const": "event_type", "description": "Type of event on a study"},
+                {"const": "position", "description": "Position rule on a survey item"},
+                {"const": "survey_key", "description": "Survey key"},
+                {"const": "rg_comp_prefix", "description": "Prefix from item before the response key (ResponseGroup key + Component group key) e.g. rg.scg"},
+                {"const": "item_key", "description": "Key of a SurveyItem"},
+                {"const": "rg_key", "description": "Key of a ResponseGroup Component e.g. 'rg'"},
+                {"const": "rg_item_key", "description": "Key of an Item of a ResponseGroup Component e.g. 'scg'"},
+                {"const": "rg_comp_prefix", "description": "Prefix of an answer item in a ResponseGroup Component e.g. 'rg.scg.'"},
+                {"const": "rg_comp_key", "description": "Key of a Response group component '1'"},
+                {"const": "rg_full_path", "description": "Full path from item to a response key. e.g. rg.scg.1"},
+                {"const": "timestamp", "description": "timestamp value"},
+                {"const": "participant_status", "description": "Status of a participant"}
+            ]
+        },
+        "Comment": {
+            "description": "Comment about an element",
+            "oneOf": [
+                {"type": "string"},
+                {"type":"array", "items": {"type":"string"}}
+            ]
+        },
+        "EnumList": {
+            "type":"array",
+            "items": {
+                "type":"string"
+            }
+        }
+    }
+}

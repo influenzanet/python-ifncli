@@ -2,6 +2,7 @@ from datetime import datetime
 import json
 import sys
 from ifncli.surveys import create_context
+from ifncli.surveys.influenzanet.expression import library_path, schema_path
 from ifncli.surveys.readable import as_readable
 from ifncli.surveys.influenzanet import survey_parser
 from ifncli.surveys.tools.validator import SurveyStandardValidator
@@ -123,5 +124,24 @@ class SurveyCheckCommand(Command):
         if need_close:
             out.close()
 
+class ValidateExpressionLibrary(Command):
+    """
+        Validate survey description file agaisnt json schema 
+    """
+
+    name = 'survey:validate-exp'
+
+    def take_action(self, args):
+        
+        json = read_json(library_path())
+        schema = read_json(schema_path())
+        
+        import jsonschema
+        
+        jsonschema.validate(json, schema)
+        print("Json schema is valid")
+
+
+register(ValidateExpressionLibrary)
 register(SurveyValidateStandard)
 register(SurveyCheckCommand)
