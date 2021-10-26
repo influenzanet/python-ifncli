@@ -1,22 +1,4 @@
-from ..context import Context
-
-KNOWN_EXPRESSION = {
-    'IFTHEN': {
-        'params': ['condition']
-    },
-    'ADD_NEW_SURVEY': {
-        'params': ['surveyKey','validFrom','validUntil','category']
-    },
-    'responseHasKeysAny': {
-        'params': ['item', 'response']
-    },
-    'checkEventType': {
-        'params': ['type']
-    },
-    'hasStudyStatus': {
-        'params': ['status']
-    }
-}
+from . import KNOWN_EXPRESSIONS
 
 class Expression:
     
@@ -41,18 +23,17 @@ class Expression:
         return False
 
     def param_name(self, index):
-        if not self.name in KNOWN_EXPRESSION:
+        if not self.name in KNOWN_EXPRESSIONS:
             return None
-        action = KNOWN_EXPRESSION[self.name]
-        if 'params' in action:
-            params_list = action['params']
-            if(index > len(params_list)-1):
-                return None
-            return params_list[index]
+        expType = KNOWN_EXPRESSIONS[self.name]
+        if expType.has_params():
+            p = expType.get_param(index)
+            if isinstance(p, Arg):
+                return p.name
+            return p
 
     def to_readable(self, ctx):
         return render_expression(self, ctx)
-
 
 class Scalar:
 
@@ -70,45 +51,6 @@ class Scalar:
         if self.type == "str":
             return '"' + self.value + '"'
         return str(self.value)
-
-
-# Expression to object nodes
-def expression_arg_parser(expr, level=0, idx=0):
-    if not 'dtype' in expr:
-        dtype = 'str'
-    else:
-        dtype = expr['dtype']
-    
-    if not dtype in expr:
-        print("Invalid expression claim to be %s but no entry" % (dtype, ))
-    value = expr[dtype]
-    if dtype == 'exp':
-        return expression_parser(value)
-    return Scalar(dtype, value)
-
-def expression_parser(expr, level=0, idx=0):
-    params = []
-    level = level + 1
-    if 'data' in expr:
-        idx = 0
-        for d in expr['data']:
-            p = expression_arg_parser(d, level, idx)
-            params.append(p)
-            idx = idx + 1
-    if 'name' in expr:
-        name = expr['name']
-    else:
-        name = "_%d" % (idx, )
-    return Expression(name, params)    
-
-def readable_expression(expr, context):
-    """
-        Create a readable structure from an expression json object
-        
-        It turns an expression to a structure more easily readable once represented in yaml
-    """
-    ee = expression_parser(expr)
-    return render_expression(ee, context)
 
 
 def with_default_names(args):
@@ -156,4 +98,6 @@ def render_expression(ee, context):
         return d
     if ee.is_scalar():
         return str(ee.value)
-    return {'_unknown':'Unknown type'}
+    return {'_unknown':'Unknown type'}  
+
+
