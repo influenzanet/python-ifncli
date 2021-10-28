@@ -11,11 +11,12 @@ from typing import List,Optional
 
 class OptionDictionnary:
 
-    def __init__(self, key:str, role:str, item_key:str, rg_item: str):
+    def __init__(self, key:str, role:str, item_key:str, rg_item: str, obj):
         self.key = key
         self.role = role
         self.item_key = item_key
         self.rg_item = rg_item
+        self._obj = obj
     
     def __repr__(self):
         return self.to_readable().__repr__()
@@ -30,6 +31,9 @@ class OptionDictionnary:
             'item_key': self.item_key,
             'rg_item': self.rg_item
         }
+    
+    def get_component(self):
+        return self._obj
 
 class ItemDictionnary:
     """
@@ -56,3 +60,6 @@ class ItemDictionnary:
             'type': self.type,
             'options': self.options,
         }
+
+    def get_survey_item(self):
+        return self._obj

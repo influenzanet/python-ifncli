@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from ifncli.surveys.context import Context
+from ...context import Context
 from . import KNOWN_EXPRESSIONS
 from .types import Arg
 from typing import Optional, List
-
 class Expression:
     
     def __init__(self, name, params=Optional[List]):
@@ -55,9 +54,12 @@ class Scalar:
     def is_scalar(self):
         return True
 
-    def __str__(self):
+    def __repr__(self):
         if self.type == "str":
             return '"' + self.value + '"'
+        return str(self.value)
+    
+    def __str__(self):
         return str(self.value)
 
 

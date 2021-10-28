@@ -1,6 +1,12 @@
 from collections import OrderedDict
 import logging
-from ...influenzanet.expression.types import ARG_ITEM_KEY, ARG_SURVEYKEY, Arg, EnumerationReference, KeyReference, UnknownExpressionType
+from inspect import getframeinfo, stack
+
+from ifncli.surveys.influenzanet.translatable import TranslatableList
+
+
+from ...influenzanet.survey import SurveyPath
+from ...influenzanet.expression.types import ARG_ITEM_KEY, ARG_SURVEYKEY, Arg, CompositeArgument, EnumerationReference, ItemPathReference, KeyReference, UnknownExpressionType
 from ...influenzanet.expression import KNOWN_EXPRESSIONS, ExpressionType, find_expression_type
 from ...influenzanet.expression.library import load_library
 
@@ -11,19 +17,46 @@ from typing import List, Optional,Dict
 
 logger = logging.getLogger(__name__)
 
-def get_exp_param(exp:Expression, p:Arg):
-    pos = p.pos
-    if len(exp.params)-1 < pos:
+def get_arg_value(arg:Arg, exp:Expression):
+    if len(exp.params)-1 < arg.pos:
         return None
-    return exp.params[pos]
+    return exp.params[arg.pos]
 
 class CheckContext(dict):
 
     def __init__(self, parent=None, **kwargs):
         super(CheckContext, self).__init__(**kwargs)
         self.parent = parent
+        self.caller = getframeinfo(stack()[1][0])
+    
+    def to_readable(self, ctx):
+        """
+            Create a readable form of context as a list (parents first) of key values
+        """
+        pp = []
+        self.parents(pp)
+        d = []
+        pp.reverse()
+        for p in pp:
+            kw = []
+            for k,v in p.items():
+                kw.append("%s=%s" % (k,v))
+            line = "%s at %d" % (','.join(kw), p.caller.lineno)
+            d.append(line)
+        return d
+
+    def parents(self, stack:List):
+        """
+            Walk up into parents hierarchy
+        """
+        stack.append(self)
+        if self.parent is not None:
+            self.parent.parents(stack)
 
 class Problem:
+    """
+        Describe a problem
+    """
     DUPLICATE_KEY = 'dup_key'
     DUPLICATE_RESPONSE_KEY = 'dup_response_key'
     UNKNOWN_EXP = 'unknown_exp'
@@ -36,7 +69,11 @@ class Problem:
         self.ctx = ctx
 
     def to_readable(self, ctx: Context):
-        return {'type': self.type, 'value': self.value, 'ctx': self.ctx }
+        d = {'type': self.type, }
+        if self.value is not None:
+            d['value'] = self.value
+        d['context'] = self.ctx
+        return d
 
 class SurveyChecker:
 
@@ -64,13 +101,13 @@ class SurveyChecker:
 
         return self.problems
 
-    def notify(self, pb_type, ctx:CheckContext, **kwargs):
-        pb = Problem(pb_type, ctx=ctx, **kwargs)
+    def notify(self, pb_type, ctx:CheckContext, value=None):
+        pb = Problem(pb_type, ctx=ctx, value=value)
         self.problems.append(pb)
 
     def discover(self, survey: SurveyItem):
         """
-            Discover create data about survey to supports check
+            Discover create data about survey to supports check of unicity of keys
         """
         dd = survey.get_dictionnary()
         for item in dd:
@@ -122,6 +159,7 @@ class SurveyChecker:
             fields.append('order')
         
         for field in fields:
+            logger.debug("check component field '%s' of '%s'" % (field, component.key))
             if hasattr(component, field) and getattr(component, field) is not None:
                 ctx = CheckContext(parent=parent, key=component.key, field=field)
                 self.check_expression(getattr(component, field), ctx)
@@ -129,8 +167,27 @@ class SurveyChecker:
         props = getattr(component, 'properties', None)
         if props is not None:
             for name, expr in props.items():
+                logger.debug("check component prop '%s' of '%s'" % (name, component.key))
                 ctx = CheckContext(parent=parent, key=component.key, field="properties", name=name)
                 self.check_expression(expr, ctx)
+
+        tt = ['content','description']
+        for field in tt:
+            if hasattr(component, field):
+                logger.debug("check component field '%s' of '%s'" % (field, component.key))
+                ctx = CheckContext(parent=parent, field=field)
+                self.check_localized(getattr(component, field), parent=ctx)
+
+    def check_localized(self, localized, parent: CheckContext):
+        if isinstance(localized, TranslatableList):
+            translates = localized.get_translates()
+        else:
+            translates = [localized]
+        for t in translates:
+            for index, part in enumerate(t.get_parts()):
+                if isinstance(part, Expression):
+                    ctx = CheckContext(parent=parent, index=index, code=t.get_code())
+                    self.check_expression(part, ctx)
 
     def check_expression(self, exp: Expression, parent:CheckContext):
         logger.debug("check expr %s" % (exp))
@@ -153,15 +210,17 @@ class SurveyChecker:
 
     def check_expression_refs(self, exp:Expression, exp_type:ExpressionType, parent: CheckContext):
        for ref in exp_type.references:
-           logger.debug("check ref %s" % (ref))
            if isinstance(ref, EnumerationReference):
                self.check_enumeration_ref(exp, ref, parent)
            if isinstance(ref, KeyReference):
                self.check_key_reference(exp, ref, parent)
+           if isinstance(ref, ItemPathReference):
+               self.check_path_reference(exp, ref, parent)
 
     def check_enumeration_ref(self, exp:Expression, ref:EnumerationReference, parent: CheckContext):
+        logger.debug("check enumeration %s" % (ref))
         ctx = CheckContext(parent=parent, role=ref.role, param=ref.param)
-        p = get_exp_param(exp, ref.param)
+        p = get_arg_value(ref.param, exp)
         if p is None:
             return
         if isinstance(p, Expression):
@@ -172,8 +231,9 @@ class SurveyChecker:
             self.notify(Problem.UNEXPECTED_VALUE, ctx)
 
     def check_key_reference(self, exp:Expression, ref:KeyReference, parent: CheckContext):
+        logger.debug("check key %s in %s" % (ref, exp))
         ctx = CheckContext(parent=parent, role=ref.role, param=ref.param)
-        p = get_exp_param(exp, ref.param)
+        p = get_arg_value(ref.param, exp)
         if p is None:
             return
         if isinstance(p, Expression):
@@ -190,7 +250,65 @@ class SurveyChecker:
                 self.notify(Problem.UNKNOWN_REF, CheckContext(parent=ctx, value=value))
             logger.debug("Survey key '%s' found" % value)
         
+    def check_path_reference(self, exp:Expression, ref:ItemPathReference, parent: CheckContext):
+        logger.debug("Check path %s in %s" % (ref, exp))
+        item_key = get_arg_value(ref.item_key, exp)
+        
+        if item_key is None:
+            logger.debug("Item %s not found %s" % (item_key))
+            # Cannot check
+            return
+        
+        ctx = CheckContext(parent=parent, param=ref.item_key)
+        if isinstance(item_key, Expression):
+            self.notify(Problem.UNCHECKABLE, ctx)
+            return
 
+        item_key = str(item_key)
+        
+        if item_key in self.item_keys:
+            item = self.item_keys[item_key].get_survey_item()
+        else:
+            logger.debug("Unable to find item '%s'" % (item_key))
+            self.notify(Problem.UNKNOWN_REF, ctx, value=item_key)
+            # Should have been already notified by the argument check ?
+            return
+
+        args = []
+
+        if isinstance(ref.path, CompositeArgument):
+            args = ref.path.args
+        else:
+            args = [ref.path]
+        pp = []
+        
+        for index,arg in enumerate(args):
+            p = get_arg_value(arg, exp)
+            if p is None:
+                logger.debug("Path %d  %s not found" % (index, arg))
+            if isinstance(p, Expression):
+                ctx = CheckContext(parent=parent, param=index)
+                self.notify(Problem.UNCHECKABLE, ctx)
+                return
+            pp.append(str(p))
+
+        if len(pp) == 0:
+            logger.debug("No path in expression")
+
+        # Currently consider all path segments doesnt contains '.' as it's path separator (SurveyItem keys are an exception)
+        path = SurveyPath(pp)
+        obj = item.get_in_path(path)
+
+        p = '/'.join(path.traversed)
+        if obj is None:
+            self.notify(Problem.UNKNOWN_REF, parent, value=p)
+            return
+        logger.debug("Item path found %s in %s" % (p, item_key))
+
+
+
+            
+               
                 
 
 

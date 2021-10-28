@@ -1,27 +1,11 @@
+from .expression import Expression, expression_parser
 
-class TranslatableList:
+from typing import List, Union
 
-    def __init__(self, values):
-        self.values = values
-
-    def get_with_context(self, context):
-        language = context.get_language()
-        if language is None:
-            return self.values
-        tt = []
-        if isinstance(language, str):
-            language = [language]
-
-        for t in self.values:
-            if t.code in language:
-                tt.append(t)
-        return tt
-
-    def to_readable(self, ctx):
-        render_translatable(self, ctx)
+TranslatePart = Union[str, Expression]
 
 class Translatable:
-
+    
     def __init__(self, code, value):
         """
         docstring
@@ -33,10 +17,39 @@ class Translatable:
         if isinstance(self.value, list):
             return ' '.join(self.value)
 
+    def get_parts(self) -> List[TranslatePart]:
+        return self.value
+
+    def get_code(self)->str: 
+        return self.code
+
     def __repr__(self):
         return "<T[%s, %s]>" % (self.code, self.value)
         
-    
+class TranslatableList:
+
+    def __init__(self, values:List[Translatable]):
+        self.values = values
+
+    def get_with_context(self, context)->List[Translatable]:
+        language = context.get_language()
+        if language is None:
+            return self.get_translates()
+        tt = []
+        if isinstance(language, str):
+            language = [language]
+
+        for t in self.values:
+            if t.code in language:
+                tt.append(t)
+        return tt
+
+    def get_translates(self)->List[Translatable]:
+        return self.values
+
+    def to_readable(self, ctx):
+        render_translatable(self, ctx)
+
 
 def to_translatable(data, fields):
     """
@@ -59,6 +72,12 @@ def parse_translatable(values):
             if 'str' in p:
                 texts.append(p['str'])
                 break
+            if 'num' in p:
+                texts.append(str(p['num']))
+            if 'exp' in p:
+                exp = expression_parser(p['exp'])
+                texts.append(exp)
+
         tt.append(Translatable(code, texts))
     return TranslatableList(tt)
 

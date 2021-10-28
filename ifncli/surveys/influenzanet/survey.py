@@ -23,6 +23,42 @@ TYPE_SURVEY_END = 'surveyEnd'
 #
 #
 
+class SurveyPath:
+
+    def __init__(self, paths: List):
+        pp = []
+        for p in paths:
+            if '.' in p:
+                for sp in p.split('.'):
+                    pp.append(sp)
+            else:
+                pp.append(p)
+        self.paths= pp
+        self.traversed = []
+
+    def pop(self):
+        if len(self.paths) == 0:
+            return None
+        p = self.paths.pop(0)
+        self.traversed.append(p)
+        return p
+
+    def is_last(self):
+        """
+            One least node
+        """
+        return len(self.paths) == 1
+
+    def empty(self):
+        """
+            No more node to traverse
+        """
+        return len(self.paths) == 0
+
+
+    def __len__(self):
+        return len(self.paths)
+        
 class SurveyItemComponent:
     
     def __init__(self, key, role ):
@@ -61,6 +97,15 @@ class SurveyItemComponent:
 
     def get_type(self):
         return 'base'
+
+    def get_in_path(self, path:SurveyPath):
+        if len(path) > 1:
+            # No sub component, path cannot be found
+            return None
+        key = path.pop()
+        if self.key == key:
+            return self
+        return None
        
 class SurveyItemGroupComponent(SurveyItemComponent):
     
@@ -99,6 +144,20 @@ class SurveyItemGroupComponent(SurveyItemComponent):
             roles[r].append(item)
         return roles 
     
+    def get_in_path(self, path: SurveyPath):
+        """
+            Check 
+        """
+        if self.items is None:
+            return None
+        key = path.pop()
+        for item in self.items:
+            if key == item.key:
+                if len(path) > 1:
+                    return item.get_in_path(path)
+                return item
+        return None
+
     def is_group(self):
         return True
 
@@ -164,7 +223,7 @@ class SurveyItem:
         is Item a group Item (with sub items)
         """
         return False
-    
+   
     def flatten(self):
         yield self
 
@@ -233,7 +292,7 @@ class SurveySingleItem(SurveyItem):
                 options.extend( self._get_response_options(item, key) )
             else:
                 options.append(
-                    OptionDictionnary(key + '.' + item.key, item.role, item.key, itemComponent.key)
+                    OptionDictionnary(key + '.' + item.key, item.role, item.key, itemComponent.key, obj=item)
                 )
         return options    
 
@@ -246,6 +305,11 @@ class SurveySingleItem(SurveyItem):
             return None
 
         return self.components.items_by_role(ROLE_RESPONSE_GROUP)
+
+    def get_in_path(self, path:SurveyPath):
+        if self.components is None:
+            return None
+        return self.components.get_in_path(path)
 
     def __str__(self):
         return '<SurveySingleItem key=%s, type=%s>' % (self.key, self.type)
@@ -290,7 +354,6 @@ class SurveyGroupItem(SurveyItem):
         yield self
         for item in self.items:
             yield from item.flatten()
-
 class Study(dict):
     pass
 

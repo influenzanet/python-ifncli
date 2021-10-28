@@ -42,6 +42,7 @@ class ExpressionTypeParser:
         role = None
         for index, a in enumerate(args):
             variadic = False
+            role = None
             if isinstance(a, str):
                 # We only get name
                 name = a

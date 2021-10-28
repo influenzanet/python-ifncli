@@ -1,7 +1,6 @@
 from ...context import Context
 
 from . import KNOWN_EXPRESSIONS
-
 from typing import List,Union,Optional
 
 ARG_SCALAR = 'scalar'
@@ -49,12 +48,16 @@ class Arg:
     def __repr__(self) -> str:
         return "<Arg %d %s>" % (self.pos, self.name)
 
+    def to_readable(self, ctx):
+        return self.name
+
 class CompositeArgument:
     def __init__(self, args:List[Arg]):
         self.args = args
 
     def __repr__(self) -> str:
         return self.args.__repr__()
+    
 
 class Reference:
     """

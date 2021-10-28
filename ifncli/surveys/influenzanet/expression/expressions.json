@@ -27,17 +27,20 @@
             "params":[{"name": "status", "role":"study_status"}]
         },
         "ADD_NEW_SURVEY": {
+            "kind":"action",
             "description":"assign a new survey to a participant",
             "params": [
                 {"name":"survey", "role":"survey_key"}
             ]
         },
         "REMOVE_ALL_SURVEYS": {
+            "kind":"action",
             "description":"Remove all survey assigned to a participant",
             "params": [],
             "comment": "No argument"
         },
         "REMOVE_SURVEY_BY_KEY": {
+            "kind":"action",
             "description":"Remove survey assigned to a participant by key",
             "params":[
                 {"name": "key", "role":"survey_key"},
@@ -51,23 +54,29 @@
             ]
         },
         "ADD_REPORT": {
+            "kind":"action",
             "description": "Add response item to the response object",
             "params": [
                 {"name":"item_key", "role":"item_key"}
             ]
         },
         "REMOVE_ALL_REPORTS": {
+            "kind":"action",
             "description":"Remove all reports in response object",
             "params": [],
             "comment":"No argument"
         },
-        "REMOVE_REPORT_BY_KEY": [
-            {"name":"item", "role":"item_key"},
-            {"name":"position", "role":"position"}
-        ],
-        "REMOVE_REPORTS_BY_KEY": [
-            {"name":"item", "role":"item_key"}
-        ],
+        "REMOVE_REPORT_BY_KEY": {
+            "params": [
+                {"name":"item", "role":"item_key"},
+                {"name":"position", "role":"position"}
+            ],
+            "kind":"action"
+        },
+        "REMOVE_REPORTS_BY_KEY": {
+            "params":[ {"name":"item", "role":"item_key"}],
+            "kind":"action"
+        },
         "LAST_RESPONSES_BY_KEY": {},
         "ALL_RESPONSES_SINCE": {},
         "RESPONSES_SINCE_BY_KEY": {},
@@ -217,12 +226,14 @@
             ]
         },
         "getAttribute": {
+            "kind":"client",
             "params":[
                 {"name":"item_key", "role":"item_key"},
                 {"name": "name"}
             ]
         },
         "getObjByHierarchicalKey": {
+            "kind":"client",
             "params": [
                 {"name":"item"},
                 {"name":"key"}
