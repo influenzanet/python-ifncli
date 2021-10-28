@@ -1,6 +1,6 @@
 
 KNOWN_EXPRESSIONS = {}
-
+KNOWN_ENUMS = {}
 import os
 
 from typing import Optional

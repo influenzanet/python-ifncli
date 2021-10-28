@@ -72,15 +72,15 @@
                 "comment": {
                    "$refs": "#/definitions/Comment"
                 },
-                "array": {
+                "variadic": {
                     "type": "boolean"
                 },
-                "choices": {
-                    "description": "List of acceptable values",
-                    "type": "array",
-                    "items": {
-                        "type":"string"
-                    }
+                "optional": {
+                    "type": "boolean"
+                },
+                "allow_this": {
+                    "description": "This argument allows this value",
+                    "type": "boolean"
                 },
                 "role": {
                     "$ref":"#/definitions/RoleType"
@@ -124,6 +124,7 @@
                 "rg_comp_prefix",
                 "rg_comp_key",
                 "rg_full_path",
+                "validation_key",
                 "timestamp"
             ]
         },

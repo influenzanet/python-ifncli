@@ -3,6 +3,7 @@ import json
 import sys
 from ifncli.surveys import create_context
 from ifncli.surveys.influenzanet.expression import library_path, schema_path
+from ifncli.surveys.influenzanet.expression.library import load_library, render_library
 from ifncli.surveys.readable import as_readable
 from ifncli.surveys.influenzanet import survey_parser
 from ifncli.surveys.tools.validator import SurveyStandardValidator
@@ -141,7 +142,35 @@ class ValidateExpressionLibrary(Command):
         jsonschema.validate(json, schema)
         print("Json schema is valid")
 
+class ShowExpressionLibrary(Command):
+    """
+        Build expression library doc from json
+    """
 
+    name = 'survey:show-exp'
+
+    def get_parser(self, prog_name):
+        parser = super(ShowExpressionLibrary, self).get_parser(prog_name)
+        parser.add_argument("--output", help="path of file to output results", required=False)
+        return parser
+   
+    def take_action(self, args):
+        
+        if args.output:
+            need_close = True
+            out = open(args.output, 'w')
+        else:
+            out = sys.stdout
+            need_close = False
+          
+        (library,enums) = load_library()
+
+        out.write(render_library(library))
+
+        if need_close:
+            out.close()
+
+register(ShowExpressionLibrary)
 register(ValidateExpressionLibrary)
 register(SurveyValidateStandard)
 register(SurveyCheckCommand)

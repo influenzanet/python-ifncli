@@ -4,31 +4,47 @@
     "expressions":{
         "IF": {
             "kind":"action",
-            "params":[{"name":"actions", "variadic": true}]
+            "description":"control flow implementing the typical if-else structure, if condtion evaluated to true then action is run, action_else otherwise",
+            "params":[
+                {"name":"condition", "description":"condition to check"},
+                {"name":"action_true", "description":"action run if condition is true"},
+                {"name":"action_else", "description":"action run if condition is not true"}                
+            ]
         },
         "DO": {
+            "description":"Performs a list of actions by iterating through the `actions` parameters. This function can be used to group actions together as a defined list of arguments.",
             "kind":"action",
             "params":[{"name":"actions", "variadic": true}]
         },
         "IFTHEN": {
+            "description":"perform a list of actions if condition is evaluated to `true`",
             "kind":"action",
-            "params":["condition", {"name":"actions", "variadic":true}]
+            "params":[
+                {"name": "condition", "description":"condition to check"}, 
+                {"name":"actions", "variadic":true, "description":"actions to run if condition is evaluated to true"}
+            ]
         },
         "UPDATE_FLAG": {
+            "description":"Updates one flag of the participant state.",
             "kind":"action",
-            "params":[{"name":"key", "role":"flag_key"}, "value"]
+            "params":[
+                {"name":"key", "role":"flag_key", "description":"name of the flag"}, 
+               { "name": "value", "description":"value to assign to the flag"}
+            ]
         },
         "REMOVE_FLAG": {
+            "description":"Remove one flag of the participant state.",
             "kind":"action",
             "params":[{"name":"key", "role":"flag_key"}]
         },
         "UPDATE_STUDY_STATUS": {
+            "description": "Updates the status of the participant (e.g. from active to inactive).",
             "kind":"action",
             "params":[{"name": "status", "role":"study_status"}]
         },
         "ADD_NEW_SURVEY": {
             "kind":"action",
-            "description":"assign a new survey to a participant",
+            "description":"assign a new survey to the participant",
             "params": [
                 {"name":"survey", "role":"survey_key"}
             ]
@@ -48,6 +64,7 @@
             ]
         },
         "REMOVE_SURVEYS_BY_KEY": {
+            "description": "Removes all surveys with the specified key in the list of assigned surveys of the participant state.",
             "kind":"action",
             "params":[
                 {"name": "survey", "role":"survey_key"}
@@ -82,21 +99,24 @@
         "RESPONSES_SINCE_BY_KEY": {},
         "GET_LAST_SURVEY_ITEM": {},
         "checkEventType": {
+            "description":"Checks if the latest event is of the same type as specified in the parameter expression.",
             "kind":"action",
             "params":[
                 {"name":"type", "role": "event_type"}
             ]
         },
         "checkConditionForOldResponses": {
+            "description": "Evaluates the specified condition on old responses",
             "params": [
-                {"name":"condition"},
-                {"name":"check"},
+                {"name":"condition", "description":"condition to check"},
+                {"name":"check", "description":"check mode for the condtion to match on the found old responses, `all` (true if all match), `any` (true if any old response match)  or a postive number (at least N match the condition)"},
                 {"name":"survey", "role":"survey_key", "optional": true},
-                {"name": "since", "role":"timestamp", "optional": true},
-                {"name": "until", "role":"timestamp", "optional": true}
+                {"name": "since", "role":"timestamp", "optional": true, "description":"timestamp to filter for responses that were submitted after this date"},
+                {"name": "until", "role":"timestamp", "optional": true, "description": "timestamp to filter for responses that were submitted before this date"}
             ]
         },
         "checkResponseValueWithRegex": {
+            "description":"Check if a response match the pattern",
             "params": [
                 {"name":"item", "role":"item_key"},
                 {"name":"response", "role":"rg_full_path"},
@@ -106,9 +126,12 @@
                 {"role":"item_path", "params": {"item_key": "item", "path": ["response"]} }
             ]
         },
-        "checkSurveyResponseKey": [
-            {"name":"survey", "role":"survey_key"}
-        ],
+        "checkSurveyResponseKey": {
+            "description": "Checks if a survey key match the one of the survey submitted during the latest event of the participant",
+            "params": [
+                {"name":"survey", "role":"survey_key"} 
+            ]
+        },
         "countResponseItems": {
             "description": "Counts the number of selected response items of a response group.",
             "params": [
@@ -131,7 +154,7 @@
             ]
         },
         "responseHasOnlyKeysOtherThan": {
-            "description": "checks if the participant has selected none of the specified item keys.",
+            "description": "checks if the participant has selected none of the specified response item keys.",
             "params": [
                 {"name":"item", "role":"item_key"},
                 {"name":"rg", "role":"rg_comp_prefix"},
@@ -246,14 +269,20 @@
         "getResponseItem": {
             "params":[
                 {"name":"item_key", "role":"item_key"},
-                {"name": "", "role":"rg_full_path"}
+                {"name": "response", "role":"rg_full_path"}
             ],
             "refs": [
                 {"role":"item_path", "params": {"item_key": "item", "path": ["response"]}}
             ]
         },
         "getSurveyItemValidation":{
-            
+            "params":[
+                {"name":"item_key", "role":"item_key", "allow_this": true},
+                {"name":"validation", "role":"validation_key"}
+            ],
+            "refs": [
+                {"role":"validation_path", "params": {"item_key": "item", "path": ["response"]}}
+            ]
             
         },
         "getPreviousResponses": {
@@ -278,7 +307,11 @@
                {"role": "item_path", "params":{"item_key": "item", "path": ["response"]}}
            ]
         },
-        "isDefined": {},
+        "isDefined": {
+            "params": [
+                {"name":"var"}
+            ]
+        },
         "sequential":[],
         "getSecondsSince": {
             "params": [
@@ -289,6 +322,17 @@
             "params": [
                 {"name": "offset", "role":"timestamp"},
                 {"name": "ref", "role":"timestamp"}
+            ]
+        },
+        "dateResponseDiffFromNow": {
+            "params":[
+                {"name":"item_key", "role":"item_key"},
+                {"name": "response", "role":"rg_full_path"},
+                {"name": "unit", "optional": true, "role":"time_unit"},
+                {"name": "unsigned", "optional":true}
+            ],
+            "refs": [
+                {"role":"item_path", "params": {"item_key": "item", "path": ["response"]}}
             ]
         }
     },
@@ -307,6 +351,10 @@
             "inactive", 
             "paused", 
             "finished"
+        ],
+        "time_unit":[
+            "seconds", "minutes", "hours", "days", "weeks", "months", "years",
+            "y", "M", "w", "d", "h", "m",  "s", "ms"
         ]
     }
 }

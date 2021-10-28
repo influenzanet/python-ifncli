@@ -18,7 +18,7 @@ ARG_FLAG_KEY = 'flag_key'
 ARG_TIMESTAMP = 'timestamp'
 ARG_PATH = 'path' # Path of objects like Q1.rg.scg.1
 ARG_ITEM_PATH = 'item_path' # Path of any object from a item
-
+ARG_VALIDATION_KEY = 'validation_key'
 KNOWN_ARG_ROLES = [
     ARG_SCALAR,
     ARG_SURVEYKEY,
@@ -33,17 +33,22 @@ KNOWN_ARG_ROLES = [
     ARG_QUALIFIED_RG,
     ARG_FLAG_KEY,
     ARG_TIMESTAMP,
-    ARG_PATH
+    ARG_PATH,
+    ARG_VALIDATION_KEY
 ]
 
 class Arg:
     """
         Argument descripton
     """
-    def __init__(self, name:str, pos: int, variadic:bool):
+    def __init__(self, name:str, pos: int, role:str=None, variadic:bool=False, allow_this:bool=False, optional:bool=False, description:str=None):
         self.name = name
         self.pos = pos
         self.variadic = variadic
+        self.allow_this = allow_this
+        self.optional = optional
+        self.description = description
+        self.role = role
 
     def __repr__(self) -> str:
         return "<Arg %d %s>" % (self.pos, self.name)
@@ -136,6 +141,9 @@ class ArgList:
     def __getitem__(self, i):
         return self.at(i)
 
+    def __iter__(self):
+        return iter(self.params)
+
     def __repr__(self) -> str:
         return self.params.__repr__()
 
@@ -164,6 +172,7 @@ class ExpressionType(BaseExpressionType):
         self.params = params
         self.references = references
         self.kind = None
+        self.description = None
 
     def has_params(self):
         return self.params is not None and len(self.params) > 0

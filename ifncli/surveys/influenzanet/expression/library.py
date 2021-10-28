@@ -3,7 +3,7 @@ import os
 import json
 from typing import Dict
 
-from . import KNOWN_EXPRESSIONS, library_path
+from . import KNOWN_EXPRESSIONS,KNOWN_ENUMS, library_path
 
 from .types import *
 
@@ -13,14 +13,16 @@ class ParserException(Exception):
 def load_library():
     path = library_path()
     parser = ExpressionTypeParser()
-    parser.parse(path, KNOWN_EXPRESSIONS)
+    parser.parse(path, KNOWN_EXPRESSIONS, KNOWN_ENUMS)
+    return (KNOWN_EXPRESSIONS, KNOWN_ENUMS)
 
 class ExpressionTypeParser:
 
     def __init__(self) -> None:
-        self.enums = {}
+        self.enums = None
 
-    def parse(self, path, knows: Dict[str, ExpressionType]):
+    def parse(self, path, knows: Dict[str, ExpressionType], enums: Dict[str, List] ):
+        self.enums = enums
         try:
             data = json.load(open(path, 'r', encoding='UTF-8'))
         except Exception as e:
@@ -43,17 +45,27 @@ class ExpressionTypeParser:
         for index, a in enumerate(args):
             variadic = False
             role = None
+
+            extra = {}
+
             if isinstance(a, str):
                 # We only get name
                 name = a
             else:
                 # Object description
                 if 'variadic' in a:
-                    variadic = a['variadic']
+                    extra['variadic'] = a['variadic']
+                if 'allow_this' in a:
+                    extra['allow_this'] = a['allow_this']
+                if 'optional' in a:
+                    extra['optional'] = a['optional']
+                if 'description' in a:
+                    extra['description'] = a ['description']
                 name = a['name']
                 if 'role' in a:
                     role = a['role']
-            p = Arg(name, pos=index, variadic=variadic)
+            p = Arg(name, pos=index, role=role, **extra)
+            
             if role is not None:
                 if role in self.enums:
                     ref = EnumerationReference(role, p, self.enums[role])
@@ -83,7 +95,10 @@ class ExpressionTypeParser:
                     roles.append(role)
         if len(roles) == 0:
             roles = None
-        return ExpressionType(params, roles)
+        exp_type=  ExpressionType(params, roles)
+        if 'description' in expDef:
+            exp_type.description = expDef['description']
+        return exp_type
 
     def parse_role(self, roleDef, params:ArgList):
         """
@@ -119,4 +134,60 @@ class ExpressionTypeParser:
         return None
         
 
+def render_library(funcs: Dict[str, ExpressionType])->str:
+    output = [
+        "# Survey Engine Expressions"
+    ]
+    for name, func in funcs.items():
+        out = render_func(name, func)
+        output.append("")
+        output.append(out)
+    return "\n".join(output)
 
+ROLE_NAMES = {
+    ARG_FLAG_KEY:"Flag name",
+    ARG_ITEM_KEY:"Survey item key",
+    ARG_SURVEYKEY:"Survey key",
+    ARG_STUDY_STATUS:"Study status name",
+    ARG_ITEM_PATH:"Component path of an item",
+    ARG_RG_COMP_KEY:"Individual key of a component",
+    ARG_RG_COMP_PREFIX:"Prefix of a response group component, e.g. 'rg.scg.', 'rg.mcg.'",
+    ARG_RG_KEY:"Key of a response group, e.g. 'rg'",
+    ARG_TIMESTAMP:"timestamp",
+    ARG_VALIDATION_KEY:"Key of a 'validations' rule of a component"
+}
+
+def render_func(name:str, func: ExpressionType)->str:
+    o = [
+        "## " + name
+    ]
+
+    if isinstance(func, UnknownExpressionType):
+       return "\n".join(o)
+
+    if func.kind == "action":
+        o.append("Survey **action**, useable in survey rules")
+    if func.kind == "client":
+        o.append("Client side function")
+    if func.kind == "service":
+        o.append("Service side function, useable in survey rules")
+
+    if func.has_params():
+        o.append("")
+        o.append("** Parameters **")
+        o.append("")
+        for p in func.params:
+            d = "- `%s`" % (p.name, )
+            if p.variadic:
+                d += "... " 
+            if p.description is not None:
+                d += " " + p.description
+            else:
+                if p.role in ROLE_NAMES:
+                    d += " " + ROLE_NAMES[p.role] 
+            if p.allow_this:
+                d += " [accepts `this` as special value]"
+            if p.optional:
+                d += " **optional**"
+            o.append(d)
+    return "\n".join(o)
