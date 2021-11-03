@@ -73,6 +73,9 @@ class SurveyPath:
 
     def __repr__(self) -> str:
         return {'paths':self.paths, 'current': self.current  }.__repr__()
+
+    def to_readable(self, ctx):
+        return {'paths': self.paths, 'current': self.current}
         
 class SurveyItemComponent:
     
