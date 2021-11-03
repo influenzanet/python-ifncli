@@ -288,9 +288,9 @@ class SurveyChecker:
             # Cannot check
             return
         
-        ctx = CheckContext(parent=parent, param=ref.item_key)
+        context = CheckContext(parent=parent, param=ref.item_key)
         if isinstance(item_key, Expression):
-            self.notify(Problem.UNCHECKABLE, ctx)
+            self.notify(Problem.UNCHECKABLE, context)
             return
 
         item_key = str(item_key)
@@ -299,9 +299,11 @@ class SurveyChecker:
             item = self.item_keys[item_key].get_survey_item()
         else:
             logger.debug("Unable to find item '%s'" % (item_key))
-            self.notify(Problem.UNKNOWN_REF, ctx, value=item_key)
+            self.notify(Problem.UNKNOWN_REF, context, value=item_key)
             # Should have been already notified by the argument check ?
             return
+
+        context = CheckContext(parent=parent, item=item_key)
 
         args = []
 
@@ -319,7 +321,7 @@ class SurveyChecker:
                 logger.debug("Path %d  %s not found" % (index, arg))
                 continue
             if isinstance(arg_value, Expression):
-                ctx = CheckContext(parent=parent, param=index)
+                ctx = CheckContext(parent=context, param=index)
                 self.notify(Problem.UNCHECKABLE, ctx)
                 return
             if index == last:
@@ -342,7 +344,7 @@ class SurveyChecker:
             obj = item.get_in_path(path)
             p = '/'.join(path.traversed())
             if obj is None:
-                self.notify(Problem.UNKNOWN_REF, parent, value=path)
+                self.notify(Problem.UNKNOWN_REF, context, value=path)
                 continue
             logger.debug("Item path found %s in %s" % (p, item_key))
 
