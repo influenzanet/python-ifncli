@@ -1,6 +1,6 @@
 from .translatable import to_translatable,parse_translatable
 from .time import Timestamp
-from .survey import Study, Survey, SurveyGroupItem, SurveySingleItem, SurveyItemGroupComponent, SurveyItemResponseComponent, SurveyItemComponent
+from .survey import Study, Survey, SurveyGroupItem, SurveyItemValidation, SurveySingleItem, SurveyItemGroupComponent, SurveyItemResponseComponent, SurveyItemComponent
 from .expression import expression_arg_parser, expression_parser
 
 def component_parser(obj):
@@ -79,12 +79,22 @@ def survey_item_parser(obj):
         if 'validations' in obj:
             vv = []
             for v in  obj['validations']:
-                v['rule'] = expression_parser(v['rule']) 
-                vv.append(v)
+                rule = expression_parser(v['rule'])
+                validation = SurveyItemValidation(v['key'], v['type'], rule) 
+                vv.append(validation)
             validations = vv
         else:
             validations = None
         item = SurveySingleItem(key, id=_id, type=_type, components=comp, validations=validations)
+
+    if 'condition' in obj:
+        condition = expression_parser(obj['condition'])
+        item.condition = condition
+    if 'follows' in obj:
+        item.follows = obj['follows']
+    
+    if 'priority' in obj:
+        item.priority = obj['priority']
 
     return item
 

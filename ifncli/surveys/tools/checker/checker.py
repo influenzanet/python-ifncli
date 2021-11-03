@@ -13,13 +13,23 @@ from ...influenzanet.expression.library import load_library
 from ...influenzanet import Study, Survey, SurveyItem, SurveyItemComponent, Expression, OptionDictionnary, RGROLES
 from ...context import Context
 
-from typing import List, Optional,Dict
+from typing import List, Optional,Dict, Union
 
 logger = logging.getLogger(__name__)
 
 def get_arg_value(arg:Arg, exp:Expression):
-    if len(exp.params)-1 < arg.pos:
+    """
+        Get passed values for arguments
+    
+    """
+    max_pos = len(exp.params)-1
+    if max_pos < arg.pos:
         return None
+    if arg.variadic:
+        p =  exp.params[arg.pos:]
+        if len(p) == 1:
+            return p[0]
+        return p
     return exp.params[arg.pos]
 
 class CheckContext(dict):
@@ -63,13 +73,16 @@ class Problem:
     UNCHECKABLE = 'uncheckable'
     UNKNOWN_REF = 'unknown_ref'
 
-    def __init__(self, pb_type, value=None, ctx:CheckContext=None):
+    def __init__(self, pb_type, value=None, ctx:CheckContext=None, line=None):
         self.type = pb_type
         self.value = value
+        self.line = line
         self.ctx = ctx
 
     def to_readable(self, ctx: Context):
-        d = {'type': self.type, }
+        d = {'type': self.type,}
+        if self.line is not None:
+            d['raised_at'] = self.line
         if self.value is not None:
             d['value'] = self.value
         d['context'] = self.ctx
@@ -102,7 +115,8 @@ class SurveyChecker:
         return self.problems
 
     def notify(self, pb_type, ctx:CheckContext, value=None):
-        pb = Problem(pb_type, ctx=ctx, value=value)
+        caller = getframeinfo(stack()[1][0])
+        pb = Problem(pb_type, ctx=ctx, value=value, line=caller.lineno)
         self.problems.append(pb)
 
     def discover(self, survey: SurveyItem):
@@ -132,6 +146,12 @@ class SurveyChecker:
         
     def check_item(self, surveyItem: SurveyItem, parent: CheckContext):
         logger.debug("check item %s" % (surveyItem.key))
+        
+        if surveyItem.condition is not None:
+            logger.debug("check item %s field 'condition'" % (surveyItem.key))
+            ctx = CheckContext(item=surveyItem.key, field="condition", parent=parent)
+            self.check_expression(surveyItem.condition, ctx)
+        
         if surveyItem.is_group():
             # GroupItem
             for item in surveyItem.items:
@@ -144,8 +164,9 @@ class SurveyChecker:
             # SingleItem
             if surveyItem.validations is not None:
                 for index, validation in enumerate(surveyItem.validations):
-                    ctx = CheckContext(parent=parent, item=surveyItem.key, field="validations", index=index)
-                    self.check_expression(validation['rule'], ctx)
+                    logger.debug("check item %s field 'validation' '%s'" % (surveyItem.key, validation.key))
+                    ctx = CheckContext(parent=parent, item=surveyItem.key, field="validations", index=index, key=validation.key)
+                    self.check_expression(validation.rule, ctx)
             ctx = CheckContext(parent=parent, item=surveyItem.key, field='components')
             self.check_component(surveyItem.components, ctx)
     
@@ -236,24 +257,27 @@ class SurveyChecker:
         p = get_arg_value(ref.param, exp)
         if p is None:
             return
-        if isinstance(p, Expression):
-            self.notify(Problem.UNCHECKABLE, ctx)
-            return
-        value = str(p.value)
-        if ref.role == ARG_ITEM_KEY:
-
-            if value =="this" and ref.param.allow_this:
-                logger.debug("Item key is 'this', skipping")
+        if isinstance(p, list):
+            values = p
+        else:
+            values = [ p ]
+        for v in values:
+            if isinstance(v, Expression):
+                self.notify(Problem.UNCHECKABLE, ctx)
+                continue
+            value = str(v)
+            if ref.role == ARG_ITEM_KEY:
+                if value =="this" and ref.param.allow_this:
+                    logger.debug("Item key is 'this', skipping")
+                    return
+                if not value in self.item_keys:
+                    self.notify(Problem.UNKNOWN_REF, CheckContext(parent=ctx, value=value))
+                logger.debug("Item key '%s' found" % value)
                 return
-
-            if not value in self.item_keys:
-                self.notify(Problem.UNKNOWN_REF, CheckContext(parent=ctx, value=value))
-            logger.debug("Item key '%s' found" % value)
-            return
-        if ref.role == ARG_SURVEYKEY:
-            if not value in self.known_surveys:
-                self.notify(Problem.UNKNOWN_REF, CheckContext(parent=ctx, value=value))
-            logger.debug("Survey key '%s' found" % value)
+            if ref.role == ARG_SURVEYKEY:
+                if not value in self.known_surveys:
+                    self.notify(Problem.UNKNOWN_REF, CheckContext(parent=ctx, value=value))
+                logger.debug("Survey key '%s' found" % value)
         
     def check_path_reference(self, exp:Expression, ref:ItemPathReference, parent: CheckContext):
         logger.debug("Check path %s in %s" % (ref, exp))
@@ -285,32 +309,44 @@ class SurveyChecker:
             args = ref.path.args
         else:
             args = [ref.path]
-        pp = []
         
+        stack = [] # Stack of current params values
+        paths = [] # List of paths to check
+        last = len(args) - 1
         for index,arg in enumerate(args):
-            p = get_arg_value(arg, exp)
-            if p is None:
+            arg_value = get_arg_value(arg, exp)
+            if arg_value is None:
                 logger.debug("Path %d  %s not found" % (index, arg))
-            if isinstance(p, Expression):
+                continue
+            if isinstance(arg_value, Expression):
                 ctx = CheckContext(parent=parent, param=index)
                 self.notify(Problem.UNCHECKABLE, ctx)
                 return
-            pp.append(str(p))
+            if index == last:
+                if arg.variadic and isinstance(arg_value, list):
+                    for v in arg_value:
+                        p = stack[:] # Get previous args values in stack
+                        p.append(str(v)) # Add the current element
+                        paths.append(SurveyPath(p)) # And create the path
+                else:
+                    stack.append(str(arg_value))
+                    paths.append(SurveyPath(stack))
+            else:
+                stack.append(str(arg_value))
 
-        if len(pp) == 0:
+        if len(paths) == 0:
             logger.debug("No path in expression")
-
+        
         # Currently consider all path segments doesnt contains '.' as it's path separator (SurveyItem keys are an exception)
-        path = SurveyPath(pp)
-        obj = item.get_in_path(path)
+        for path in paths:
+            obj = item.get_in_path(path)
+            p = '/'.join(path.traversed())
+            if obj is None:
+                self.notify(Problem.UNKNOWN_REF, parent, value=path)
+                continue
+            logger.debug("Item path found %s in %s" % (p, item_key))
 
-        p = '/'.join(path.traversed)
-        if obj is None:
-            self.notify(Problem.UNKNOWN_REF, parent, value=p)
-            return
-        logger.debug("Item path found %s in %s" % (p, item_key))
-
-
+    
 
             
                

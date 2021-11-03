@@ -1,7 +1,8 @@
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Union
 
 from .responses import RG_ROLES, RG_ROLES_DATA
 from .dictionnary import ItemDictionnary, OptionDictionnary
+from .expression import Expression
 
 TYPE_PAGE_BREAK = 'pageBreak'
 ROLE_RESPONSE_GROUP = 'responseGroup'
@@ -24,7 +25,10 @@ TYPE_SURVEY_END = 'surveyEnd'
 #
 
 class SurveyPath:
-
+    """
+        Path traversal into survey node
+    
+    """
     def __init__(self, paths: List):
         pp = []
         for p in paths:
@@ -33,38 +37,49 @@ class SurveyPath:
                     pp.append(sp)
             else:
                 pp.append(p)
-        self.paths= pp
-        self.traversed = []
+        self.paths = pp
+        self.current = 0 # 
 
     def pop(self):
-        if len(self.paths) == 0:
+        if self.empty():
             return None
-        p = self.paths.pop(0)
-        self.traversed.append(p)
+        p = self.paths[self.current]
+        self.current += 1
         return p
 
     def is_last(self):
         """
             One least node
         """
-        return len(self.paths) == 1
+        return self.current == len(self.paths) - 1
 
     def empty(self):
         """
             No more node to traverse
         """
-        return len(self.paths) == 0
+        return self.current > len(self.paths) - 1
 
+    def traversed(self):
+        if self.empty():
+            return self.paths
+        if len(self.paths) == 0:
+            return []
+        if self.current == 0:
+            return []
+        return self.paths[0:self.current-1]
 
     def __len__(self):
         return len(self.paths)
+
+    def __repr__(self) -> str:
+        return {'paths':self.paths, 'current': self.current  }.__repr__()
         
 class SurveyItemComponent:
     
     def __init__(self, key, role ):
         self.key = key
         self.role = role
-
+        
     def get_readable_label(self, name):
         if self.key is not None and self.key != '':
             k = "key=%s, role=%s" % (self.key, self.role)
@@ -99,7 +114,7 @@ class SurveyItemComponent:
         return 'base'
 
     def get_in_path(self, path:SurveyPath):
-        if len(path) > 1:
+        if not path.is_last():
             # No sub component, path cannot be found
             return None
         key = path.pop()
@@ -153,7 +168,7 @@ class SurveyItemGroupComponent(SurveyItemComponent):
         key = path.pop()
         for item in self.items:
             if key == item.key:
-                if len(path) > 1:
+                if not path.empty():
                     return item.get_in_path(path)
                 return item
         return None
@@ -201,6 +216,9 @@ class SurveyItem:
         self.key = key
         self.id = id
         self.version = version
+        self.condition:Expression = None
+        self.follows:List[str] = None 
+        self.priority = None
 
     def get_readable_label(self, name):
         if self.id is not None:
@@ -227,9 +245,17 @@ class SurveyItem:
     def flatten(self):
         yield self
 
+
+class SurveyItemValidation:
+
+    def __init__(self, key:str, type: str, rule:Union[Expression, bool]) -> None:
+        self.key = key
+        self.type = type
+        self.rule = rule
+
 class SurveySingleItem(SurveyItem):
 
-    def __init__(self, key, components: SurveyItemGroupComponent, validations, type, id=None, version=None):
+    def __init__(self, key, components: SurveyItemGroupComponent, validations: Optional[List[SurveyItemValidation]], type, id=None, version=None):
         super(SurveySingleItem, self).__init__(key=key, id=id, version=version)
         self.components = components
         self.validations = validations
