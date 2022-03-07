@@ -6,7 +6,7 @@ from cliff.commandmanager import CommandManager
 
 from ifncli.utils import read_yaml
 from ifncli.commands import get_commands
-from ifncli.api.management_api import ManagementAPIClient
+from ifncli.api import ManagementAPIClient
 
 class MyApp(App):
     
@@ -18,7 +18,7 @@ class MyApp(App):
         parser.add_argument(
             "-c",
             "--config",
-            help="Config path",
+            help="Config path (if not present will look IFN_CONFIG env variable",
             default=os.path.join('resources', 'config.yaml')
         )
 
@@ -58,7 +58,7 @@ class MyApp(App):
         management_api_url = self._configs["management_api_url"]
         participant_api_url = self._configs["participant_api_url"]
 
-        client = ManagementAPIClient(management_api_url, user_credentials, participant_api_url )
+        client = ManagementAPIClient(management_api_url, user_credentials, participant_api_url, verbose=False)
         self._apis['management'] = client
         return client
 

@@ -3,6 +3,10 @@ from cliff.command import Command
 from . import register
 
 class Login(Command):
+    """
+    Test login
+    """
+
     __name__ = 'login'
 
     def take_action(self, parsed_args):

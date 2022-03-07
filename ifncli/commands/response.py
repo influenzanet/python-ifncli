@@ -1,6 +1,6 @@
 
 import os
-from ifncli.api.response_parser import ResponseParser
+from ifncli.api import ResponseParser
 from datetime import datetime, timedelta
 import pandas as pd
 
