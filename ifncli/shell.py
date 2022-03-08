@@ -7,6 +7,10 @@ from cliff.commandmanager import CommandManager
 from ifncli.utils import read_yaml
 from ifncli.commands import get_commands
 from ifncli.api import ManagementAPIClient
+from ifncli.platform import PlatformResources
+
+class ConfigException(Exception):
+    pass
 
 class MyApp(App):
     
@@ -24,7 +28,7 @@ class MyApp(App):
 
         self._configs = {}
         self._apis = {}
-
+    
        # self.plugin_manager.build_option_parser(parser)
 
         return parser
@@ -39,14 +43,22 @@ class MyApp(App):
             self.command_manager.add_command(name.lower(), command)
 
     def prepare_to_run_command(self, cmd):
+        """
+            Preparation of the environment 
+        
+        """
         cfg_path = self.options.config
         
         cfg_path = os.getenv('IFN_CONFIG', cfg_path)
         
+        if os.getenv('IFN_CONFIG') is None and os.getenv('INF_CONFIG') is not None:
+            print("INF_CONFIG is defined, are you sure you didnt mistyped IFN_CONFIG ?")
+
         if not Path(cfg_path).is_file():
-            raise Exception("Unable to find config file at %s" % (cfg_path,))
+            raise ConfigException("Unable to find config file at %s" % (cfg_path,))
         try:
             self._configs = read_yaml(cfg_path)
+            self._configs['__config_file'] = cfg_path
         except:
             print("Unable to load configuration file")
             raise
@@ -75,7 +87,18 @@ class MyApp(App):
         
         return self._configs
     
+    def get_platform(self, resource_path=None):
+        """
+            Get The platform object
+        """
+        if resource_path is None:
+            resource_path = self._configs.get('resource_path', None)
+        overrides = self._configs.get('vars', None)
 
+        if resource_path is None:
+            raise ConfigException("Resource path must be provided either in config file or as command option")
+        return PlatformResources(resource_path, overrides=overrides)
+            
 def main(argv=sys.argv[1:]):
     app = MyApp(
             description="InfluenzaNet CLI",
