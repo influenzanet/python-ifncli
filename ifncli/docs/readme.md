@@ -78,3 +78,17 @@ Commands are grouped by namespaces
 - email: [emails and templates management](email.md)
 - study: [study management commands](study.md)
 - response: [fetch responses data](response.md)
+
+Some commands can help to manage the configuration :
+
+```bash
+./ifn-cli config:show 
+```
+
+Will show the current configuration (config.yaml) and the platform variables (after overrides). This command will also show from where each variable takes its value (from platform file or config file) to be able follow the overriding process.
+
+```bash
+./ifn-cli login
+```
+
+This command will try to log in to the management API using the current configuration 
