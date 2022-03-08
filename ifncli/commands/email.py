@@ -7,14 +7,6 @@ from . import register
 
 from ifncli.utils import read_yaml, read_json, read_content, write_content
 
-########  PARAMETERS #############
-
-default_language = 'en'
-
-default_email_template_folder = 'resources/email_templates'
-##################################
-
-########  PARAMETERS #############
 message_types = [
     'registration',
     'invitation',
@@ -69,22 +61,37 @@ class EmailAutoReminder(Command):
     def get_parser(self, prog_name):
         parser = super(EmailAutoReminder, self).get_parser(prog_name)
        
-        parser.add_argument(
-            "--email_folder", help="path to the email folder containing template and config", default=os.path.join('resources', 'auto_reminder_email'))
-        parser.add_argument(
-            "--ignore_existing", help="If set to true, existing auto message will be ignored and a new one will be created. By default (false), existing auto message with same type, study key and message type will be replaced ", default=False)
+        parser.add_argument("--dry-run", help="Just prepare template, dont update", default=False, action="store_true")
+        parser.add_argument("--email_folder", help="path to the email folder containing template and config", default=None)
+        parser.add_argument("--ignore_existing", 
+            help="If set to true, existing auto message will be ignored and a new one will be created. By default (false), existing auto message with same type, study key and message type will be replaced ", 
+            default=False
+            )
         return parser
 
     def take_action(self, args):
 
+        platform = self.app.get_platform()
+
         email_folder_path = args.email_folder
+        if email_folder_path is None:
+            email_folder_path = platform.get_path() / 'auto_reminder_email'
+        
+        default_language = platform.get('default_language', 'en')
+        
+        print("Email folder: %s" % email_folder_path)
         ignore_existing = args.ignore_existing
 
         email_config = read_yaml(os.path.join(email_folder_path, 'settings.yaml'))
 
+        if "defaultLanguage" in email_config:
+            default_language = email_config["defaultLanguage"]
+
+        print("Default language %s " % default_language)
+        
         email = {
             "messageType": email_config["messageType"],
-            "defaultLanguage": email_config["defaultLanguage"],
+            "defaultLanguage": default_language,
             "translations": []
         }
 
@@ -92,8 +99,7 @@ class EmailAutoReminder(Command):
             email['translations'].append({
                 'lang': tr['lang'],
                 'subject': tr['subject'],
-                'templateDef': read_and_convert_html(
-                    os.path.join(email_folder_path, tr['templateFile']))
+                'templateDef': read_and_convert_html(os.path.join(email_folder_path, tr['templateFile']))
             })
 
         auto_message = {
@@ -144,18 +150,24 @@ class EmailTemplate(Command):
     def get_parser(self, prog_name):
         parser = super(EmailTemplate, self).get_parser(prog_name)
         parser.add_argument("--dry-run", help="Just prepare template, dont update", default=False, action="store_true")
-        parser.add_argument("--default_language", help="Default language", default='en', required=False)
-        parser.add_argument("--email_template_folder", help="Email template folder", default=default_email_template_folder, required=False)
+        parser.add_argument("--email_template_folder", help="Email template folder (by default 'email_templates' in resources directory)", default=None, required=False)
         return parser
         
     def take_action(self, args):
 
         dry_run = args.dry_run
 
-        default_language = args.default_language
-        email_template_folder = args.email_template_folder
+        platform = self.app.get_platform()
 
-        client = self.app.get_management_api()
+        email_template_folder = args.email_template_folder
+        if email_template_folder is None:
+            email_template_folder = platform.get_path() / 'email_templates'
+
+        default_language = platform.get('default_language', 'en')
+        
+        print("Using '%s' path " % (email_template_folder))
+        print("Default language : %s" % default_language)
+        
         
         # Automatically extract languages:
         languages = [{"code": d, "path": os.path.join(email_template_folder, d)} for d in os.listdir(
@@ -170,9 +182,10 @@ class EmailTemplate(Command):
         if layout is not None:
             print("Using layout")
 
-        template_vars = self.app.get_configs('email_vars', must_exist=False)
+        template_vars = platform.get_vars()
         
         for m_type in message_types:
+            
             template_def = {
                 'messageType': m_type,
                 'defaultLanguage': default_language,
@@ -188,7 +201,10 @@ class EmailTemplate(Command):
                 translated_template = find_template_file(m_type, lang["path"])
                 subject_lines = read_yaml(os.path.join(lang["path"], 'subjects.yaml'))
 
-                tpl_content = read_and_encode_template(translated_template, layout=layout, vars=template_vars)
+                data = template_vars.copy()
+                data['language'] = lang['code'] 
+
+                tpl_content = read_and_encode_template(translated_template, layout=layout, vars=data)
                 
                 template_def["translations"].append(
                     {
@@ -201,6 +217,7 @@ class EmailTemplate(Command):
             if dry_run:
                 print("dry-run mode, template %s" % m_type)
             else:
+                client = self.app.get_management_api()
                 r = client.save_email_template(template_def)
                 print('saved templates for: ' + m_type)
 
@@ -215,8 +232,7 @@ class SendCustom(Command):
 
     def get_parser(self, prog_name):
         parser = super(SendCustom, self).get_parser(prog_name)
-        parser.add_argument(
-                "--email_folder", help="path to the custom email folder", default=os.path.join('resources', 'custom_email'))
+        parser.add_argument("--email_folder", help="path to the custom email folder", default=os.path.join('resources', 'custom_email'))
         parser.add_argument(
             "--to_study_participants", help="to send only to participants of a with this study key", default=None)
         return parser
@@ -241,12 +257,12 @@ class SendCustom(Command):
         }
 
         for tr in email_config['translations']:
-            email['translations'].append({
+            msg = {
                 'lang': tr['lang'],
                 'subject': tr['subject'],
-                'templateDef':  read_and_convert_html(
-                    os.path.join(email_folder_path, tr['templateFile']))
-            })
+                'templateDef':  read_and_convert_html(os.path.join(email_folder_path, tr['templateFile']))
+            }
+            email['translations'].append(msg)
 
         if study_key is not None:
             condition = {
