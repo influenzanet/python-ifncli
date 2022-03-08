@@ -224,7 +224,7 @@ class ListSurveys(Command):
        
         client = self.app.get_management_api()
 
-        surveys = client.get_surveys_in_study(study_key)
+        surveys = client.get_surveys_in_study(study_key, extract_infos=True)
 
         if args.json:
             print(to_json(surveys))
