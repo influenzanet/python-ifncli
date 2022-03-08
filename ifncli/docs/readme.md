@@ -29,8 +29,8 @@ user_credentials:
   password: "<strong-password>"
   instanceId: "<default-instanceID>"
 resources_path: path/to/resources/dir # Path pointing to directory with resources
-vars:  # Variables to be used for this config. They overrides the ones in the platform config file (see Resource Directory)
-  web_url: value
+vars:  # Variables of the platform to be used in the email templates. They overrides the ones in the platform config file (see Resource Directory)
+  web_app_url: value
   default_language: en
 ```
 
@@ -43,11 +43,14 @@ To manage several platforms you can have one config for each, and switch from on
 
 ## Resource Directory
 
-The resource directory contains the needed resources to configure a given platform. It can be versioned (using git for example) to enable collaboration & tracking of the history. 
+The resource directory contains the needed resources to configure a given platform. It can be versioned (using git for example) to enable collaboration & tracking of the history. Of course it should not contains any secret values.
 
 ### Platform config.
 
-The resource directory can contains a yaml file named "platform.yaml" containing the default values for the platforms. The values contained in this file will be overriden by the ones provided 'vars' section in the tool configuration file.
+The resource directory can contains a yaml file named "platform.yaml" containing the default values for the platform. The values contained in this file will be overriden by the ones provided 'vars' section in the tool configuration file.
+You can put in this file the values that are not supposed to be changed regardless the environment (like ".env" file or the default values.yaml of an helm chart)
+
+If needed you can override this values in a config.yaml file 
 
 The platform config has the following structure:
 
@@ -55,7 +58,7 @@ The platform config has the following structure:
 vars:
   # Default values for common platform variables
   # These values can be overridden in the config file (in the "vars" section)
-  web_url: https//my.platform.com  # URL of the Participant website URL
+  web_app_url: https//my.platform.com  # URL of the Participant website URL
   default_language: en # Default language to be used in the email template
 
 ```

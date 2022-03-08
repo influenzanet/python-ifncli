@@ -4,14 +4,17 @@
 
 Arguments
 
-- **--default_language**: Which language should be used by default if not defined otherwise
-- **--email_template_folder**: Path to the email template folder (folder's content should be as defined above)
-- **--dry-run** : will prepare and preprocess templates but do not send update to the database.
+- **--email_template_folder**: Optional path to the email template folder (if not given uses default from platform config)
+- **--dry-run** : will prepare and preprocess templates but do not send update to the database (so you can check the results).
 
-### Preparations:
-The script will assume the following folder structure to be present at the given location (by default `./resources`):
+The default email templates folder is a folder named 'email_templates' in the resource directory (see [])
+
+## Preparations:
+
+The script will assume the following folder structure to be present (`[email_templates]` is the root of the template path)
+
 ```
-email_templates/
+[email_templates]/
 |- header-overrides.yaml  (optional)
 |- layout.html   (optional)
 |-<lang-code-1>/
@@ -32,6 +35,7 @@ email_templates/
     ...
 ```
 
+### Email Header configuration
 The file `header-overrides.yaml` is optional. Content is structured like:
 
 ``` 
@@ -69,22 +73,31 @@ invitation: "You have been invited"
 verification-code: "Code to login"
 verify-email: "Please confirm your email address"
 ```
+
+### Common HTML layout 
+
+The layout.html is an optional common layout for all the messages. If present it will be used and each message will be wrapped by this layout.
+An example layout file is given in the example/ folder of this docs.
+It has to be placed at the root of the email templates folder (along with header-overrides.yaml file)
+
+In this file, the tag `{=main_content=}` will be replaced by each email template content, to create the final email contents (in other words, each email template will be wrapped by this layout to create the final email message to be submitted as the message template for the platform).
 ### Preprocessing of templates
 Email template can have preprocessing variable replaced *before* to be updated into the database by fixed values.
 These values can be used in a template using the *{=**name**=}* where name will be the lookup keys.
-Values are to be defined in the cli config file under the 'email_vars' entry
+
+Values are to be defined in the cli config file under the 'vars' entry (see the [readme docs](readme.md)) or in the common platform.yaml file in at the root of the resources path.
+
+If necessary you can define custom variables (either in config file or in platform.yaml file and use them in your templates).
 
 Example:
 ```yaml
-email_vars:
-  web_url: 'https//mywebsite'
+vars:
+  # ....
+  web_app_url: 'https//mywebsite'
+  default_language: 'en'
 ```
 
-You can then use *{=web_url=}* into the email templates, it will be replaced by the value of the `web_url` variable each time the templates are updated.
-
-If a file named 'layout.html' is placed in the root of the email templates folder. 
-In this file, the tag `{=main_content=}` will be replaced by each template content, to create the full
-template.
+You can then use *{=web_app_url=}* into the email templates, it will be replaced by the value of the `web_app_url` variable each time the templates are updated.
 
 During the process, for each template an file with the '.built' extension will content the real content to be sent to the server (before the base64 encoding).
 
