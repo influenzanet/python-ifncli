@@ -68,7 +68,7 @@ class MigrateUser(Command):
     name = 'user:migrate'
 
     def get_parser(self, prog_name):
-        parser = super(Email, self).get_parser(prog_name)
+        parser = super(MigrateUser, self).get_parser(prog_name)
         parser.add_argument(
             "--sleep", type=int, help="delay in seconds", default=0.5)
         parser.add_argument(
