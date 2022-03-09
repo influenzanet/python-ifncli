@@ -81,15 +81,17 @@ An example layout file is given in the example/ folder of this docs.
 It has to be placed at the root of the email templates folder (along with header-overrides.yaml file)
 
 In this file, the tag `{=main_content=}` will be replaced by each email template content, to create the final email contents (in other words, each email template will be wrapped by this layout to create the final email message to be submitted as the message template for the platform).
+
 ### Preprocessing of templates
+
 Email template can have preprocessing variable replaced *before* to be updated into the database by fixed values.
 These values can be used in a template using the *{=**name**=}* where name will be the lookup keys.
 
-Values are to be defined in the cli config file under the 'vars' entry (see the [readme docs](readme.md)) or in the common platform.yaml file in at the root of the resources path.
+Values are to be defined in the cli config file under the 'vars' entry (see the [readme docs](readme.md)) or in the common platform.yaml file in at the root of the resources directory.
 
 If necessary you can define custom variables (either in config file or in platform.yaml file and use them in your templates).
 
-Example:
+An Example of the variables in a platform.yaml:
 ```yaml
 vars:
   # ....

@@ -87,17 +87,17 @@ class MyApp(App):
         
         return self._configs
     
-    def get_platform(self, resource_path=None):
+    def get_platform(self, resources_path=None):
         """
             Get The platform object
         """
-        if resource_path is None:
-            resource_path = self._configs.get('resource_path', None)
+        if resources_path is None:
+            resources_path = self._configs.get('resources_path', None)
         overrides = self._configs.get('vars', None)
 
-        if resource_path is None:
+        if resources_path is None:
             raise ConfigException("Resource path must be provided either in config file or as command option")
-        return PlatformResources(resource_path, overrides=overrides)
+        return PlatformResources(resources_path, overrides=overrides)
             
 def main(argv=sys.argv[1:]):
     app = MyApp(
