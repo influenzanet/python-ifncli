@@ -63,9 +63,37 @@ To manage several platforms you can have one config for each, and switch from on
 
 The resources directory contains the needed resources to configure a given instance of the Influenzanet system. It can be versioned (using git for example) to enable collaboration & tracking of the history. Of course it should not contains any secret values.
 
+The standard layout (following paths are relative to the resources directory root), names in [brackets] indicate a variable name (user-defined) 
+
+```
+platform.yaml  #  Platform configuration file
+email_templates # Email templates
+  +-
+    layout.html # Commmon HTML layout template (optional)
+    [language]
+      +- 
+        invitation.html  # Template for "invitation" email
+        password-changed.html # Template for password-changed email 
+        ... # And so on
+study
+  [study_key]
+    +-
+      props.yaml
+      studyRules.json
+      surveys
+        +-
+          [survey_name].json
+        
+```
+
+For example, a survey named "weekly" of the study "influenzanet" (study_key=influenzanet) will have its definition file expected at :  ./study/influenzanet/surveys/weekly.json
+
+
+
+
 ### Platform config.
 
-The resources directory can contain a yaml file named "platform.yaml" containing the default values for the instance. The values contained in this file will be overriden by the ones provided 'vars' section in the tool configuration file.
+The resources directory can contain a yaml file named "platform.yaml" containing the default values for the instance. The values contained in this file will be overridden by the ones provided 'vars' section in the tool configuration file.
 You can put in this file the values that are not supposed to be changed regardless the environment (like ".env" file or the default values.yaml of an helm chart)
 
 If you need to use different values for one deployment/environment, you have to override this values in the 'vars' section of the config file for this environment.  

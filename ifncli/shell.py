@@ -87,7 +87,7 @@ class MyApp(App):
         
         return self._configs
     
-    def get_platform(self, resources_path=None):
+    def get_platform(self, resources_path=None)->PlatformResources:
         """
             Get The platform object
         """

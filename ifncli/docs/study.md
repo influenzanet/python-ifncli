@@ -1,3 +1,7 @@
+# Default Resources path layout
+
+By default the commands expects files to follow a standard organization describe in [readme file](readme.md). Some options can use this default layout to find the files at the expected place, instead of typing the full path.
+
 # Study commands
 
 ## `study:show` Study Show
@@ -49,20 +53,21 @@ Output formats:
 
 Arguments:
 
-- **--study_def_path**: relative or absolute path the to study definitions folder where config files are placed.
+- **--study-def-path**: relative or absolute path the to study definitions folder where config files are placed.
+- **--secret-from**: File where secretKey is stored (as plain text, full content of file)
 
 Study definition folder
-
 
 It has to contain two files:
 
   1. `props.yaml` with the study properties including study key and secret key, 
   2. `study_rules.json` containing the study rules in a json array.
 
+**Caution** provide the secretKey in props.yaml will raise an error. Since study props is intended to be versioned, this is strongly deprecated and the secret should be provided using an external file. 
+
 ### Example study props yaml file:
 ```yaml
 studyKey: inf-study-20
-secretKey: <add_secret_key_here>
 status: active
 props:
   systemDefaultStudy: true
@@ -79,6 +84,7 @@ props:
     - en: flu
       de: flu
 ```
+
 
 ## `study:manage-members` Manage Study Members
 
@@ -103,7 +109,11 @@ The user needs permission to modify the study (study member with OWNER, or MAINT
 Arguments:
 
 - **--study_key** : Key of an existing study to which the survey should be added or updated in.
+
+One of the following arguments:
+
 - **--rules_json_path** : relative or absolute path to a study rule definition file.
+- **--default** : this flag will use the default layout path in resources path (./study/[study_key]/studyRules.json)
 
 ## study:import-survey Update a new survey definition for study
 
@@ -114,7 +124,11 @@ Arguments:
 
 - **--study_key**: Key of an existing study to which the survey should be added or updated in.
 
+One the following arguments:
+
 - **--survey_json**: relative or absolute path to a survey definition file, e.g., as exported by the study manager app.
+
+- **--from-name** : name of the survey to import, will use the default resources layout path (study/[study_key]/surveys/[name].json)
 
 ### `study:replace-survey` Replace survey object (incl. history)
 
