@@ -17,7 +17,7 @@
   {% set tt = list.get_with_context(context)%}
   <ul class="{{ styles('translate-list') }}">
   {% for t in tt %}
-  <li><span class="{{ styles('trans-code') }}">{{ t.code }}</span><span class="{{ styles('trans-text') }}">{{ t.value_as_text() }}</span></li>
+  <li><span class="{{ styles('trans-code') }}">{{ t.code }}</span><span class="{{ styles('trans-text') }}">{{ t.value_as_text(context) }}</span></li>
   {% endfor %}
   </ul>
 {% endmacro %}

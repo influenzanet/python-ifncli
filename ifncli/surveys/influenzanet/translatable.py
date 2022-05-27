@@ -6,16 +6,23 @@ TranslatePart = Union[str, Expression]
 
 class Translatable:
     
-    def __init__(self, code, value):
+    def __init__(self, code:str, value):
         """
         docstring
         """
         self.code = code
         self.value = value
 
-    def value_as_text(self):
+    def value_as_text(self, context):
         if isinstance(self.value, list):
-            return ' '.join(self.value)
+            vv = []
+            for item in self.value:
+                if(isinstance(item, Expression)):
+                    v = item.to_readable(context)
+                else:
+                    v = str(item)
+                vv.append(v)
+            return ' '.join(vv)
 
     def get_parts(self) -> List[TranslatePart]:
         return self.value
@@ -40,7 +47,7 @@ class TranslatableList:
             language = [language]
 
         for t in self.values:
-            if t.code in language:
+            if t.code in language or t.code.startswith('_'):
                 tt.append(t)
         return tt
 
@@ -91,9 +98,9 @@ def render_translatable(t, context):
     several = len(trans_to_render) > 1
     for t in trans_to_render:
         if several:
-            text = "[%s] %s" % (t.code, t.value_as_text())
+            text = "[%s] %s" % (t.code, t.value_as_text(context))
         else:
-            text = t.value_as_text()
+            text = t.value_as_text(context)
         values.append(text)
     if len(values) == 0:
         return ''
