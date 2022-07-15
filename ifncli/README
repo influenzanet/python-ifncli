@@ -1,0 +1,15 @@
+ifncli
+=====
+
+ifncli is a set of python library to work with Influenzanet platform and a set of command line tools.
+
+The package is organized in several modules :
+
+- api : embeds all function & info about the Influenzanet API
+- surveys : library to work with surveys
+  - influenzanet : Influenzanet survey models & tools
+  - standard : Influenzanet standard survey definition (to commmon survey questions)
+  - tools : tools to read, print, validate & check surveys
+- managers : set of modules embedding complex actions (to be used in command line but could be reused for web ui for example)
+  - messaging : messages tools
+- platform: platform configuration, handle the informations about the targeted platform (like kubectl context, how to connect, credentials, and common configurations)
