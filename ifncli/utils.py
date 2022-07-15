@@ -1,6 +1,7 @@
 import yaml
 import json
 import os
+import sys
 
 def read_content(path, must_exist=False, default=None):
     found = os.path.exists(path)
@@ -69,3 +70,24 @@ def json_to_list(json, fields):
             r.append(v)
         rows.append(r)
     return (cols, rows)
+
+class Output:
+    """
+        Simple output class
+        If no path provided the print contents
+    """
+    def __init__(self, path=None):
+        self.path = path
+    
+    def write(self, data):
+        need_close = False
+        if not self.path is None :
+            output = open(self.path, 'w')
+            need_close = True
+        else:
+            output = sys.stdout
+
+        output.write(data)
+        
+        if need_close:
+            output.close()
