@@ -1,55 +1,12 @@
 import os
-import json
-import base64
-
+from datetime import datetime
 from cliff.command import Command
 from . import register
 
-from ifncli.utils import read_yaml, read_json, read_content, write_content
+from ifncli.utils import read_yaml,  read_content
+from ifncli.api.messaging import auto_message_types, Message, MessageTranslation, MessageHeaders
 
-message_types = [
-    'registration',
-    'invitation',
-    'verify-email',
-    'verification-code',
-    'password-reset',
-    'password-changed',
-    'account-id-changed',  # email address changed
-    'account-deleted'
-]
-
-def find_template_file(m_type, folder_with_templates):
-    found = False
-    for ext in ['','.html','.htm','.txt']:
-        file = os.path.join(folder_with_templates, m_type + ext)
-        if os.path.exists(file):
-            found = True
-            break
-    if not found:
-        raise ValueError("no template file found to message type: " + m_type)
-    return file
-
-def read_and_convert_html(path, vars=None, layout=None):
-    content = open(path, 'r', encoding='UTF-8').read()
-
-    built = False
-    if vars is not None:
-        built = True
-        for name, value in vars.items():
-            var = '{=' + name + '=}'
-            content = content.replace(var, value)
-
-    if layout is not None:
-        content = layout.replace('{=main_content=}', content)
-        built = True
-
-    if built:
-        write_content(path + '.built', content)
-
-    return base64.b64encode(content.encode()).decode()
-
-def read_and_encode_template(path, vars=None, layout=None):
-    return read_and_convert_html(path, vars=vars, layout=layout)
+from ifncli.managers.messaging import read_and_convert_html, find_template_file, read_and_encode_template
 
 class EmailAutoReminder(Command):
     """
@@ -170,8 +127,11 @@ class EmailTemplate(Command):
         
         
         # Automatically extract languages:
-        languages = [{"code": d, "path": os.path.join(email_template_folder, d)} for d in os.listdir(
-            email_template_folder) if os.path.isdir(os.path.join(email_template_folder, d))]
+        languages = []
+        for language_code in os.listdir(email_template_folder):
+            p = os.path.join(email_template_folder, language_code)
+            if os.path.isdir(p):
+                languages.append({"code": language_code, "path": p})
 
         try:
             headerOverrides = read_yaml(os.path.join(email_template_folder, 'header-overrides.yaml'))
@@ -184,7 +144,7 @@ class EmailTemplate(Command):
 
         template_vars = platform.get_vars()
         
-        for m_type in message_types:
+        for m_type in auto_message_types:
             
             template_def = {
                 'messageType': m_type,
@@ -233,15 +193,14 @@ class SendCustom(Command):
     def get_parser(self, prog_name):
         parser = super(SendCustom, self).get_parser(prog_name)
         parser.add_argument("--email_folder", help="path to the custom email folder", default=os.path.join('resources', 'custom_email'))
-        parser.add_argument(
-            "--to_study_participants", help="to send only to participants of a with this study key", default=None)
+        parser.add_argument("--study_key", help="to send only to participants of a with this study key", default=None)
         return parser
         
     def take_action(self, args):
 
         client = self.app.get_management_api()
 
-        study_key = args.to_study_participants
+        study_key = args.study_key
         email_folder_path = args.email_folder
 
         print(study_key, email_folder_path)
@@ -250,28 +209,20 @@ class SendCustom(Command):
             os.path.join(email_folder_path, 'settings.yaml')
         )
 
-        email = {
-            "messageType": email_config["messageType"],
-            "defaultLanguage": email_config["defaultLanguage"],
-            "translations": []
-        }
+        message = Message(email_config["messageType"], email_config["defaultLanguage"])
 
         for tr in email_config['translations']:
-            msg = {
-                'lang': tr['lang'],
-                'subject': tr['subject'],
-                'templateDef':  read_and_convert_html(os.path.join(email_folder_path, tr['templateFile']))
-            }
-            email['translations'].append(msg)
+           trans = MessageTranslation(tr['lang'], tr['subject'])
+           trans.setTemplate(read_and_convert_html(os.path.join(email_folder_path, tr['templateFile'])))
+           message.addTranslation(trans)
 
+        condition = email_config.get("condition")
         if study_key is not None:
-            condition = {
-                "dtype": "num",
-                "num": 1
-            }
-            client.send_message_to_study_participants(study_key, condition, email)
+            if condition is None:
+                condition = {"dtype": "num", "num": 1}
+            client.send_message_to_study_participants(study_key, condition, message.toAPI())
         else:
-            client.send_message_to_all_users(email)
+            client.send_message_to_all_users(message.toAPI())
 
 register(EmailTemplate)
 register(EmailAutoReminder)
