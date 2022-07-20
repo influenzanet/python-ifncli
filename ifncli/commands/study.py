@@ -8,7 +8,7 @@ from cliff.lister import Lister
 from . import register
 from pathlib import Path
 
-from ifncli.utils import read_yaml, read_json, json_to_list, readable_yaml, to_json, read_content
+from ifncli.utils import read_yaml, read_json, json_to_list, readable_yaml, to_json, read_content, Output
 
 from ifncli.surveys import readable_study, readable_translatable, readable_survey, create_context, survey_to_dictionnary, survey_to_html
 
@@ -421,7 +421,38 @@ class ShowSurvey(Command):
         if need_close:
             out.close()
 
+class CustomStudyRules(Command):
+    """
+        Execute a custom study rules 
 
+        Show a survey definition. By default render using a human readable presentation based on Yaml.
+        --json option will output the raw json definition as returned by the API
+
+    """
+    name = 'study:custom-rules'
+
+    def get_parser(self, prog_name):
+        parser = super(CustomStudyRules, self).get_parser(prog_name)
+        parser.add_argument("--rules", help="Rules files", required=True, action="store")
+        parser.add_argument("--study_key", help="key of the study (survey from api). Cannot be used with from-file", required=False)
+        parser.add_argument("--output", help="path of file to output results", required=False)
+        # parser.add_argument("--format", help="Output format available 'human', 'dict-yaml','dict-json', html default is 'human'", required=False, action="store", default=None)
+       
+        return parser
+
+    def take_action(self, args):
+        study_key = args.study_key
+        rules_path = args.rules
+
+        client = self.app.get_management_api()
+        
+        rules = read_json(rules_path)
+        
+        resp = client.run_custom_study_rules(study_key, rules)
+
+        output = Output(args.output)
+        output.write(readable_yaml(resp))
+        
 
 register(ImportSurvey)
 register(CreateStudy)
@@ -432,3 +463,4 @@ register(ListStudies)
 register(ShowStudy)
 register(ShowSurvey)
 register(ReplaceSurvey)
+register(CustomStudyRules)
