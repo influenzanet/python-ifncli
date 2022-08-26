@@ -70,7 +70,7 @@ class MessageHeaders:
 
 class Message:
     def __init__(self, messageType: str, defaultLanguage: str) -> None:
-        if messageType in all_message_types:
+        if not messageType in all_message_types:
             raise Exception("Unknown type message type '%s'" % (messageType,))
         self.messageType = messageType
         self.defaultLanguage = defaultLanguage
