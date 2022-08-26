@@ -4,7 +4,7 @@
     "expressions":{
         "IF": {
             "kind":"action",
-            "description":"control flow implementing the typical if-else structure, if condtion evaluated to true then action is run, action_else otherwise",
+            "description":"control flow implementing the typical if-else structure, if condition evaluated to true then action is run, action_else otherwise",
             "params":[
                 {"name":"condition", "description":"condition to check"},
                 {"name":"action_true", "description":"action run if condition is true"},
@@ -153,6 +153,17 @@
                 {"role": "item_path", "params": {"item_key": "item", "path": ["rg","component"]}}
             ]
         },
+        "responseHasKeysAll": {
+            "description": "Check if all of the following options are selected",
+            "params": [
+                {"name":"item", "role":"item_key"},
+                {"name":"rg", "role":"rg_comp_prefix"},
+                {"name":"component", "role":"rg_comp_key"}
+            ],
+            "roles": [
+                {"role": "item_path", "params": {"item_key": "item", "path": ["rg","component"]}}
+            ]
+        },
         "responseHasOnlyKeysOtherThan": {
             "description": "checks if the participant has selected none of the specified response item keys.",
             "params": [
@@ -194,6 +205,12 @@
                 {"name":"survey", "role":"survey_key"}
             ]
         },
+        "parseValueAsNum": {
+            "description": "Parse the result of an expression as a number",
+            "params": [
+                {"name":"exp"}
+            ]
+        },
         "getSurveyKeyAssignedFrom": {
             "description": "returns the date when the specified survey was assigned to the participant as posix timestamp.",
             "params": [
@@ -225,16 +242,62 @@
                 {"name":"survey", "role":"survey_key"}
             ]
         },
-        "eq": [],
-        "lt": [],
-        "lte": [],
-        "gt": [],
-        "gte": [],
-        "or": [],
-        "and": [],
-        "not": [],
+        "eq": {
+            "description": "test if operands are equals",
+            "params": [
+                {"name": "left"},
+                {"name": "right"}
+            ]
+        },
+        "lt": {
+            "description": "test if left is lower than right operand",
+            "params": [
+                {"name": "left"},
+                {"name": "right"}
+            ]
+        },
+        "lte": {
+            "description": "test if left is lower or equal than right operand",
+            "params": [
+                {"name": "left"},
+                {"name": "right"}
+            ]
+        },
+        "gt": {
+            "description": "test if left is greater than right operand",
+            "params": [
+                {"name": "left"},
+                {"name": "right"}
+            ]
+        },
+        "gte": {
+            "description": "test if left is greater or equal than right operand",
+            "params": [
+                {"name": "left"},
+                {"name": "right"}
+            ]
+        },
+        "or": {
+            "description": "test if any of arguments is true",
+            "params": [
+                {"name": "args", "variadic": true}
+            ]
+        },
+        "and": {
+            "description": "test if all of arguments are true",
+            "params": [
+                {"name": "args", "variadic": true}
+            ]
+        },
+        "not": {
+            "description": "logical not of its argument",
+            "params": [
+                {"name": "arg"}
+            ]
+        },
 
         "getArrayItemAtIndex": {
+            "description": "Extract value at index in an array",
             "kind": "client",
             "params": [
                 {"name": "array"},
@@ -249,13 +312,30 @@
             ]
         },
         "getAttribute": {
+            "description": "Extract value of an attribute of the referenced object",
             "kind":"client",
             "params":[
                 {"name":"item_key", "role":"item_key"},
                 {"name": "name"}
             ]
         },
+        "getNestedObjectByKey": {
+            "description": "Extract value with a specific key from the tree",
+            "kind": "client",
+            "params": [
+                {"name":"objectRef"},
+                {"name":"item_key", "role":"item_key"}
+            ]
+        },
+        "findPreviousSurveyResponsesByKey": {
+            "description": "Retrieve items by the same key from the previous responses arrays",
+            "kind": "client",
+            "params": [
+                {"name":"item_key", "role":"item_key"}
+            ]
+        },
         "getObjByHierarchicalKey": {
+            "description": "Extract value with a specific key from the hierarchical tree",
             "kind":"client",
             "params": [
                 {"name":"item"},
@@ -265,8 +345,11 @@
                 {"role":"item_path", "params": {"item_key": "item", "path": ["key"]}}
             ]
         },
-        "getContext": [],
+        "getContext": {
+            "description": "Reference to the context variable storing e.g. participant infos"
+        },
         "getResponseItem": {
+            "description": "Get response object for a specific item and slot",
             "params":[
                 {"name":"item_key", "role":"item_key"},
                 {"name": "response", "role":"rg_full_path"}
@@ -276,6 +359,7 @@
             ]
         },
         "getSurveyItemValidation":{
+            "description":"To use evaluated validations rules, we can reference them with this method.",
             "params":[
                 {"name":"item_key", "role":"item_key", "allow_this": true},
                 {"name":"validation", "role":"validation_key"}
@@ -285,20 +369,44 @@
             ]
             
         },
+        "getLastFromSurveyResponses": {
+            "description": "Retrieve last item for a specific key from the previous responses arrays",
+            "params": [
+                {"name": "key", "role":"item_key"}
+            ]
+        },
+        "filterResponsesByIncludesKeys": {
+             "description": "[@tocheck]search responses with keys",
+             "params": [
+                {"name": "responsesRef"},
+                {"name": "itemKey", "type":"string"},
+                {"name": "searchKeys", "type":"string"}
+             ]
+        },
         "getPreviousResponses": {
+            "description": "Retrieve all previous responses for a specific survey key",
             "params": [
                 {"name": "key", "role":"item_key"}
             ]
         },
         "getResponses": {
+            "description": "Reference to the current response array",
             "kind": "client",
             "params": []
         },
+        "getLastFromSurveyItemResponses": {
+            "description": "Given a list of previous responses (list of single responses), retrieve the latest one.",
+            "params": [
+                {"name": "response_list"}
+            ]
+        },
         "getRenderedItems": {
+            "description": "Reference to the list of currently active survey questions",
             "kind": "client",
             "params": []
         },
         "hasResponse": {
+           "description": "Check if an item has a specific response object (by key)",
            "params": [ 
              {"name":"item", "role":"item_key"},
              {"name":"response", "role": "rg_key"}
@@ -307,13 +415,23 @@
                {"role": "item_path", "params":{"item_key": "item", "path": ["response"]}}
            ]
         },
+        "multipleChoiceSelectionCount": {
+            "description": "Counts the number of selected options in a multiple choice question",
+            "params": [
+                {"name":"item_key", "role":"item_key"}
+            ]
+        },
         "isDefined": {
+            "description": "Evaluates an expression and checks if the return value is defined",
             "params": [
                 {"name":"var"}
             ]
         },
-        "sequential":[],
+        "sequential":{
+            "description": "Make the order of items sequential"
+        },
         "getSecondsSince": {
+            "description": "Calculate time difference between 'now' and the reference time in seconds",
             "params": [
                 {"name":"time", "role":"timestamp"}
             ]
@@ -325,6 +443,7 @@
             ]
         },
         "dateResponseDiffFromNow": {
+            "description": "Calculate difference of a selected date input and current timestamp with selected unit",
             "params":[
                 {"name":"item_key", "role":"item_key"},
                 {"name": "response", "role":"rg_full_path"},
@@ -334,6 +453,28 @@
             "refs": [
                 {"role":"item_path", "params": {"item_key": "item", "path": ["response"]}}
             ]
+        },
+        "parseParticipantFlagAsNum": {
+            "description": "get participant flags object if contains the specified key value pair",
+            "params": [
+                {"name": "key", "role":"flag_key"}
+            ]
+        },
+        "hasParticipantFlagKey": {
+            "description": "Check participant flags object if contains the specified key value pair",
+            "params": [
+                {"name": "key", "role":"flag_key"}
+            ]
+        },
+        "hasParticipantFlagKeyAndValue": {
+            "description": "Check participant flags object if contains the specified key value pair",
+            "params": [
+                {"name": "key", "role":"flag_key"},
+                {"name": "value"}
+            ]
+        },
+        "isLoggedIn": {
+            "description": "Check if the participant is logged in currently."
         }
     },
     "enums": {
