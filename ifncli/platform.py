@@ -16,7 +16,7 @@ class ResourcesLayoutPath(_Path_):
     """
 
     def get_survey_file(self, study_key, name):
-        self.get_study_path(study_key) / 'surveys' / (name + ".json")
+        return self.get_study_path(study_key) / 'surveys' / (name + ".json")
 
     def get_study_rules_file(self, study_key):
         return self.get_study_path(study_key) / 'studyRules.json'
