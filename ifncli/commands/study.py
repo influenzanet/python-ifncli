@@ -38,8 +38,8 @@ class CreateStudy(Command):
         parser.add_argument("--dry-run", help="Show the study json but do not submit", required=False, action="store_true")
 
         g = parser.add_mutually_exclusive_group()
-        g.add_argument("--study-def-path", help="folder with study def yaml and rules json", required=True)
-        g.add_argument("--study-key", help="Key of the study (will use default layout in resources path)", required=True)
+        g.add_argument("--study-def-path", help="folder with study def yaml and rules json")
+        g.add_argument("--study-key", help="Key of the study (will use default layout in resources path)")
     
         return parser
 
@@ -53,7 +53,7 @@ class CreateStudy(Command):
             study_rules_path = path.get_study_rules_file(args.study_key)
         else:
             study_props_path = os.path.join(study_path, "props.yaml")
-            study_rules_path = os.path.join(study_path, "study_rules.json")
+            study_rules_path = os.path.join(study_path, "studyRules.json")
         
         study_def = read_yaml(study_props_path)
         rules = read_json(study_rules_path)
