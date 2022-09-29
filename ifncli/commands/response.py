@@ -2,7 +2,6 @@
 import os
 from ifncli.api import ResponseParser
 from datetime import datetime, timedelta
-import pandas as pd
 
 from cliff.command import Command
 from . import register
@@ -53,6 +52,11 @@ class ResponseDownloader(Command):
         
     def take_action(self, args):
         client = self.app.get_management_api()
+
+        try:
+            import pandas as pd
+        except:
+            return
 
         filter_config = read_yaml(args.filter_options_yaml)
 
