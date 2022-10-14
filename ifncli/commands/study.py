@@ -25,6 +25,29 @@ def yaml_obj_to_loc_object(obj):
             }]
         })
     return loc_obj    
+
+def extract_survey_args(study_key, from_name):
+    """
+        Resolve study_key and survey_key with the 2 arguments study_key and from_name
+        Can be provided :
+          - separately (from_name only contains survey_key)
+          - Only in 
+    """
+    survey_key = None
+    if from_name is not None:
+        if '/' in from_name:
+            if study_key is not None:
+                raise Exception("Study key must be provided either in name or in separated parameter not both")
+        n = from_name.split('/')
+        if len(n) != 2:
+            raise Exception("name can only contains 2 elements (study_key/survey_key) ")
+        if len(n) == 2:
+            study_key = n[0]
+            survey_key = n[1]
+        else:
+            survey_key = n[0]
+    return [study_key, survey_key]
+
 class CreateStudy(Command):
     """
         Create a new study
@@ -119,27 +142,26 @@ class ImportSurvey(Command):
 
     def get_parser(self, prog_name):
         parser = super(ImportSurvey, self).get_parser(prog_name)
-        parser.add_argument("--study_key", help="study key to which study the survey should be saved", required=True)
+        parser.add_argument("--study_key", help="study key to which study the survey should be saved", required=False)
         
         group = parser.add_mutually_exclusive_group()
 
-        group.add_argument("--survey_json", help="path to the survey json", required=False)
-        group.add_argument("--from-name", help="Use json file with this name in the resource path ", required=False)
+        group.add_argument("--survey-json", help="path to the survey json", required=False)
+        group.add_argument("--from-name", help="Name of the survey (can be study-key/survey-key) if the files are organized following the common layout", required=False)
 
         return parser
 
     def take_action(self, args):
-        
-        study_key = args.study_key
-        survey_path = args.survey_json
-        from_name = args.from_name
+
+        study_key, survey_key = extract_survey_args(args.study_key, args.from_name)
 
         client = self.app.get_management_api()
 
-        if from_name:
+        if survey_key is not None:        
             path = self.app.get_platform().get_path()
-            survey_path = path.get_survey_file(study_key, from_name)
+            survey_path = path.get_survey_file(study_key, survey_key)
         else:
+            survey_path = args.survey_json
             survey_path = Path(survey_path)    
 
         if not survey_path.exists():
@@ -380,7 +402,7 @@ class ShowSurvey(Command):
                 survey = survey['survey']
         else:
             if args.survey is None:
-                raise Exception("survey argumen is missing. I need this to get the survey from the study")
+                raise Exception("survey argument is missing. I need this to get the survey from the study")
             client = self.app.get_management_api()
             survey = client.get_survey_definition(args.study_key, args.survey)
             if survey is None:

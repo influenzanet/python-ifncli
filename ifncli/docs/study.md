@@ -122,13 +122,26 @@ The user needs permission to modify the study (study member with OWNER, or MAINT
 
 Arguments:
 
-- **--study_key**: Key of an existing study to which the survey should be added or updated in.
-
-One the following arguments:
+- **--study_key**: Key of an existing study to which the survey should be added or updated in. Now optional, tt can be provided in from_name
 
 - **--survey_json**: relative or absolute path to a survey definition file, e.g., as exported by the study manager app.
 
-- **--from-name** : name of the survey to import, will use the default resources layout path (study/[study_key]/surveys/[name].json)
+- **--from-name** : name of the survey, will use the default resources layout path (study/[study_key]/surveys/[name].json). It can be prefixed by the study_key with a '/' (as [study_key]/[survey_key])
+
+Example:
+
+```bash
+./ifn-cli study:import-survey --from-name grippenet/weekly
+
+# OR
+
+./ifn-cli study:import-survey --study_key grippenet --from-name weekly
+
+# OR
+
+./ifn-cli study:import-survey --study_key grippenet --survey_json path/to/the/weekly.json
+
+```
 
 ### `study:replace-survey` Replace survey object (incl. history)
 
