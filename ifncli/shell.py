@@ -51,7 +51,7 @@ class MyApp(App):
         
         cfg_path = os.getenv('IFN_CONFIG', cfg_path)
         
-        if os.getenv('IFN_CONFIG') is None and os.getenv('INF_CONFIG') is not None:
+        if os.getenv('INF_CONFIG') is not None:
             print("INF_CONFIG is defined, are you sure you didnt mistyped IFN_CONFIG ?")
 
         if not Path(cfg_path).is_file():
