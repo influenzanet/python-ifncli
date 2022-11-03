@@ -1,19 +1,19 @@
 from datetime import datetime
 import json
 import sys
-from ifncli.surveys import create_context
-from ifncli.surveys.influenzanet.expression import library_path, schema_path
-from ifncli.surveys.influenzanet.expression.library import load_library, render_library
-from ifncli.surveys.readable import as_readable
-from ifncli.surveys.influenzanet import survey_parser
-from ifncli.surveys.tools.validator import SurveyStandardValidator
-from ifncli.surveys.tools.checker import SurveyChecker
+from influenzanet.surveys import create_context
+from influenzanet.surveys.influenzanet.expression import library_path, schema_path
+from influenzanet.surveys.influenzanet.expression.library import load_library, render_library
+from influenzanet.surveys.readable import as_readable
+from influenzanet.surveys.influenzanet import survey_parser
+from influenzanet.surveys.tools.validator import SurveyStandardValidator
+from influenzanet.surveys.tools.checker import SurveyChecker
 
 from cliff.command import Command
 
 from . import register
 
-from ifncli.utils import read_json, readable_yaml
+from ..utils import read_json, readable_yaml
 
 class SurveyValidateStandard(Command):
     """

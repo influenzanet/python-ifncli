@@ -10,7 +10,7 @@ from pathlib import Path
 
 from ifncli.utils import read_yaml, read_json, json_to_list, readable_yaml, to_json, read_content, Output
 
-from ifncli.surveys import readable_study, readable_translatable, readable_survey, create_context, survey_to_dictionnary, survey_to_html
+from influenzanet.surveys import readable_study, readable_translatable, readable_survey, create_context, survey_to_dictionnary, survey_to_html
 
 def yaml_obj_to_loc_object(obj):
     """ 
