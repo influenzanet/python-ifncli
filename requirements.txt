@@ -1,0 +1,9 @@
+PyYAML==6.0
+
+# For export
+numpy==1.23.*
+pandas==1.4.*
+
+influenzanet.surveys[validator]
+git+https://github.com/influenzanet/python-influenzanet-api
+cliff==3.5.*
