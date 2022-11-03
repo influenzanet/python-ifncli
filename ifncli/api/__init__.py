@@ -1,3 +1,3 @@
 
-from management_api import ManagementAPIClient
-from response_parser import ResponseParser
+from influenzanet.api import ManagementAPIClient
+from influenzanet.api import ResponseParser
