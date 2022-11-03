@@ -4,7 +4,7 @@ Influenzanet CLI tools provides management tool for an influenzanet instance.
 
 ## Overview
 
-In the following we consider two differents things :
+In the following we consider two different things :
 
 - An instance : as a configured influenzanet system for a given project (for example for a country). 
 - A deployment : the instance is installed and online in a given IT environment (in a production server, in a local dev cluster, ...)
@@ -87,9 +87,6 @@ study
 ```
 
 For example, a survey named "weekly" of the study "influenzanet" (study_key=influenzanet) will have its definition file expected at :  ./study/influenzanet/surveys/weekly.json
-
-
-
 
 ### Platform config.
 

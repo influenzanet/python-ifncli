@@ -1,6 +1,6 @@
 # Default Resources path layout
 
-By default the commands expects files to follow a standard organization describe in [readme file](readme.md). Some options can use this default layout to find the files at the expected place, instead of typing the full path.
+By default the commands expects resources files to follow a standard organization described in [readme file](../readme.md). Some options can use this default layout to find the files at the expected place, instead of typing the full path.
 
 # Study commands
 
