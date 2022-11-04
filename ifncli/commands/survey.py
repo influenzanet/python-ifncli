@@ -5,7 +5,7 @@ from influenzanet.surveys import create_context
 from influenzanet.surveys.influenzanet.expression import library_path, schema_path
 from influenzanet.surveys.influenzanet.expression.library import load_library, render_library
 from influenzanet.surveys.readable import as_readable
-from influenzanet.surveys.influenzanet import survey_parser
+from influenzanet.surveys.influenzanet import survey_parser, read_survey_json
 from influenzanet.surveys.tools.validator import SurveyStandardValidator
 from influenzanet.surveys.tools.checker import SurveyChecker
 
@@ -40,11 +40,7 @@ class SurveyValidateStandard(Command):
         return parser
 
     def take_action(self, args):
-        survey = read_json(args.survey)
-
-        if "studyKey" in survey:
-            # A study entry
-            survey = survey['survey']
+        survey = read_survey_json(args.survey)
         survey = survey_parser(survey)
 
         profile = SurveyStandardValidator.profile_from_yaml(args.profile)
@@ -94,11 +90,8 @@ class SurveyCheckCommand(Command):
         return parser
 
     def take_action(self, args):
-        survey = read_json(args.survey)
+        survey = read_survey_json(args.survey)
 
-        if "studyKey" in survey:
-            # A study entry
-            survey = survey['survey']
         survey = survey_parser(survey)
 
         checker = SurveyChecker()
