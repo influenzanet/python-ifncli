@@ -10,7 +10,7 @@ from pathlib import Path
 
 from ..utils import read_yaml, read_json, json_to_list, readable_yaml, to_json, read_content, Output
 
-from influenzanet.surveys import readable_study, readable_translatable, readable_survey, create_context, survey_to_dictionnary, survey_to_html
+from influenzanet.surveys import readable_study, readable_translatable, readable_survey, create_context, survey_to_dictionnary, survey_to_html, read_survey_json
 
 def yaml_obj_to_loc_object(obj):
     """ 
@@ -372,7 +372,7 @@ class ShowSurvey(Command):
     def take_action(self, args):
         
         if args.from_file is not None:
-            survey = read_json(args.from_file)
+            survey = read_survey_json(args.from_file)
             if 'survey' in survey and isinstance(survey['survey'], dict):
                 survey = survey['survey']
         else:
