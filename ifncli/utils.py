@@ -1,7 +1,7 @@
-import yaml
+import sys
 import json
 import os
-import sys
+import yaml
 
 def read_content(path, must_exist=False, default=None):
     found = os.path.exists(path)
@@ -32,6 +32,9 @@ def to_json(object):
     return json.dumps(object)
 
 def readable_yaml(object):
+    """
+        Create Yaml from object using options to improve readability
+    """
     return yaml.dump(object, default_flow_style=False, sort_keys=False, width=1000)
 
 def translatable_to_list(data, language=None):
