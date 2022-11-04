@@ -8,16 +8,17 @@ Influenzanet CLI tools provides some command line tools to manage Influenzanet i
 - It's not as complete as the other ones (we complete them as soon as we need the tool)
   
 It proposes:
-- A organization layout for resources files layout (things work easier when files are placed following it)
-- Handling configuration of instances and a way to define common variables (useable in email templates) by instance and by deployment environment
-- A common HTML layout can be used for email templates (the templates files will be wrapped in the layout before submission)
-- Tools to check survey consistency (including expressions) and transform survey to html or yaml document
+- An organization layout for resources files layout (things work easier when files are placed following it)
+- A way to handle configuration of instances with common variables (useable in email templates) by instance and by deployment environment
+- A common HTML layout useable for email templates (the templates files will be wrapped in the layout before submission)
+- Tools to check survey consistency (including expressions) 
+- Transformation ofs survey json to (more) human readable html or yaml document
 
 ifncli is based on :
 
-- cliff command line framework
-- influenzanet.api package to interact with management API
-- influenzanet.surveys package to work with surveys 
+- [cliff](https://docs.openstack.org/cliff/latest) command line framework
+- [influenzanet.api](https://github.com/influenzanet/python-influenzanet-api) package to interact with management API
+- [influenzanet.surveys](https://github.com/influenzanet/python-influenzanet-surveys) package to work with surveys 
 ## Overview
 
 In the following we consider two different things :
@@ -34,7 +35,7 @@ To run, the tool will expect 2 things :
 
 You can use several config file, each one will contains information about how to manage one influenzanet instance in a given environment (on production server, on local cluster for dev, etc.). It will contain some configuration values specific to the deployed environment (for example the URL of the website will not be the same in prod/dev environments).
 
-# Installation
+## Installation
 
 - Clone this repo
   
@@ -44,7 +45,7 @@ You can use several config file, each one will contains information about how to
 pip install -r requirements.txt
 ```
 
-- create the .local directory to put you environment config .yaml files (recommended)
+- create the .local directory to put your environment config .yaml files (recommended)
 
 - create a environment yaml config (see Environment Configuration file for content) with credentials
 
@@ -103,7 +104,7 @@ To use a configuration file you can either:
 - use the '--config' argument and pass the file location
 - Define the environment variable `IFN_CONFIG` with the path of the yaml file to use (caution it's not 'INF_CONFIG').
 
-To manage several platforms you can have one config for each, and switch from one another by changing the environment variable.
+To manage several platforms you can have one config for each, and switch from one another by changing the environment variable value to point to another configuration variable.
 
 The following resources directory is probably to be tracked by a VCS (like git) so it's recommended to put those configuration files outside it.
 
