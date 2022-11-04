@@ -3,10 +3,10 @@ from datetime import datetime
 from cliff.command import Command
 from . import register
 
-from ifncli.utils import read_yaml,  read_content
-from ifncli.api.messaging import auto_message_types, Message, MessageTranslation, MessageHeaders
+from ..utils import read_yaml,  read_content
+from ..api.messaging import auto_message_types, Message, MessageTranslation, MessageHeaders
 
-from ifncli.managers.messaging import read_and_convert_html, find_template_file, read_and_encode_template
+from ..managers.messaging import read_and_convert_html, find_template_file, read_and_encode_template
 
 class EmailAutoReminder(Command):
     """

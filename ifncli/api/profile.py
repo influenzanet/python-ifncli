@@ -1,7 +1,7 @@
 
 from pathlib import Path
-from ifncli.utils import read_yaml
-from ifncli.platform import PlatformResources
+from ..utils import read_yaml
+from ..platform import PlatformResources
 from . import ManagementAPIClient
 from typing import Dict
 

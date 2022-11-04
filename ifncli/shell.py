@@ -4,10 +4,10 @@ from pathlib import Path
 from cliff.app import App
 from cliff.commandmanager import CommandManager
 
-from ifncli.utils import read_yaml
-from ifncli.commands import get_commands
-from ifncli.api import ManagementAPIClient
-from ifncli.platform import PlatformResources
+from .utils import read_yaml
+from .commands import get_commands
+from influenzanet.api import ManagementAPIClient
+from .platform import PlatformResources
 
 class ConfigException(Exception):
     pass

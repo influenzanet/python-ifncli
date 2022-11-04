@@ -2,7 +2,7 @@ import os
 import os
 import base64
 
-from ifncli.utils import write_content
+from ...utils import write_content
 
 def find_template_file(m_type, folder_with_templates):
     found = False
