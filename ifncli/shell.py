@@ -86,6 +86,15 @@ class MyApp(App):
             return self._configs[what]
         
         return self._configs
+
+    def show_api(self):
+        """
+            Print the API 
+        """
+        cfg = self.get_configs()
+        creds = cfg['user_credentials']
+        print("Using <%s>@%s on %s" % (creds['email'], creds['instanceId'], cfg["management_api_url"]))
+        
     
     def get_platform(self, resources_path=None)->PlatformResources:
         """
@@ -100,6 +109,8 @@ class MyApp(App):
         return PlatformResources(resources_path, overrides=overrides)
             
 def main(argv=sys.argv[1:]):
+    if len(argv) == 0:
+        argv = ["help"]
     app = MyApp(
             description="InfluenzaNet CLI",
             version="0.0.1",
