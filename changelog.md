@@ -1,5 +1,10 @@
 
 
+
+# [Unreleased]
+
+- Show connection information once (on stderr)
+
 # v1.0
 
 - use influenzanet.api 1.0 (new survey-service endpoint v1.3.0)

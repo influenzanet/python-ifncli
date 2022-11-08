@@ -29,6 +29,8 @@ class MyApp(App):
         self._configs = {}
         self._apis = {}
     
+        self.api_shown = False
+
        # self.plugin_manager.build_option_parser(parser)
 
         return parser
@@ -47,6 +49,7 @@ class MyApp(App):
             Preparation of the environment 
         
         """
+        
         cfg_path = self.options.config
         
         cfg_path = os.getenv('IFN_CONFIG', cfg_path)
@@ -62,6 +65,7 @@ class MyApp(App):
         except:
             print("Unable to load configuration file")
             raise
+
     
     def get_management_api(self):
         if 'management' in self._apis:
@@ -72,6 +76,11 @@ class MyApp(App):
 
         client = ManagementAPIClient(management_api_url, user_credentials, participant_api_url, verbose=False)
         self._apis['management'] = client
+
+        if not self.api_shown:
+            print("Connected to <%s>@%s on %s" % (user_credentials['email'], user_credentials['instanceId'], management_api_url), file=sys.stderr)
+            self.api_shown = True
+
         return client
 
     def get_configs(self, what=None, must_exist=True):
@@ -87,15 +96,6 @@ class MyApp(App):
         
         return self._configs
 
-    def show_api(self):
-        """
-            Print the API 
-        """
-        cfg = self.get_configs()
-        creds = cfg['user_credentials']
-        print("Using <%s>@%s on %s" % (creds['email'], creds['instanceId'], cfg["management_api_url"]))
-        
-    
     def get_platform(self, resources_path=None)->PlatformResources:
         """
             Get The platform object
