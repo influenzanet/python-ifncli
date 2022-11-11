@@ -170,14 +170,9 @@ class ImportSurvey(Command):
 
         print("Using survey in '%s'" % survey_path)
 
-        survey_def = read_json(survey_path)
-        #survey_key =  survey_def['surveyDefinition']['key']
-        
-        upload_obj = {
-            "studyKey": study_key,
-            "survey": survey_def
-        }
-        resp = client.save_survey_to_study(study_key, upload_obj)
+        survey_def = read_json(survey_path)        
+
+        resp = client.save_survey_to_study(study_key, survey_def)
 
 def old_survey_upload(client, survey_def, study_key):
     survey_key = survey_def['survey']['current']['surveyDefinition']['key']
@@ -295,12 +290,17 @@ class ListSurveys(Command):
 
         ctx = create_context(language=args.lang)
 
+        print(surveys)
+
         for s in surveys:
             d = {
                 'key': s['surveyKey'],
                 'name': readable_translatable(s['name'], ctx),
-                'description': readable_translatable(s['description'], ctx)
+                'description': readable_translatable(s['description'], ctx),
             }
+            if 'metadata' in s:
+                d['metadata'] = s['metadata']
+
             data.append(d)
 
         print(readable_yaml(data))
