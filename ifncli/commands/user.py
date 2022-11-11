@@ -1,31 +1,32 @@
 import os
 import json
-import base64
-
+from typing import List
 from cliff.command import Command
+
 from . import register
-
-from ifncli.utils import read_yaml, read_json
-
+from ..utils import read_yaml, read_json, to_json, write_content,check_password_strength
+from datetime import datetime
 from time import sleep
 import random
 import string
 
-
 def get_random_password_string(length):
     password_characters = string.ascii_letters + string.digits + string.punctuation
-    password = ''.join(random.choice(password_characters)
-                       for i in range(length))
+    password = ''.join(random.choice(password_characters) for i in range(length))
     return password
 
-
-def log_migration_events(type, users_impacted, log_file_path):
-    if len(users_impacted) > 0:
-        batchname = os.path.basename(log_file_path).split('.')[0]
-        new_filename = batchname + '_' + str(type) + '.csv'
-        pd.DataFrame(users_impacted).to_csv(new_filename)
-        print(str(type) + ' users saved into: ', new_filename)
-
+def reorder_profiles(profiles:List):
+    """
+        Make sure the flagged profile as "main" is the first in the profile list
+    """
+    main = []
+    others = []
+    for p in profiles:
+        if 'main' in p and p['main']:
+            main.append(p)
+        else:
+            others.append(p)
+    return main + others
 
 class MigrateUser(Command):
     """
@@ -69,64 +70,88 @@ class MigrateUser(Command):
 
     def get_parser(self, prog_name):
         parser = super(MigrateUser, self).get_parser(prog_name)
-        parser.add_argument(
-            "--sleep", type=int, help="delay in seconds", default=0.5)
-        parser.add_argument(
-            "--exported_users", help="JSON file with the exported list of email addresses and old participant IDs", required=True)
-        parser.add_argument(
-            "--settings", help="general attribute settings for each user in yaml format", required=True)
+        parser.add_argument("--dry-run", action="store_true", help="Dont insert")
+        parser.add_argument("--sleep", type=int, help="delay in seconds", default=0.5)
+        parser.add_argument("--users", help="JSON file with the exported list of email addresses and old participant IDs", required=True)
+        parser.add_argument("--settings", help="general attribute settings for each user in yaml format", required=True)
         return parser
 
     def take_action(self, args):
-        import pandas as pd
+        
+        migration_settings = read_yaml(args.settings)
+        user_batch_path = args.users
+        sleep_delay = args.sleep
+        dry_run = args.dry_run
 
         client = self.app.get_management_api()
+        
+        new_users = read_json(user_batch_path)
 
-        sleep_delay = args.sleep
-
-        migration_settings = read_yaml(args.settings)
-
-        user_batch_path = args.exported_users
-        new_users = pd.read_json(user_batch_path)
         failed_users = []
         skipped_users = []
+        created_users = []
+
+        skipEmptyProfiles = migration_settings['skipEmptyProfiles']
+
         client.renew_token()
 
-        for i, u in new_users.iterrows():
-            if migration_settings['skipEmptyProfiles'] and u['profiles'] == []:
-                skipped_users.append({
-                    'email': u['email'],
-                    'oldParticipantIDs': '',
-                    'error': 'Empty profiles'
-                })
+        for i, u in enumerate(new_users):
+            email = u['email']
+            
+            if skipEmptyProfiles and len(u['profiles']) == 0:
+                skipped_users.append(u)
+                print("%d %s - skipped empty profile" % (i, email))
                 continue
+
+            initial_password = get_random_password_string(15)
+            while not check_password_strength(initial_password):
+                initial_password = get_random_password_string(15)
+
+            profiles = reorder_profiles(u['profiles'])
+
+            
             user_object = {
-                'accountId': u['email'],
-                'oldParticipantIDs': [x['gid'] for x in u['profiles']],
-                'profileNames': [x['name'] for x in u['profiles']],
-                'initialPassword': get_random_password_string(15),
-                'preferredLanguage': migration_settings['preferredLanguage'],
+                'accountId': email,
+                'oldParticipantIDs': [x['gid'] for x in profiles],
+                'profileNames': [x['name'] for x in profiles],
+                'initialPassword': initial_password,
+                'preferredLanguage': u.get('language', migration_settings['preferredLanguage']),
                 'studies': migration_settings['studyKeys'],
-                'use2FA': migration_settings['use2FA']
+                'use2FA': migration_settings['use2FA'],
             }
+
+            #if 'date_joined' in u:
+            #    created_at = datetime.fromisoformat(u['date_joined'])
+            #    user_object['CreatedAt'] = created_at.timestamp()
+
             if i > 0 and i % 20 == 0:
                 client.renew_token()
-            print('Processing ', i + 1, ' of ', len(new_users))
+                print('Processing ', i + 1, ' of ', len(new_users))
             try:
-                client.migrate_user(user_object)
+                if not dry_run:
+                    new_user = client.migrate_user(user_object)
+                    created_users.append({
+                        'id':new_user['id'],
+                        'email': email,
+                    })
+                else:
+                    print(f"[dry-run] {i} {user_object['accountId']} ")
+                    created_users.append(user_object)
             except ValueError as err:
-                failed_users.append({
-                    'email': user_object['accountId'],
-                    'oldParticipantIDs': user_object['oldParticipantIDs'],
-                    'error': str(err)
-                })
+                u['error'] = str(err)
+                failed_users.append(u)
+                print("%d - %s : %s" % (i, email, str(err)) )
             sleep(sleep_delay)
 
-        print(len(new_users) - len(failed_users) - len(skipped_users),
-              ' out of ', len(new_users), 'users created')
-        print(len(failed_users),
-              ' out of ', len(new_users), 'users failed')
-        print(len(skipped_users),
-              ' out of ', len(new_users), 'users skipped')
-        log_migration_events('failed', failed_users, user_batch_path)
-        log_migration_events('skipped', skipped_users, user_batch_path)
+        print("%d out of %d created, %d failed" % (len(new_users) - len(failed_users), len(new_users), len(failed_users)) )
+
+        migration_report = {
+            'failed': failed_users,
+            'skipped': skipped_users,
+            'created': created_users,
+        }
+    
+        batchname = os.path.basename(user_batch_path).split('.')[0]    
+        write_content(batchname + "_migration_report.json", to_json(migration_report))
+
+register(MigrateUser)
