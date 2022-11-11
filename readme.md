@@ -19,6 +19,7 @@ ifncli is based on :
 - [cliff](https://docs.openstack.org/cliff/latest) command line framework
 - [influenzanet.api](https://github.com/influenzanet/python-influenzanet-api) package to interact with management API
 - [influenzanet.surveys](https://github.com/influenzanet/python-influenzanet-surveys) package to work with surveys 
+
 ## Overview
 
 In the following we consider two different things :
@@ -106,6 +107,8 @@ To use a configuration file you can either:
 
 To manage several platforms you can have one config for each, and switch from one another by changing the environment variable value to point to another configuration variable.
 
+**Tips:** : To know what is the current config, you can use starship (see [Starship](#use-with-starship))
+
 The following resources directory is probably to be tracked by a VCS (like git) so it's recommended to put those configuration files outside it.
 
 For example on my local copy, the config files are in a .local directory and files (survey, templates) in the resources/ (symlink from another location)
@@ -185,3 +188,18 @@ Will show the current configuration and the platform variables (after overrides)
 ```
 
 This command will try to log in to the management API using the current configuration 
+
+## Use with starship
+
+[starship](https://starship.rs/) is a command line companion guessing from the current directory and env to show some information on what 
+(for example starship can show the python version with the current python command found in path - or in venv ).
+
+The following configuration extension can print in the header of your console the targeted Management API in use for ifncli if you are using IFN_CONFIG
+environment variable. It requires sh/bash and [`yq`](https://github.com/mikefarah/yq) tool to be installed.
+
+```toml
+[custom.ifn_context]
+when= """ test "$IFN_CONFIG" != "" -a -d ifncli """
+command="cat $IFN_CONFIG | yq '.management_api_url'"
+symbol="🦠"
+```
