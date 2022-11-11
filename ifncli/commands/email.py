@@ -176,6 +176,8 @@ class EmailTemplate(Command):
             
                 trans = MessageTranslation(lang['code'], subject_lines[m_type] )
                 trans.setTemplate(tpl_content)
+                
+                template.addTranslation(trans)
 
             if dry_run:
                 print("dry-run mode, template %s" % m_type)
