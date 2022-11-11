@@ -1,9 +1,11 @@
 import os
 from datetime import datetime
 from cliff.command import Command
+
+from ..platform import PlatformResources
 from . import register
 
-from ..utils import read_yaml,  read_content
+from ..utils import check_keys, read_yaml,  read_content
 from ..api.messaging import auto_message_types, Message, MessageTranslation, MessageHeaders
 
 from ..managers.messaging import read_and_convert_html, find_template_file, read_and_encode_template
@@ -28,7 +30,7 @@ class EmailAutoReminder(Command):
 
     def take_action(self, args):
 
-        platform = self.app.get_platform()
+        platform: PlatformResources = self.app.get_platform()
 
         email_folder_path = args.email_folder
         if email_folder_path is None:
@@ -114,7 +116,7 @@ class EmailTemplate(Command):
 
         dry_run = args.dry_run
 
-        platform = self.app.get_platform()
+        platform: PlatformResources = self.app.get_platform()
 
         email_template_folder = args.email_template_folder
         if email_template_folder is None:
@@ -124,7 +126,6 @@ class EmailTemplate(Command):
         
         print("Using '%s' path " % (email_template_folder))
         print("Default language : %s" % default_language)
-        
         
         # Automatically extract languages:
         languages = []
@@ -144,41 +145,43 @@ class EmailTemplate(Command):
 
         template_vars = platform.get_vars()
         
+        if 'web_app_url' in template_vars:
+            url:str = template_vars.get('web_app_url')
+            if url.endswith('/'): # Remove ending slash 
+                url = url[:-1] 
+
         for m_type in auto_message_types:
             
-            template_def = {
-                'messageType': m_type,
-                'defaultLanguage': default_language,
-                'translations': [],
-            }
+            template = Message(m_type, default_language)
 
             if headerOverrides is not None:
-                currentHeaderOverrides = headerOverrides[m_type]
-                if  currentHeaderOverrides is not None:
-                    template_def['headerOverrides'] = currentHeaderOverrides
+                if m_type in headerOverrides:
+                    headers = MessageHeaders()
+                    headers.fromDict(headerOverrides[m_type])
+                    template.setHeaders(headers)
 
             for lang in languages:
                 translated_template = find_template_file(m_type, lang["path"])
                 subject_lines = read_yaml(os.path.join(lang["path"], 'subjects.yaml'))
 
+                try:
+                    check_keys(subject_lines, auto_message_types, True)
+                except KeyError as e:
+                    raise Exception("Invalid %s/subject.yaml : %s " % (lang['code'], str(e)) )
+
                 data = template_vars.copy()
                 data['language'] = lang['code'] 
 
                 tpl_content = read_and_encode_template(translated_template, layout=layout, vars=data)
-                
-                template_def["translations"].append(
-                    {
-                        "lang": lang["code"],
-                        "subject": subject_lines[m_type],
-                        "templateDef": tpl_content
-                    }
-                )
+            
+                trans = MessageTranslation(lang['code'], subject_lines[m_type] )
+                trans.setTemplate(tpl_content)
 
             if dry_run:
                 print("dry-run mode, template %s" % m_type)
             else:
                 client = self.app.get_management_api()
-                r = client.save_email_template(template_def)
+                r = client.save_email_template(template.toAPI())
                 print('saved templates for: ' + m_type)
 
 

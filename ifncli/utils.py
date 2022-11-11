@@ -1,6 +1,7 @@
 import sys
 import json
 import os
+from typing import Dict, List, Set, Union
 import yaml
 
 def read_content(path, must_exist=False, default=None):
@@ -94,3 +95,16 @@ class Output:
         
         if need_close:
             output.close()
+
+def check_keys(data: Dict, keys:Union[List, Set], complete:bool=False):
+    data_keys = data.keys()
+    keys = set(keys)
+    diff = list(data_keys - keys)
+    if len(diff) > 0:
+        raise KeyError("Keys %s is not in acceptable keys" % (','.join(diff)))
+    if complete:
+        missings = list(keys - data_keys)    
+        if len(missings) > 0:
+            raise KeyError("Some keys are missing : %s" % (','.join(missings)))
+   
+            
