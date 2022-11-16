@@ -3,6 +3,9 @@
 
 # [Unreleased]
 
+- Automessages import reworked (uses Message classes, can use layout)
+- `template_layout` can be used in platform config yaml file  ([resources]/platform.yaml) to defined common layout by default for emails auto and system emails
+- User migration script adapted
 - Show connection information once (on stderr)
 
 # v1.0

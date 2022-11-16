@@ -24,8 +24,12 @@ class ResourcesLayoutPath(_Path_):
     def get_study_props_file(self, study_key):
         return self.get_study_path(study_key) / 'props.yaml'
 
-    def get_study_path(self, study_key):
+    def get_study_path(self, study_key)->_Path_:
         return self / 'study' / study_key
+
+    def get_auto_messages_path(self, name)->_Path_:
+        return self / 'auto_messages' / name
+
 class PlatformResources:
     """
         Platform resources
@@ -40,6 +44,7 @@ class PlatformResources:
             raise PlatformException("Resource path '%s' is not a directory" % (self.path))
         self.vars = {}
         self.vars_from = {} # Catch the source of the variables
+        self.template_layout = None
         self.load_platform_config()
         if overrides is not None:
             self._update_vars(overrides, 'config')
@@ -55,9 +60,14 @@ class PlatformResources:
             return 
         d = read_yaml(p)
         if not isinstance(d, dict):
-            raise PlatformException("Loaded platform.yaml is not dictionnary")
+            raise PlatformException("Loaded platform.yaml in '%s' is not dictionary" % p)
         if 'vars' in d:
             self._update_vars(d['vars'], 'platform_file')
+        if 'template_layout' in d:
+            p = self.path.joinpath(d['template_layout'])
+            if not p.exists():
+                raise PlatformException("Email template layout '%s' not found" % p)
+            self.template_layout = p
 
     def get_vars(self)->Dict:
         return self.vars

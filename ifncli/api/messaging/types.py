@@ -15,7 +15,7 @@ EMAIL_TYPE_NEWSLETTER             = "newsletter"
 EMAIL_TYPE_ACCOUNT_DELETED        = "account-deleted"
 
 # Messages accepting a template
-auto_message_types = [
+SYSTEM_MESSAGE_TYPES = [
     'registration',
     'invitation',
     'verify-email',
@@ -24,13 +24,27 @@ auto_message_types = [
     'password-changed',
     'account-id-changed',  # email address changed
     'account-deleted',
-    EMAIL_TYPE_WEEKLY
 ]
 
-# Custom sendable message types
-custom_message_types = [
+# Auto messages
+BULK_MESSAGE_TYPES = [
+    EMAIL_TYPE_WEEKLY,
     EMAIL_TYPE_STUDY_REMINDER,
     EMAIL_TYPE_NEWSLETTER
 ]
 
-all_message_types = auto_message_types + custom_message_types
+# All useable types for email templates
+ALL_MESSAGE_TYPES = BULK_MESSAGE_TYPES + SYSTEM_MESSAGE_TYPES
+
+AUTO_MESSAGE_ALL_USERS =  "all-users"
+AUTO_MESSAGE_SCHEDULED_PARTICIPANTS = "scheduled-participant-messages"
+AUTO_MESSAGE_RESEARCHER = "researcher-notifications"
+AUTO_MESSAGE_STUDY_PARTICIPANTS = "study-participants"
+
+# Bulk and AutoMessage types
+AUTO_MESSAGE_TYPES = [
+    AUTO_MESSAGE_ALL_USERS,
+    AUTO_MESSAGE_SCHEDULED_PARTICIPANTS,
+    AUTO_MESSAGE_RESEARCHER,
+    AUTO_MESSAGE_STUDY_PARTICIPANTS
+]

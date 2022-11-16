@@ -118,26 +118,57 @@ The resources directory contains the needed resources to configure a given insta
 
 The standard layout (following paths are relative to the resources directory root), names in [brackets] indicate a *variable name* (user-defined), it's up to you to decide the value.
 
+
+Here the expected files organization from the root of the resources directory:
+
 ```
 platform.yaml  #  Platform configuration file
+auto_messages
+  |--[name]  # Name of a 
+    |-- settings.yaml
 email_templates # Email templates
-  +-
-    layout.html # Common HTML layout template (optional)
-    [language]
-      +- 
-        invitation.html  # Template for "invitation" email
-        password-changed.html # Template for password-changed email 
-        ... # And so on
+    |--layout.html # Common HTML layout template (optional)
+    |-- [language]
+      |--  invitation.html  # Template for "invitation" email
+      |--  password-changed.html # Template for password-changed email 
+      |--  ... # And so on
 study
-  [study_key]
-    +-
-      props.yaml
-      studyRules.json
-      surveys
-        +-
-          [survey_name].json
+  |--[study_key]
+    |--  props.yaml
+    |--  studyRules.json
+    |--  surveys
+        |--[survey_name].json
         
 ```
+
+An example with real names:
+```
+platform.yaml  #  Platform configuration file
+auto_messages
+  |-- weekly  # For the weekly reminder automessage (directory name here is user-defined)
+    |-- settings.yaml
+    |-- template_fr.html
+email_templates # Email templates
+    |--layout.html # Common HTML layout template (optional)
+    |-- en
+      |--  invitation.html  # Template for "invitation" email
+      |--  password-changed.html # Template for password-changed email 
+      |--  ... # And so on
+    |-- fr
+      |--  invitation.html  # Template for "invitation" email
+      |--  password-changed.html # Template for password-changed email 
+      |--  ... # And so on
+study
+  |-- grippenet
+    |--  props.yaml
+    |--  studyRules.json
+    |--  surveys
+        |-- weekly.json
+        |-- intake.json
+        |-- vaccination.json
+        
+```
+
 
 For example, a survey named "weekly" of the study "influenzanet" (study_key=influenzanet) will have its definition file expected at :  ./study/influenzanet/surveys/weekly.json
 
@@ -152,6 +183,7 @@ If you need to use different values for one deployment/environment, you have to 
 The platform config has the following structure:
 
 ```yaml
+template_layout: /path/to/template/layout.html # Optional template layout to wrap with the email templates
 vars:
   # Default values for common platform variables
   # These values can be overridden in the config file (in the "vars" section)

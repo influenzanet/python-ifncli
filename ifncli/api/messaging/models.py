@@ -1,5 +1,5 @@
-from typing import Dict
-from .types import all_message_types
+from typing import Dict, Optional
+from .types import *
 
 class MessageException(Exception):
     pass
@@ -70,7 +70,7 @@ class MessageHeaders:
 
 class Message:
     def __init__(self, messageType: str, defaultLanguage: str) -> None:
-        if not messageType in all_message_types:
+        if not messageType in ALL_MESSAGE_TYPES:
             raise Exception("Unknown type message type '%s'" % (messageType,))
         self.messageType = messageType
         self.defaultLanguage = defaultLanguage
@@ -98,6 +98,55 @@ class Message:
 
         return data
 
+class AutoMessage:
 
+    def __init__(self, type: str, studyKey:Optional[str], period:int, nextTime: int):
+        self.id:str = None
+        
+        if not type in AUTO_MESSAGE_TYPES:
+            raise Exception("Invalid bulk message type '%s'" % (type))
+        
+        self.type:str = type
+        
+        self.studyKey:Optional[str] = studyKey
+        self.period = period
+        self.nextTime = nextTime
+        self.template: Message = None
+        self.condition = None
+        self.label = None
+        self.id = None
+        if studyKey is not None and studyKey != "":
+            self.condition =  {
+                "dtype": "num",
+                "num": 1
+            }
+    
+    def setLabel(self, label:str):
+        self.label = label
+
+    def setId(self, id):
+        self.id = id
+
+    def setCondition(self, condition):
+        self.condition = condition
+    
+    def setTemplate(self, msg:Message):
+        self.template = msg
+
+    def toAPI(self):
+        d= {
+            "type": self.type,
+            "studyKey": self.studyKey,
+            "nextTime": self.nextTime,
+            "period": self.period,
+            "template": self.template.toAPI()
+        }
+        if self.label is not None:
+            d['label'] = self.label
+        if self.condition is not None:
+            d['condition'] = self.condition
+        if self.id is not None:
+            d['id'] = self.id
+        return d
 
 

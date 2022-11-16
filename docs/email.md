@@ -80,7 +80,9 @@ The layout.html is an optional common layout for all the messages. If present it
 An example layout file is given in the example/ folder of this docs.
 It has to be placed at the root of the email templates folder (along with header-overrides.yaml file)
 
-In this file, the tag `{=main_content=}` will be replaced by each email template content, to create the final email contents (in other words, each email template will be wrapped by this layout to create the final email message to be submitted as the message template for the platform).
+In this file, the placeholder `{=main_content=}` will be replaced by the content of each email template, to create the final email contents (in other words, each email template will be wrapped by this layout to create the final email message to be submitted as the message template for the platform). Once generated a file with the `.built` extension is created alongside each html file with the full email content (to allow to check the content)
+
+It's also possible to define `template_layout` with the relative path of the layout file in platform.yaml (at the root of resources directory). It will be used for all email templates
 
 ### Preprocessing of templates
 
@@ -120,25 +122,54 @@ translations:
 
 ## email:import-auto Create an automatic email sending rule
 
+email:import-auto [--force] [--dry-run] name
+
 Arguments:
 
---email_folder: Path to the folder containing the email's config and content files. By default it is expected to be in `./resources/auto_reminder_email`. The folder should contain the file `settings.yaml` and all html templates referenced from this file.
+name: name of the auto message to load. Settings will be search in a subdirectory with this name of email_auto in resources dir
 
---ignore_existing: If set to true, existing auto message will be ignored and a new one will be created. By default (false), existing auto message with same type, study key and message type will be replaced.
+--force: If set to true, existing auto message will be ignored and a new one will be created. By default (false), existing auto message with same type, study key and message type will be replaced.
+
+--dry-run: Prepare the automessage and print it but do not update 
+
+name of the automessage, give the name of the subdirectory of auto_messages where the files have to be placed in the resources dir
+For example:
+
+email:import-auto weekly
+
+Will search in [resource_path]/auto_messages/weekly/settings.yaml
+
+## Files layout
+
+For the resources directory root, expected path is:
+
+- auto_messages
+  - [name]
+    - settings.yaml
+    - template.html
 
 ### Example setting:
 
 Example content of the ´settings.yaml` file:
 ```yaml
-sendTo: "all-users"
-studyKey: ""
-messageType: "weekly"
-nextTime: "2020-09-11-12:25:00"
+sendTo: "all-users"  # Type of Automessage
+studyKey: ""  # Study keys to use if the type is study-participants
+messageType: "weekly" # Type of template to use
+nextTime: "2020-09-11-12:25:00" # See below
 period: 86400
-defaultLanguage: "en"
+defaultLanguage: "en" # If not provided the platform default can be used
+label: "message label" # Optional message label
 translations:
   - lang: "en"
     subject: "Weekly study reminder"
     templateFile: "en.html"
 ```
 
+'nextTime' can be either a string with next time or a dictionary object with
+
+```yaml
+nextTime:
+  relative: true # Use relative to current time
+  hour: 1 # Number of hours to add or fixed hour if relative = false
+  min: 1 # Number of minutes to add or fixed minutes if relative = false
+```
