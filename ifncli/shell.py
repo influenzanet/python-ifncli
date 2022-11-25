@@ -8,9 +8,7 @@ from .utils import read_yaml
 from .commands import get_commands
 from influenzanet.api import ManagementAPIClient
 from .platform import PlatformResources
-
-class ConfigException(Exception):
-    pass
+from .config import ConfigManager, ConfigException
 
 class MyApp(App):
     
@@ -26,10 +24,14 @@ class MyApp(App):
             default=os.path.join('resources', 'config.yaml')
         )
 
+        # Current loaded config
         self._configs = {}
         self._apis = {}
-    
+
+        # Config contexts
         self.api_shown = False
+
+        self.configManager = ConfigManager()
 
        # self.plugin_manager.build_option_parser(parser)
 
@@ -44,28 +46,12 @@ class MyApp(App):
                 name = command.__name__
             self.command_manager.add_command(name.lower(), command)
 
+    
     def prepare_to_run_command(self, cmd):
         """
             Preparation of the environment 
-        
         """
-        
-        cfg_path = self.options.config
-        
-        cfg_path = os.getenv('IFN_CONFIG', cfg_path)
-        
-        if os.getenv('INF_CONFIG') is not None:
-            print("INF_CONFIG is defined, are you sure you didnt mistyped IFN_CONFIG ?")
-
-        if not Path(cfg_path).is_file():
-            raise ConfigException("Unable to find config file at %s" % (cfg_path,))
-        try:
-            self._configs = read_yaml(cfg_path)
-            self._configs['__config_file'] = cfg_path
-        except:
-            print("Unable to load configuration file")
-            raise
-
+        self._configs = self.configManager.load(cfg_path=self.options.config)
     
     def get_management_api(self):
         if 'management' in self._apis:

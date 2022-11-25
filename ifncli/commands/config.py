@@ -36,8 +36,8 @@ class ShowConfig(Command):
 
         platform = self.app.get_platform()
 
-        print("Management API  : %s", cfg["management_api_url"])
-        print("Participant API : %s", cfg['participant_api_url'])
+        print("Management API  : %s" % cfg["management_api_url"])
+        print("Participant API : %s" % cfg['participant_api_url'])
         creds = cfg['user_credentials']
         print("Account         : <%s>@%s" % (creds['email'], creds['instanceId']))
 
@@ -47,7 +47,36 @@ class ShowConfig(Command):
         for name, value in data.items():
             source_name = value_from.get(name, None)
             print(" - %s : %s (%s)" % (name, str(value), source_name))
-        
+
+class ShowContexts(Command):
+    name = 'config:contexts'
+
+    def take_action(self, args):
+        cfg = self.app.configManager
+        print("Known contexts")
+        current = cfg.get_current()
+        for name, file in cfg.get_contexts().items():
+            mark = '*' if current == name else '-'
+            print(" %s %s : %s" % (mark, name, file))
+        print("Context file : %s" % cfg.context_file)
+        print("From : %s" % cfg.cfg_from)
+
+class SwitchContext(Command):
+    """
+        Switch the current context
+    """
+    name = 'config:switch'
+
+    def get_parser(self, prog_name):
+        parser = super(SwitchContext, self).get_parser(prog_name)
+        parser.add_argument("name", help="Name of the context")
+        return parser
+
+    def take_action(self, args):
+        cfg = self.app.configManager
+        cfg.switch(args.name)
 
 register(Login)
 register(ShowConfig)
+register(ShowContexts)
+register(SwitchContext)
