@@ -195,7 +195,7 @@ class UpdateAutoMessage(Command):
 
 class ListAutoMessages(Command):
     """
-      
+      List Auto messages loaded in the system
     """
     name = 'email:list-auto'
 
