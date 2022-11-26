@@ -64,7 +64,8 @@ class MyApp(App):
         self._apis['management'] = client
 
         if not self.api_shown:
-            print("Connected to <%s>@%s on %s" % (user_credentials['email'], user_credentials['instanceId'], management_api_url), file=sys.stderr)
+            current_context = self.get_current_context()
+            print("Connected to [%s] <%s>@%s on %s" % (current_context, user_credentials['email'], user_credentials['instanceId'], management_api_url), file=sys.stderr)
             self.api_shown = True
 
         return client
@@ -93,6 +94,9 @@ class MyApp(App):
         if resources_path is None:
             raise ConfigException("Resource path must be provided either in config file or as command option")
         return PlatformResources(resources_path, overrides=overrides)
+
+    def get_current_context(self):
+        return self.configManager.get_current()
             
 def main(argv=sys.argv[1:]):
     if len(argv) == 0:

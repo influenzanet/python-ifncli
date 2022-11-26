@@ -84,8 +84,12 @@ class ConfigManager:
             raise ConfigException("Unknown context name '%s'" % name)
         if self.current == name:
             return
+        self.current = name
+        self.save()
+
+    def save(self):
         ctx = {
-            'current': name,
+            'current': self.current,
             'configs': self.contexts
         }
         write_content(self.context_file, readable_yaml(ctx))

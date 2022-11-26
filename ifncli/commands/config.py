@@ -32,7 +32,9 @@ class ShowConfig(Command):
     def take_action(self, args):
         cfg = self.app.get_configs()
 
-        print("Configuration file: %s" % cfg['__config_file'])
+        cmg = self.app.configManager
+        
+        print("Configuration in %s, from context '%s' resolved by %s %s" % (cfg['__config_file'], cmg.get_current(), cmg.cfg_from, cmg.context_file))
 
         platform = self.app.get_platform()
 
@@ -75,6 +77,7 @@ class SwitchContext(Command):
     def take_action(self, args):
         cfg = self.app.configManager
         cfg.switch(args.name)
+        print("Context switched to '%s'" % (cfg.get_current()))
 
 register(Login)
 register(ShowConfig)
