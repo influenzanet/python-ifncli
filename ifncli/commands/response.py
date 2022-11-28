@@ -1,12 +1,13 @@
 
 import os
 import re
+import json
+from collections import OrderedDict
 from datetime import datetime, timedelta
+from typing import Dict,List,Optional
 from cliff.command import Command
 from . import register
-import json
 from ..utils import read_yaml, write_content, read_json
-from typing import Dict,List,Optional
 
 def get_survey_parser_based_on_time(parsers, key: str, ts):
     parser = None
@@ -50,6 +51,12 @@ def export_data(file_name, data):
 
 
 ISO_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
+
+def from_iso_time(time:str):
+    return datetime.strptime(time, ISO_TIME_FORMAT)
+
+def to_iso_time(d):
+    return d.strftime(ISO_TIME_FORMAT)
 
 class ExportProfile:
 
@@ -140,13 +147,11 @@ class ExportCatalog:
     
     def load(self):
         data = read_json(self.file)
-        def from_time(time:str):
-            return datetime.stpftime(TIME_FORMAT)
         self.catalog = []
         previous_end = None
         for i, row in data.iteritems():
-            start_time = from_time(row['start'])
-            end_time = from_time(row['end'])
+            start_time = from_iso_time(row['start'])
+            end_time = from_iso_time(row['end'])
             self.check_range(start_time, self.min_time, self.max_time, "%d start_time" % (i,) )
             self.check_range(end_time, self.min_time, self.max_time, "%d end_time" % (i,)  )
             
@@ -362,6 +367,92 @@ class ResponseExporter(Command):
 
         r = exporter.export_all(output_folder )
 
+class ResponseStats(Command):
+    """
+        Export incremental
+    """
+
+    name = "response:stats"
+
+    def get_parser(self, prog_name):
+        parser = super(ResponseStats, self).get_parser(prog_name)
+        parser.add_argument("--study", type=str, required=True, help="Study key")
+        return parser
+        
+    def take_action(self, args):
+        study_key = args.study
+        client = self.app.get_management_api()
+
+        print(client.get_response_statistics(study_key))
+
+class ResponseStatsDaily(Command):
+    """
+        Export incremental daily statistics
+    """
+
+    name = "response:daily"
+
+    def get_parser(self, prog_name):
+        parser = super(ResponseStatsDaily, self).get_parser(prog_name)
+        parser.add_argument("--file", type=str, required=True, help="data file")
+        return parser
+        
+    def take_action(self, args):
+        file = args.file
+
+        data = read_json(file)
+
+        study_key = data['study']
+        max_time = from_iso_time(data['max_time'])
+
+        now = datetime.now()
+
+        if max_time > now:
+            max_time = now
+
+        if 'start_time' in data:
+            start_time = from_iso_time(data['start_time'])
+        else:
+            start_time = now
+
+        if 'dates' in data:
+            dates = data['dates']
+        else:
+            dates = OrderedDict()
+            data['dates'] = dates
+
+        client = self.app.get_management_api()
+
+        start_time = start_time.replace(hour=0, minute=0, second=0)
+        while start_time < max_time:
+            date = start_time.strftime("%Y-%m-%d")
+            end_time = start_time.replace(hour=23, minute=59, second=59)
+            print("> %s - %s" % (start_time, end_time), flush=False)
+            try:
+                r = client.get_response_statistics(study_key, start=start_time.timestamp(), end=end_time.timestamp())
+                stats = r['surveyResponseCounts']
+                dates[date] = stats
+                print(stats)
+            except Exception as e:
+                print(e)
+            last_done = start_time
+            start_time = start_time + timedelta(days=1)
+
+        data['start_time'] = last_done
+
+        def encoder(r):
+            if isinstance(r, datetime):
+                return to_iso_time(r)
+            return r
+
+        with open(file, "w") as f:
+            d = json.dumps(data, default=encoder)
+            f.write(d)
+            f.close()
+
+
 register(ResponseExporter)
 register(ResponseSchemaDownloader)
 register(ResponseDownloader)
+register(ResponseStats)
+register(ResponseStatsDaily)
