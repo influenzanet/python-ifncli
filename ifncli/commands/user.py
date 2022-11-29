@@ -93,10 +93,26 @@ class MigrateUser(Command):
 
         skipEmptyProfiles = migration_settings['skipEmptyProfiles']
 
+        if 'emailFilters' in migration_settings:
+            emailFilters = migration_settings['emailFilters']
+        else:
+            emailFilters = None
+
         client.renew_token()
 
         for i, u in enumerate(new_users):
             email = u['email']
+
+            if emailFilters is not None:
+                skip = False
+                for filter in emailFilters:
+                    if email.endswith(filter):
+                        skipped_users.append(u)
+                        print("%d %s - skipped email from filter %s" % (i, email, filter))
+                        skip = True
+                        break
+                if skip:
+                    continue
             
             if skipEmptyProfiles and len(u['profiles']) == 0:
                 skipped_users.append(u)
@@ -124,7 +140,7 @@ class MigrateUser(Command):
             #    created_at = datetime.fromisoformat(u['date_joined'])
             #    user_object['CreatedAt'] = created_at.timestamp()
 
-            if i > 0 and i % 20 == 0:
+            if i > 0 and i % 15 == 0:
                 client.renew_token()
                 print('Processing ', i + 1, ' of ', len(new_users))
             try:
