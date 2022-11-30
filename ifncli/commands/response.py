@@ -149,7 +149,7 @@ class ExportCatalog:
         data = read_json(self.file)
         self.catalog = []
         previous_end = None
-        for i, row in data.iteritems():
+        for i, row in enumerate(data):
             start_time = from_iso_time(row['start'])
             end_time = from_iso_time(row['end'])
             self.check_range(start_time, self.min_time, self.max_time, "%d start_time" % (i,) )
@@ -225,8 +225,11 @@ class Exporter:
         return response_file_name
 
     def export_all(self, output:str):
-        catalog = ExportCatalog(output, self.profile.start_time, self.profile.max_time)
+        """"
+            Incrementally export data 
+        """
         output_folder = output + '/' + self.profile.survey_key
+        catalog = ExportCatalog(output_folder, self.profile.start_time, self.profile.max_time)
         os.makedirs(output_folder, exist_ok=True)
         start_time = catalog.get_last_time()
         already_has_data = False
@@ -248,7 +251,27 @@ class Exporter:
                 catalog.save()
             start_time = start_time + timedelta(days=7)
         print("%d file(s) loaded" % (loaded))
+        self.export_info(output_folder)
             
+    def export_info(self, output_folder:str, prefix_name:bool=False):
+        if self.profile.survey_info is None:
+            return
+
+        survey_info = self.profile.survey_info
+        survey_key = self.profile.survey_key
+        short_keys = self.profile.short_keys
+        survey_info_text = ""
+        if survey_info['format'] == "csv":
+            survey_info_text = self.client.get_survey_info_preview_csv(self.study_key, survey_key, survey_info['lang'], short_keys)
+        else:
+            survey_infos = self.client.get_survey_info_preview(self.study_key, survey_key, survey_info['lang'], short_keys)
+            if survey_infos is not None:
+                survey_info_text = json.dumps(survey_infos, indent=2)
+
+        info_file_name =  "survey_info.{}".format(survey_info['format'])
+        if prefix_name:
+            info_file_name = "{}_{}".format(survey_key, info_file_name)
+        export_data(os.path.join(output_folder, info_file_name), survey_info_text) 
 
 
 class ResponseDownloader(Command):
@@ -281,28 +304,8 @@ class ResponseDownloader(Command):
         client = self.app.get_management_api()
             
         exporter = Exporter(profile, client, study_key)
-
         r = exporter.export(query_start_time, query_end_time, output_folder )
-
-        if r is None:
-            print("No files were generated.")
-            exit()
-        
-        if profile.survey_info is None:
-            return
-
-        survey_info = profile.survey_info
-
-        survey_info_text = ""
-        if survey_info['format'] == "csv":
-            survey_info_text = client.get_survey_info_preview_csv(study_key, profile.survey_key, survey_info['lang'], profile.short_keys)
-        else:
-            survey_infos = client.get_survey_info_preview(study_key, profile.survey_key, survey_info['lang'], profile.short_keys)
-            if survey_infos is not None:
-                survey_info_text = json.dumps(survey_infos, indent=2)
-
-        info_file_name =  "{}_survey_info.{}".format(survey_key, survey_info['format'])
-        export_data(os.path.join(output_folder, info_file_name), survey_info_text) 
+        exporter.export_info(output_folder, prefix_name=True)
 
 class ResponseSchemaDownloader(Command):
     """
