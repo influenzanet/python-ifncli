@@ -141,14 +141,16 @@ Will search in [resource_path]/auto_messages/weekly/settings.yaml
 
 ## Files layout
 
-For the resources directory root, expected path is:
+From the resources directory root, expected path is:
 
-- auto_messages
-  - [name]
-    - settings.yaml
-    - template.html
+[root]
+|
+|- auto_messages
+  |- [name]  # Name of your automessage (arbitrary name, it your the name you use to tell the cli tool which message to handle)
+    |- settings.yaml
+    |- template.html
 
-### Example setting:
+### settings.yaml:
 
 Example content of the ´settings.yaml` file:
 ```yaml
