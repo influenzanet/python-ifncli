@@ -169,7 +169,6 @@ study
         
 ```
 
-
 For example, a survey named "weekly" of the study "influenzanet" (study_key=influenzanet) will have its definition file expected at :  ./study/influenzanet/surveys/weekly.json
 
 ### Platform config.
