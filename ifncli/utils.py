@@ -4,7 +4,7 @@ import os
 from typing import Dict, List, Set, Union
 import yaml
 import re
-
+import datetime
 def read_content(path, must_exist=False, default=None):
     found = os.path.exists(path)
     if not found:
@@ -123,3 +123,11 @@ def check_password_strength(password):
     password_check = sum([lowercase, uppercase, number, symbol]) > 2
 
     return password_check            
+
+ISO_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
+
+def from_iso_time(time:str):
+    return datetime.strptime(time, ISO_TIME_FORMAT)
+
+def to_iso_time(d):
+    return d.strftime(ISO_TIME_FORMAT)
