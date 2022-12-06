@@ -4,7 +4,7 @@ import re
 import json
 from datetime import datetime, timedelta
 from typing import Dict,List,Optional
-from ...utils import read_yaml, write_content, read_json
+from ...utils import read_yaml, write_content, read_json, ISO_TIME_FORMAT, from_iso_time, to_iso_time
 
 def replace_columns(response_modifier, resp):
     resp = resp.split('\n')
@@ -96,6 +96,9 @@ class ExportProfile:
         
 
 class ExportCatalog:
+    """
+        Export Catalog manage list of downloaded response file batches and their period (min,max time)
+    """
 
     def __init__(self, path:str, start_time:datetime, max_time:datetime):
         self.file = path + '/catalog.json'
