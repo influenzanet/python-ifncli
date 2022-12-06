@@ -171,8 +171,8 @@ class ImportSurvey(Command):
         print("Using survey in '%s'" % survey_path)
 
         survey_def = read_json(survey_path)        
-
         resp = client.save_survey_to_study(study_key, survey_def)
+        print("Survey uploaded id=%s  version=%s", resp['id'], resp['versionID'])
 
 def old_survey_upload(client, survey_def, study_key):
     survey_key = survey_def['survey']['current']['surveyDefinition']['key']
