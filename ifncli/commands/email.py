@@ -114,6 +114,7 @@ class UpdateAutoMessage(Command):
         self.formatter = TableFormatter()
         parser.add_argument("--dry-run", help="Just prepare template, dont update", default=False, action="store_true")
         parser.add_argument("--force", help="Force replacement of an eventual existing automessage with same type ", action="store_true")
+        parser.add_argument("--at", help="Force nexttime ")
         parser.add_argument("name", help="Name of the message to send. Search files in subdir of auto_email")
 
         self.formatter.add_argument_group(parser)
@@ -162,7 +163,12 @@ class UpdateAutoMessage(Command):
             email.addTranslation(trans)
 
         studyKey = email_config["studyKey"]
-        nextTime = parse_next_time(email_config["nextTime"])
+
+        if args.at is not None:
+            d = datetime.fromisoformat(args.at)
+            nextTime = d.timestamp()
+        else:
+            nextTime = parse_next_time(email_config["nextTime"])
 
         print("nextTime", nextTime, datetime.fromtimestamp(nextTime).isoformat())
 
@@ -188,7 +194,8 @@ class UpdateAutoMessage(Command):
         
         if dry_run:
             print("Dry run mode, only show the result")
-            print(autoMessage.toAPI())
+            m = autoMessage.toAPI()
+            print(m)
         else:
             client.save_auto_message({'autoMessage': autoMessage.toAPI()})
 
