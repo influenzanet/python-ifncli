@@ -123,8 +123,8 @@ class ExportCatalog:
             if previous_end is not None:
                 self.check_range(start_time, previous_end, None, "%d start_time" % (i,))
             
-            self.current_end = end_time
             previous_end = end_time
+
             self.append(start_time, end_time, row['file'])
 
     def check_range(self, time:datetime, min_t:datetime, max_t:Optional[datetime], name:str):
@@ -137,6 +137,7 @@ class ExportCatalog:
     def append(self, start_time, end_time, file):
         self.catalog.append({'start': start_time, 'end': end_time, 'file': file})
         self.current_end = end_time
+        self.current_start = start_time
 
     def save(self):
         def encoder(d):
@@ -146,6 +147,18 @@ class ExportCatalog:
 
     def get_last_time(self):
         return self.current_end
+
+    def get_start_time(self, now: datetime):
+        print(self.min_time, self.max_time, self.catalog)
+        if len(self.catalog) == 0:
+            return self.min_time
+        for entry in self.catalog:
+            if entry['end'] < now:
+                continue
+            if now >= entry['start'] and  now <= entry['end']:
+                # Current entry has the now time, then the previous end is to be used
+                return entry['start']
+        return self.max_time
             
 class Exporter:
 
@@ -196,7 +209,9 @@ class Exporter:
         output_folder = output + '/' + self.profile.survey_key
         catalog = ExportCatalog(output_folder, self.profile.start_time, self.profile.max_time)
         os.makedirs(output_folder, exist_ok=True)
-        start_time = catalog.get_last_time()
+        now = datetime.now()
+        start_time = catalog.get_start_time(now)
+        print(start_time)
         already_has_data = False
         # Max download time, if not provided only load one years (prevent infinite loop)
         max_time = self.profile.max_time if self.profile.max_time is not None else start_time + timedelta(days=365)

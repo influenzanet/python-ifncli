@@ -4,7 +4,8 @@ import os
 from typing import Dict, List, Set, Union
 import yaml
 import re
-import datetime
+from datetime import datetime
+
 def read_content(path, must_exist=False, default=None):
     found = os.path.exists(path)
     if not found:
