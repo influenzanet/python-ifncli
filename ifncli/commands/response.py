@@ -9,34 +9,6 @@ from . import register
 from ..utils import read_yaml,  read_json, from_iso_time, ISO_TIME_FORMAT, to_iso_time
 from ..managers.export import Exporter, ExportProfile, export_data
 
-
-def get_survey_parser_based_on_time(parsers, key: str, ts):
-    parser = None
-
-    filtered_parsers = [p for p in parsers if p['key'] == key]
-    filtered_parsers_count = len(filtered_parsers)
-    if filtered_parsers_count < 1:
-        return None
-    elif filtered_parsers_count == 1:
-        return filtered_parsers[0]
-    else:
-        for p in filtered_parsers:
-            start = int(p['published'])
-            end = p['unpublished']
-            # print(key, start, end, ts)
-            if start > ts:
-                continue
-            if end is not None:
-                end = int(p['unpublished'])
-                if end < ts:
-                    continue
-            parser = p
-
-    if parser is None:
-        return filtered_parsers[0]
-    return parser
-
-
 class ResponseDownloader(Command):
     """
         Download responses from a set of survey (not implemented yet)
