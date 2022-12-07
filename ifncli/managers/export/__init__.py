@@ -117,6 +117,9 @@ class ExportCatalog:
         for i, row in enumerate(data):
             start_time = from_iso_time(row['start'])
             end_time = from_iso_time(row['end'])
+            updated = None
+            if 'updated' in row:
+                updated = row['updated']
             self.check_range(start_time, self.min_time, self.max_time, "%d start_time" % (i,) )
             self.check_range(end_time, self.min_time, self.max_time, "%d end_time" % (i,)  )
             
@@ -125,7 +128,7 @@ class ExportCatalog:
             
             previous_end = end_time
 
-            self.append(start_time, end_time, row['file'])
+            self.append(start_time, end_time, row['file'], updated=updated)
 
     def check_range(self, time:datetime, min_t:datetime, max_t:Optional[datetime], name:str):
         if max_t is not None and time > max_t:
@@ -134,8 +137,11 @@ class ExportCatalog:
             raise Exception("%s (%s) befor max (%s)" % (name, time, min_t))
             
 
-    def append(self, start_time, end_time, file):
-        self.catalog.append({'start': start_time, 'end': end_time, 'file': file})
+    def append(self, start_time, end_time, file, updated:datetime=None):
+        entry = {'start': start_time, 'end': end_time, 'file': file}
+        if updated is not None:
+            entry['updated'] = updated
+        self.catalog.append(entry)
         self.current_end = end_time
         self.current_start = start_time
 
@@ -211,7 +217,6 @@ class Exporter:
         os.makedirs(output_folder, exist_ok=True)
         now = datetime.now()
         start_time = catalog.get_start_time(now)
-        print(start_time)
         already_has_data = False
         # Max download time, if not provided only load one years (prevent infinite loop)
         max_time = self.profile.max_time if self.profile.max_time is not None else start_time + timedelta(days=365)
@@ -227,7 +232,7 @@ class Exporter:
             else:
                 already_has_data = True
                 loaded += 1
-                catalog.append(start_time, end_time, r)
+                catalog.append(start_time, end_time, r, updated=now)
                 catalog.save()
             start_time = start_time + timedelta(days=7)
         print("%d file(s) loaded" % (loaded))
