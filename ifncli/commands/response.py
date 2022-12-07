@@ -11,7 +11,7 @@ from ..managers.export import Exporter, ExportProfile, export_data
 
 class ResponseDownloader(Command):
     """
-        Download responses from a set of survey (not implemented yet)
+        Download responses from a survey
     """
 
     name = "response:download"
@@ -84,16 +84,16 @@ class ResponseSchemaDownloader(Command):
 
 class ResponseExporter(Command):
     """
-        Export incremental
+        Export survey data using an weekly incremental
     """
 
-    name = "response:export"
+    name = "response:export-bulk"
 
     def get_parser(self, prog_name):
         parser = super(ResponseExporter, self).get_parser(prog_name)
-        parser.add_argument("--profile", type=str, required=True, help="Profile")
+        parser.add_argument("--profile", type=str, required=True, help="Profile yaml with export parameters for this survey")
         parser.add_argument("--study", type=str, required=True, help="Study key")
-        parser.add_argument("--output", type=str, help="Output folder")
+        parser.add_argument("--output", type=str, help="Output folder where to place the export (will create a subfolder)")
         return parser
         
     def take_action(self, args):
@@ -110,14 +110,14 @@ class ResponseExporter(Command):
 
 class ResponseBulkExporter(Command):
     """
-        Export incremental with a set of surveys
+        Incremental Export for a set of surveys (each with an export profile)
     """
 
-    name = "response:export-bulk"
+    name = "response:export-plan"
 
     def get_parser(self, prog_name):
         parser = super(ResponseBulkExporter, self).get_parser(prog_name)
-        parser.add_argument("--plan", type=str, required=True, help="yaml files with export plan")
+        parser.add_argument("plan", type=str, required=True, help="yaml files with export plan")
         parser.add_argument("--output", type=str, help="Output folder")
         return parser
         
