@@ -54,6 +54,11 @@ class MyApp(App):
         self._configs = self.configManager.load(cfg_path=self.options.config)
     
     def get_management_api(self):
+        """
+            Helper to get the Management API client. Commands should never instanciate directly the client,
+            but ask for it from this method
+        
+        """
         if 'management' in self._apis:
             return self._apis['management']
         user_credentials = self._configs["user_credentials"]

@@ -12,7 +12,7 @@ class ConfigException(Exception):
 
 class ConfigManager:
     """
-        Manage configuration loading and context (known configuration location you can switch)
+        Manage configuration loading and context (known configuration locations you can switch)
     """
     def __init__(self):
         self.context_file = None # File where contexts are defined

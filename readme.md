@@ -100,10 +100,13 @@ vars:  # Variables of the platform to be used in the email templates. They overr
 
 `web_app_url` is an example (you have to use it in your email templates using the syntax described in [the doc](docs/email.md), as it's user defined you can define the variables you want and use them in templates.
 
-To use a configuration file you can either:
+To use a configuration file you have 3 ways:
 
-- use the '--config' argument and pass the file location
+If you have one fixed target environment (you only manages one platform deployed on one location):
+
+You can either:
 - Define the environment variable `IFN_CONFIG` with the path of the yaml file to use (caution it's not 'INF_CONFIG').
+- or use the '--config' argument and pass the file location
 
 To manage several platforms you can have one config for each, and switch from one another by changing the environment variable value to point to another configuration variable.
 
@@ -112,12 +115,43 @@ To manage several platforms you can have one config for each, and switch from on
 The following resources directory is probably to be tracked by a VCS (like git) so it's recommended to put those configuration files outside it.
 
 For example on my local copy, the config files are in a .local directory and files (survey, templates) in the resources/ (symlink from another location)
+
+
+### Context
+
+If you have several environment it's painful to redefine each time the location of the configuration. To manage this, we use the 'context'
+
+A config file (yes another one) contains the list of known environment config file with for each a nick name
+
+The context file is :
+```yaml
+# current entry define the name of the current context to use
+current: prod
+configs:
+# Each config entry associate a nickname (name for this target env) and a path to the config file with environment config
+  prod: path/to/my/prod/conf.yaml
+  dev: path/to/my/dev/conf.yaml
+```
+
+You just have to create this file (suggestion: the same place as the other environment files, like '.local' folder) and put the path to this file into the environment variable named `IFNCLI_CONTEXT`
+
+For example, if your context file is at .local/contexts.yaml
+```yaml
+export IFNCLI_CONTEXT=.local/contexts.yaml
+```
+
+Several commands are available to manage environments :
+
+- `config:contexts` : read the context file and show list of known environnements
+- `config:switch` : to switch to another environnement (e.g `./ifn config:switch prod` will switch to config named 'prod' for all next commands)
+- `config:show`: show the current configuration (it merges the platform variable and the env ones, so you can see the actual config in use)
+- `login` : test to log in with the current config
+
 ## Resources Directory
 
 The resources directory contains the needed resources to configure a given instance of the Influenzanet system. It can be versioned (using git for example) to enable collaboration & tracking of the history. Of course it should not contains any secret values (neither the config yaml describes in the previous section because it contains credentials)
 
 The standard layout (following paths are relative to the resources directory root), names in [brackets] indicate a *variable name* (user-defined), it's up to you to decide the value.
-
 
 Here the expected files organization from the root of the resources directory:
 

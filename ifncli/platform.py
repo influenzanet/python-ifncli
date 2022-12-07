@@ -36,6 +36,9 @@ class PlatformResources:
     
         Hold the current resource path and common variables
 
+        Platform variables can be provided in the platform.yaml config if (at the root of the resource path) and in the config
+        targeting a specific env
+
     """
 
     def __init__(self, path: Union[str, Path], overrides:Optional[Dict]):
