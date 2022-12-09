@@ -100,21 +100,32 @@ class ExportCatalog:
         Export Catalog manage list of downloaded response file batches and their period (min,max time)
     """
 
-    def __init__(self, path:str, start_time:datetime, max_time:datetime):
+    def __init__(self, path:str, start_time:datetime, max_time:datetime, period: int):
         self.file = path + '/catalog.json'
         self.current_end = start_time
-        self.min_time = start_time
+        self.min_time = self.midnight(start_time)
         self.max_time = max_time
+        self.period = period
+        self.catalog: Dict[datetime, Dict] = {}
         if os.path.exists(self.file):
             self.load()
-        else:
-            self.catalog = []
+        
+    def midnight(self, d: datetime):
+        return d.replace(hour=0, minute=0, second=0)
     
     def load(self):
         data = read_json(self.file)
-        self.catalog = []
         previous_end = None
-        for i, row in enumerate(data):
+        
+        if not 'period' in data:
+            raise Exception("Missing period entry in catalog")
+        
+        catalog_period = data['period']
+        if catalog_period != self.period:
+            raise Exception("This catalog has been created for another period %d cannot reuse it" % (catalog_period))
+        
+        files = data['files']
+        for i, row in enumerate(files):
             start_time = from_iso_time(row['start'])
             end_time = from_iso_time(row['end'])
             updated = None
@@ -134,37 +145,47 @@ class ExportCatalog:
         if max_t is not None and time > max_t:
             raise Exception("%s (%s) after max (%s)" % (name, time, max_t))
         if time < min_t:
-            raise Exception("%s (%s) befor max (%s)" % (name, time, min_t))
+            raise Exception("%s (%s) before max (%s)" % (name, time, min_t))
             
-
     def append(self, start_time, end_time, file, updated:datetime=None):
         entry = {'start': start_time, 'end': end_time, 'file': file}
         if updated is not None:
             entry['updated'] = updated
-        self.catalog.append(entry)
+        self.catalog[start_time] = entry
         self.current_end = end_time
         self.current_start = start_time
+
+    def has_files(self):
+        return len(self.catalog) > 0
 
     def save(self):
         def encoder(d):
             if isinstance(d, datetime):
-                return d.strftime(ISO_TIME_FORMAT)
-        write_content(self.file, json.dumps(self.catalog, default=encoder))
+                return to_iso_time(d)
+        files = []
+        for time in sorted(self.catalog.keys()):
+            files.append(self.catalog[time])
+        d = {
+            'period': self.period,
+            'files': files
+        }
+        write_content(self.file, json.dumps(d, default=encoder))
 
     def get_last_time(self):
         return self.current_end
 
     def get_start_time(self, now: datetime):
-        print(self.min_time, self.max_time, self.catalog)
         if len(self.catalog) == 0:
-            return self.min_time
-        for entry in self.catalog:
+            return self.midnight(self.min_time)
+        times = sorted(self.catalog.keys())
+        for time in times:
+            entry = self.catalog[time]
             if entry['end'] < now:
                 continue
             if now >= entry['start'] and  now <= entry['end']:
                 # Current entry has the now time, then the previous end is to be used
-                return entry['start']
-        return self.max_time
+                return self.midnight(entry['start'])
+        return self.midnight(self.max_time)
             
 class Exporter:
 
@@ -213,7 +234,8 @@ class Exporter:
             Incrementally export data 
         """
         output_folder = output + '/' + self.profile.survey_key
-        catalog = ExportCatalog(output_folder, self.profile.start_time, self.profile.max_time)
+        period_size = 7 # Number of days to load (> 1)
+        catalog = ExportCatalog(output_folder, self.profile.start_time, self.profile.max_time, period_size)
         os.makedirs(output_folder, exist_ok=True)
         now = datetime.now()
         start_time = catalog.get_start_time(now)
@@ -221,8 +243,12 @@ class Exporter:
         # Max download time, if not provided only load one years (prevent infinite loop)
         max_time = self.profile.max_time if self.profile.max_time is not None else start_time + timedelta(days=365)
         loaded = 0
+        print("Loading %s data from %s to %s by %d days" % (self.profile.survey_key, start_time, max_time, period_size ))
         while start_time < max_time:
-            end_time = start_time + timedelta(days=6)
+            if start_time > now:
+                # Cannot load data in the future
+                break
+            end_time = start_time + timedelta(days=period_size - 1)
             end_time = end_time.replace(hour=23, minute=59)
             print("> %s - %s" % (start_time, end_time))
             r = self.export(start_time, end_time, output_folder)
@@ -234,7 +260,7 @@ class Exporter:
                 loaded += 1
                 catalog.append(start_time, end_time, r, updated=now)
                 catalog.save()
-            start_time = start_time + timedelta(days=7)
+            start_time = start_time + timedelta(days=period_size)
         print("%d file(s) loaded" % (loaded))
         self.export_info(output_folder)
             

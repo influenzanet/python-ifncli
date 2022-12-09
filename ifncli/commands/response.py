@@ -117,7 +117,7 @@ class ResponseBulkExporter(Command):
 
     def get_parser(self, prog_name):
         parser = super(ResponseBulkExporter, self).get_parser(prog_name)
-        parser.add_argument("plan", type=str, help="yaml files with export plan")
+        parser.add_argument("--plan", type=str, help="yaml files with export plan")
         parser.add_argument("--output", type=str, help="Output folder")
         return parser
         
