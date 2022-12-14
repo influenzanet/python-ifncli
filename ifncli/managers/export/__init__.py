@@ -86,13 +86,19 @@ class ExportProfile:
 
         self.rename_columns = profile.get('rename_columns', None)
 
-        self.start_time = None
-        self.max_time = None
-        if 'start_time' in profile:
-            self.start_time = datetime.strptime(profile['start_time'], ISO_TIME_FORMAT)
+        if not 'start_time' in profile:
+            raise Exception("start_time must be provided")
+            
+        self.start_time = datetime.strptime(profile['start_time'], ISO_TIME_FORMAT)
         
         if 'max_time' in profile:
             self.max_time = datetime.strptime(profile['max_time'], ISO_TIME_FORMAT)
+        else:
+            self.max_time = self.start_time + timedelta(days=365) 
+
+    def __str__(self) -> str:
+        return str(self.__dict__)
+    
         
 
 class ExportCatalog:
@@ -180,12 +186,14 @@ class ExportCatalog:
         times = sorted(self.catalog.keys())
         for time in times:
             entry = self.catalog[time]
+            last_start = entry['start']
             if entry['end'] < now:
                 continue
             if now >= entry['start'] and  now <= entry['end']:
                 # Current entry has the now time, then the previous end is to be used
                 return self.midnight(entry['start'])
-        return self.midnight(self.max_time)
+            
+        return self.midnight(last_start)
             
 class Exporter:
 
@@ -235,13 +243,13 @@ class Exporter:
         """
         output_folder = output + '/' + self.profile.survey_key
         period_size = 7 # Number of days to load (> 1)
-        catalog = ExportCatalog(output_folder, self.profile.start_time, self.profile.max_time, period_size)
+        max_time = self.profile.max_time  
+        catalog = ExportCatalog(output_folder, self.profile.start_time, max_time, period_size)
         os.makedirs(output_folder, exist_ok=True)
         now = datetime.now()
         start_time = catalog.get_start_time(now)
         already_has_data = False
         # Max download time, if not provided only load one years (prevent infinite loop)
-        max_time = self.profile.max_time if self.profile.max_time is not None else start_time + timedelta(days=365)
         loaded = 0
         print("Loading %s data from %s to %s by %d days" % (self.profile.survey_key, start_time, max_time, period_size ))
         while start_time < max_time:
