@@ -431,25 +431,36 @@ class CustomStudyRules(Command):
     def get_parser(self, prog_name):
         parser = super(CustomStudyRules, self).get_parser(prog_name)
         parser.add_argument("--rules", help="Rules files", required=True, action="store")
-        parser.add_argument("--study_key", help="key of the study (survey from api). Cannot be used with from-file", required=False)
+        parser.add_argument("--study", help="key of the study (survey from api)", required=False)
         parser.add_argument("--output", help="path of file to output results", required=False)
+        parser.add_argument("--pid", help="Participants id (coma separated for several)", required=False)
         # parser.add_argument("--format", help="Output format available 'human', 'dict-yaml','dict-json', html default is 'human'", required=False, action="store", default=None)
        
         return parser
 
     def take_action(self, args):
-        study_key = args.study_key
+        study_key = args.study
         rules_path = args.rules
 
         client = self.app.get_management_api()
         
+        participants = None
+        if args.pid is not None:
+            participants = args.pid.split(',')
+            participants = [x.strip() for x in participants]
+        
         rules = read_json(rules_path)
         
-        resp = client.run_custom_study_rules(study_key, rules)
-
+        if participants is None:
+            resp = client.run_custom_study_rules(study_key, rules)
+        else:
+            resp = {}
+            for pid in participants:
+                print("Appplying to %s" % pid)
+                r = client.run_custom_study_rules_for_single_participant(study_key, rules, pid)
+                resp[pid] = r
         output = Output(args.output)
         output.write(readable_yaml(resp))
-        
 
 register(ImportSurvey)
 register(CreateStudy)
