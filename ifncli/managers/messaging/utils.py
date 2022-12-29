@@ -17,9 +17,15 @@ def find_template_file(m_type, folder_with_templates):
 
 
 def encode_template(content:str)->str:
+    """
+        Encode template in base64
+    """
     return base64.b64encode(content.encode()).decode()
 
 def decode_template(encoded:str):
+    """
+        Decode template (base64)
+    """
     return base64.b64decode(encoded).decode()
 
 def wrap_layout(content, layout=None, vars=None)->str:
@@ -27,7 +33,7 @@ def wrap_layout(content, layout=None, vars=None)->str:
         Wrap a content with a layout.
         Content is placed into a placeholder in the layout '{=main_content=}'
         Some other variables can be replaced in the layout using the same syntax {=var=} (e.g. title variable the expected placeholder is {=title=} in the layout)
-        vars provides the values for each extra variable as a dictionnary (key=variable name)
+        vars provides the values for each extra variable as a dictionary (key=variable name)
     """
     if vars is not None:
         for name, value in vars.items():

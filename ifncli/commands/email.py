@@ -9,74 +9,7 @@ from dateutil.relativedelta import relativedelta
 from ..utils import check_keys, read_yaml,  read_content,readable_yaml
 from ..api.messaging import SYSTEM_MESSAGE_TYPES, Message, MessageTranslation, MessageHeaders,AutoMessage
 
-from ..managers.messaging import read_and_convert_html, find_template_file, read_and_encode_template
-
-"""
-        Load a Template html and wrap it with an optional layout and bind platform variables 
-"""
-class TemplateLoader:
-
-    def __init__(self, path, platform:PlatformResources):
-        
-        self.layout = None
-        # Check if global layout exists
-        if path is None and not platform.template_layout is None:
-               path = platform.template_layout
-        
-        if not path is None and path != "":
-            self.layout = read_content(path, must_exist=True)
-        
-        if self.layout is None:
-            print("Using layout in '%s'" % (path))
-    
-        template_vars = platform.get_vars()
-        
-        if 'web_app_url' in template_vars:
-            url:str = template_vars.get('web_app_url')
-            if url.endswith('/'): # Remove ending slash 
-                url = url[:-1] 
-        self.vars = template_vars
-
-    def load(self, template_path, language:str)->str:
-        data = self.vars.copy()
-        data['language'] = language
-        return read_and_encode_template(template_path, layout=self.layout, vars=data)
-
-class AutoMessageCollection:
-
-    def __init__(self, data):
-        """
-            Manage a collection of automessages
-            param: data the result of ManagementAPI.get_auto_messages()
-        """
-        self.messages = {}
-        if 'autoMessages' in data:
-            for m in data['autoMessages']:
-                key = self.get_key(m)
-                self.messages[key] = m
-
-    def get_key(self, m:Union[Dict, AutoMessage])->str:
-        if isinstance(m, AutoMessage):
-            m = m.toAPI()
-        key = m['type'] + '/' + m['template']['messageType']
-        studyKey = m.get('studyKey', None)
-        if studyKey is not None and studyKey != "":
-            key += '/' + m['studyKey']
-        return key
-    
-    def find_same(self, m:Dict):
-        key = self.get_key(m)
-        return self.messages.get(key, None)
-
-    def exists(self, m: Dict):
-        key = self.get_key(m)
-        return key in self.messages
-
-    def as_list(self):
-        data = []
-        for m in self.messages.values():
-            data.append( (m['id'], m['type'], m['template']['messageType'], m.get('studyKey', ''), m.get('label', '') ) )
-        return data
+from ..managers.messaging import read_and_convert_html, find_template_file, TemplateLoader, AutoMessageCollection
 
 def parse_next_time(time):
     if isinstance(time, dict):
