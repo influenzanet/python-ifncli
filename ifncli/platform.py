@@ -3,6 +3,7 @@ from pathlib import Path
 from re import S
 from typing import Dict, Optional,Union
 from .utils import read_yaml
+from os.path import dirname
 
 class PlatformException(Exception):
     pass
@@ -42,7 +43,13 @@ class PlatformResources:
     """
 
     def __init__(self, path: Union[str, Path], overrides:Optional[Dict]):
-        self.path = ResourcesLayoutPath(path)
+        path =  Path(path)
+        
+        if not path.is_absolute():
+            root_path = Path(dirname(__file__) + '/..').resolve()
+            path = root_path / path
+
+        self.path = ResourcesLayoutPath(path.resolve())
         if not self.path.is_dir():
             raise PlatformException("Resource path '%s' is not a directory" % (self.path))
         self.vars = {}
