@@ -1,6 +1,6 @@
 from typing import Dict, Optional
 from .types import *
-
+from datetime import datetime
 class MessageException(Exception):
     pass
 
@@ -112,6 +112,7 @@ class AutoMessage:
         self.period = period
         self.nextTime = nextTime
         self.template: Message = None
+        self.untilTime = None
         self.condition = None
         self.label = None
         self.id = None
@@ -129,9 +130,30 @@ class AutoMessage:
 
     def setCondition(self, condition):
         self.condition = condition
+
+    def setUntilTime(self, until):
+        self.untilTime = until
     
     def setTemplate(self, msg:Message):
         self.template = msg
+
+    def validate(self, now:Optional[datetime]=None):
+        if now is None:
+            now = datetime.now()
+        now = int(now.timestamp())
+        ee = []
+        if self.nextTime <= now:
+            ee.append("NexTime in the past")
+        if self.untilTime is not None:
+            if self.untilTime <= now:
+                ee.append("untilTime in the past")
+            if self.nextTime <= self.untilTime:
+                ee.append("untilTime is before nextTime")
+        if self.period <= 0:
+            ee.append("Periodicity must be a positive integer")
+        if self.period < 60*60*24:
+            ee.append("Periodicity must be at least one day")
+        return ee
 
     def toAPI(self):
         d= {
@@ -145,6 +167,8 @@ class AutoMessage:
             d['label'] = self.label
         if self.condition is not None:
             d['condition'] = self.condition
+        if self.untilTime is not None:
+            d['until'] = self.untilTime
         if self.id is not None:
             d['id'] = self.id
         return d
