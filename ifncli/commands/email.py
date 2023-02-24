@@ -48,6 +48,8 @@ class UpdateAutoMessage(Command):
         parser.add_argument("--dry-run", help="Just prepare template, dont update", default=False, action="store_true")
         parser.add_argument("--force", help="Force replacement of an eventual existing automessage with same type ", action="store_true")
         parser.add_argument("--at", help="Force nexttime ")
+        parser.add_argument("--settings", help="Use alternate settings name in the folder (instead of settings.yaml) ")
+        
         parser.add_argument("name", help="Name of the message to send. Search files in subdir of auto_email")
 
         self.formatter.add_argument_group(parser)
@@ -70,7 +72,11 @@ class UpdateAutoMessage(Command):
         
         print("Email folder: %s" % email_folder_path)
 
-        email_config:Dict = read_yaml(os.path.join(email_folder_path, 'settings.yaml'))
+        settings_file =  'settings.yaml'
+        if args.settings is not None:
+            settings_file = args.settings
+
+        email_config:Dict = read_yaml(os.path.join(email_folder_path, settings_file))
 
         if "defaultLanguage" in email_config:
             default_language = email_config["defaultLanguage"]
@@ -110,6 +116,9 @@ class UpdateAutoMessage(Command):
             autoMessage.setLabel(email_config['label'])
 
         autoMessage.setTemplate(email)
+
+        if 'condition' in email_config:
+            autoMessage.setCondition(email_config['condition'])
         
         client = self.app.get_management_api()
         existing_auto_messages = AutoMessageCollection(client.get_auto_messages())
@@ -158,8 +167,6 @@ class ListAutoMessages(Command):
             time = datetime.fromtimestamp(int(m['nextTime']))
             m['_nextTime'] = time.isoformat()
         print(readable_yaml(m))
-        
-
 
 class EmailTemplate(Command):
     """
