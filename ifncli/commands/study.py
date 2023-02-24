@@ -62,7 +62,7 @@ class CreateStudy(Command):
 
         g = parser.add_mutually_exclusive_group()
         g.add_argument("--study-def-path", help="folder with study def yaml and rules json")
-        g.add_argument("--study-key", help="Key of the study (will use default layout in resources path)")
+        g.add_argument("--study-key", "--study", help="Key of the study (will use default layout in resources path)")
     
         return parser
 
@@ -142,11 +142,11 @@ class ImportSurvey(Command):
 
     def get_parser(self, prog_name):
         parser = super(ImportSurvey, self).get_parser(prog_name)
-        parser.add_argument("--study_key", help="study key to which study the survey should be saved", required=False)
+        parser.add_argument("--study_key", "--study", help="study key to which study the survey should be saved", required=False)
         
         group = parser.add_mutually_exclusive_group()
 
-        group.add_argument("--survey-json", help="path to the survey json", required=False)
+        group.add_argument("--survey-json", "--json", help="path to the survey json", required=False)
         group.add_argument("--from-name", help="Name of the survey (can be study-key/survey-key) if the files are organized following the common layout", required=False)
 
         return parser
@@ -172,7 +172,7 @@ class ImportSurvey(Command):
 
         survey_def = read_json(survey_path)        
         resp = client.save_survey_to_study(study_key, survey_def)
-        print("Survey uploaded id=%s  version=%s", resp['id'], resp['versionId'])
+        print("Survey uploaded id=%s  version=%s" % ( resp['id'], resp['versionId']))
 
 def old_survey_upload(client, survey_def, study_key):
     survey_key = survey_def['survey']['current']['surveyDefinition']['key']
@@ -205,7 +205,7 @@ class UpdateSurveyRules(Command):
 
     def get_parser(self, prog_name):
         parser = super(UpdateSurveyRules, self).get_parser(prog_name)
-        parser.add_argument("--study_key", help="study key, the rules should be updated for", required=True)
+        parser.add_argument("--study_key", "--study", help="study key, the rules should be updated for", required=True)
         
         g = parser.add_mutually_exclusive_group()
         g.add_argument("--rules_json_path", help="file path to the survey rules json", required=False)
@@ -235,14 +235,10 @@ class ManageStudyMembers(Command):
 
     def get_parser(self, prog_name):
         parser = super(ManageStudyMembers, self).get_parser(prog_name)
-        parser.add_argument(
-            "--action", help="ADD or REMOVE", default='ADD')
-        parser.add_argument(
-            "--study_key", help="key of the study, the user should be added to or removed from", required=True)
-        parser.add_argument(
-            "--user_id", help="user id of the RESEARCHER user to be added", required=True)
-        parser.add_argument(
-            "--user_name", help="user name of the RESEARCHER user", required=True)
+        parser.add_argument("--action", help="ADD or REMOVE", default='ADD')
+        parser.add_argument("--study_key",  "--study", help="key of the study, the user should be added to or removed from", required=True)
+        parser.add_argument("--user_id","--user-id", help="user id of the RESEARCHER user to be added", required=True)
+        parser.add_argument("--user_name", "--user-name", help="user name of the RESEARCHER user", required=True)
         return parser
 
     def take_action(self, args):
@@ -268,12 +264,9 @@ class ListSurveys(Command):
 
     def get_parser(self, prog_name):
         parser = super(ListSurveys, self).get_parser(prog_name)
-        parser.add_argument(
-            "--study_key", help="key of the study", required=True)
-        parser.add_argument(
-            "--json", help="get the json", required=False, action="store_true")
-        parser.add_argument(
-            "--lang", help="Show only translation for lang", required=False, action="store", default=None)
+        parser.add_argument("--study_key", "--study", help="key of the study", required=True)
+        parser.add_argument("--json", help="get the json", required=False, action="store_true")
+        parser.add_argument("--lang", help="Show only translation for lang", required=False, action="store", default=None)
         return parser
 
     def take_action(self, args):
@@ -289,8 +282,6 @@ class ListSurveys(Command):
         data = []
 
         ctx = create_context(language=args.lang)
-
-        print(surveys)
 
         for s in surveys:
             d = {
@@ -325,10 +316,8 @@ class ShowStudy(Command):
 
     def get_parser(self, prog_name):
         parser = super(ShowStudy, self).get_parser(prog_name)
-        parser.add_argument(
-            "--study_key", help="key of the study", required=True)
-        parser.add_argument(
-            "--json", help="get the json", required=False, action="store_true")
+        parser.add_argument("--study_key", "--study", help="key of the study", required=True)
+        parser.add_argument("--json", help="get the json", required=False, action="store_true")
         parser.add_argument("--lang", help="Show only translation for lang", required=False, action="store", default=None)
         return parser
     
@@ -360,7 +349,7 @@ class ShowSurvey(Command):
 
         g = parser.add_mutually_exclusive_group(required=True)
         g.add_argument("--from-file", help="load survey from json file. Cannot be used with study_key", required=False, action="store")
-        g.add_argument("--study_key", help="key of the study (survey from api). Cannot be used with from-file", required=False)
+        g.add_argument("--study_key", "--study", help="key of the study (survey from api). Cannot be used with from-file", required=False)
         
         parser.add_argument("--survey", help="key of the survey, ", required=False)
         parser.add_argument("--output", help="path of file to output results", required=False)
@@ -431,11 +420,15 @@ class CustomStudyRules(Command):
     def get_parser(self, prog_name):
         parser = super(CustomStudyRules, self).get_parser(prog_name)
         parser.add_argument("--rules", help="Rules files", required=True, action="store")
-        parser.add_argument("--study", help="key of the study (survey from api)", required=False)
+        parser.add_argument("--study", "--study_key", help="key of the study (survey from api)", required=True)
         parser.add_argument("--output", help="path of file to output results", required=False)
-        parser.add_argument("--pid", help="Participants id (coma separated for several)", required=False)
+        
+        g = parser.add_mutually_exclusive_group(required=True)
+        g.add_argument("--all", help="All participants", required=False)
+        g.add_argument("--pid", help="Participants id (coma separated for several)", required=False)
+        g.add_argument("--pid-file", help="Participants id from this file (exclusive with pid)", required=False)
+        
         # parser.add_argument("--format", help="Output format available 'human', 'dict-yaml','dict-json', html default is 'human'", required=False, action="store", default=None)
-       
         return parser
 
     def take_action(self, args):
@@ -448,12 +441,22 @@ class CustomStudyRules(Command):
         if args.pid is not None:
             participants = args.pid.split(',')
             participants = [x.strip() for x in participants]
-        
+                
+        if args.pid_file is not None:
+            with open(args.pid_file, 'r') as f:
+                participants = f.readlines()
+            participants = [x.strip() for x in participants]
+
         rules = read_json(rules_path)
         
-        if participants is None:
+        if args.all:
+            # Only 
             resp = client.run_custom_study_rules(study_key, rules)
+            print(resp)
         else:
+            if len(participants) == 0:
+                print("No participant in list, aborting")
+                return
             resp = {}
             for pid in participants:
                 print("Appplying to %s" % pid)

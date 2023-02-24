@@ -115,6 +115,20 @@ One of the following arguments:
 - **--rules_json_path** : relative or absolute path to a study rule definition file.
 - **--default** : this flag will use the default layout path in resources path (./study/[study_key]/studyRules.json)
 
+## `study:custom-rules` Apply custom rules
+
+Arguments:
+
+- **--rules** : JSON File containing the rule to apply
+- **--study** or **--study_key** Key of the study to which apply the rule
+- **--output**" path of file to output results
+
+And One of the following:
+
+- --all : Apply to all participants
+- --pid : participantID (or coma separated list if several)
+- --pid-file : file path containing the list of participantID
+
 ## study:import-survey Update a new survey definition for study
 
 This command will create (if not existing) or update a previous survey definition identified by the `survey key`. If a survey currently exists with the key, by default this will be "unpublished" and the new version published.
