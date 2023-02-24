@@ -33,19 +33,28 @@ class MyApp(App):
 
         self.configManager = ConfigManager()
 
+        self.plugin = None
+
+        try:
+            from plugins import Plugin
+            self.plugin = Plugin()
+        except:
+            pass
+    
        # self.plugin_manager.build_option_parser(parser)
 
         return parser
 
     def initialize_app(self, argv):
         commands = get_commands()
+        if self.plugin is not None:
+            commands.extend(self.plugin.get_commands())
         for command in commands:
             if hasattr(command, 'name'):
                 name = command.name
             else:
                 name = command.__name__
             self.command_manager.add_command(name.lower(), command)
-
     
     def prepare_to_run_command(self, cmd):
         """

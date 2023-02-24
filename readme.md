@@ -254,6 +254,54 @@ Will show the current configuration and the platform variables (after overrides)
 
 This command will try to log in to the management API using the current configuration 
 
+## Add Custom commands
+
+It's possible to extend ifncli to add custom commands by defining a module "plugins" at the same level as "ifncli"
+The plugin module has to provide a Plugin class
+
+In plugins/__init__.py
+
+```python
+from ifncli.plugin import BasePlugin
+
+COMMANDS = []
+
+def register(klass):
+    COMMANDS.append(klass)
+
+class Plugin(BasePlugin):
+    
+    def get_commands(self):
+        return COMMANDS
+
+from . import mycommands
+```
+
+You can then create new commands, for example in plugins/mycommands.py
+```python
+from cliff.command import Command
+from . import register
+
+class MyAwesomeCommand(Command):
+
+    name = "my:awesome"
+
+    def get_parser(self, prog_name):
+        # Implements this method to parse options or arguments
+        parser = super(MyAwesomeCommand, self).get_parser(prog_name)
+        return parser  
+
+    def take_action(self, args):
+        # Here the commands
+        pass
+
+# This make the command available 
+register(MyAwesomeCommand)
+
+
+```
+
+
 ## Use with starship
 
 [starship](https://starship.rs/) is a command line companion guessing from the current directory and env to show some information on what 

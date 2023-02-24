@@ -3,3 +3,4 @@ venv
 .local
 **/__pycache__
 resources
+plugins
