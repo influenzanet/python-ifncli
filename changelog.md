@@ -2,6 +2,14 @@
 
 
 # Changelog
+
+# v1.2
+
+- add 'stats:user' command to fetch data from user-stats-service (https://github.com/grippenet/user-stats-service)
+- standardize args for study:* commands, accepts '--study-key' or '--study'
+- 'study:custom-rules' accepts participants ids as argument (coma separated) or from a file
+- Accepts "plugins" module to define local extra commands (not versioned in this repo)
+
 ## v1.1
 
 Messages:
