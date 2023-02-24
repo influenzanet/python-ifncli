@@ -3,32 +3,41 @@
 
 # Changelog
 
-# v1.2
+## v1.2
 
-- add 'stats:user' command to fetch data from user-stats-service (https://github.com/grippenet/user-stats-service)
-- standardize args for study:* commands, accepts '--study-key' or '--study'
-- 'study:custom-rules' accepts participants ids as argument (coma separated) or from a file
+### General:
 - Accepts "plugins" module to define local extra commands (not versioned in this repo)
+
+### Messages
+- automessages settings accepts untilTime and condition
+- email:import-auto accepts alternate yaml file name (to send the same automessage with different settings)
+
+### Study
+- standardize args for study:* commands, accepts `--study-key` or `--study`
+- **study:custom-rules** accepts participants ids as argument (coma separated) or from a file
+
+### Other
+- add **stats:user** command to fetch data from user-stats-service (https://github.com/grippenet/user-stats-service)
 
 ## v1.1
 
-Messages:
+### Messages:
 
 - Automessages import reworked (uses Message classes, can use layout to wrap the message before it's updated like for the email template)
 - Can force force nextTime of automessage using the `--at` parameter
 - `template_layout` can be used in platform config yaml file  ([resources]/platform.yaml) to defined common layout by default for emails auto and system emails
 
-Survey & Responses:
+### Survey & Responses:
 
 - show surveys info once updated (id, versionID)
 - Add response downloader commands: schema, response, export-bulk (incremental export) and export-plan (list of surveys)
 
-Config & Environnement:
+### Config & Environnement:
 
 - Add context feature, env variable `IFNCLI_CONTEXT` can point to a context file describing the available environnement files and which to use
 - Show connection information once (on stderr)
 
-Migration:
+### Migration:
 
 - User migration script adapted
 
