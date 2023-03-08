@@ -424,7 +424,7 @@ class CustomStudyRules(Command):
         parser.add_argument("--output", help="path of file to output results", required=False)
         
         g = parser.add_mutually_exclusive_group(required=True)
-        g.add_argument("--all", help="All participants", required=False)
+        g.add_argument("--all", help="All participants", required=False, action="store_true")
         g.add_argument("--pid", help="Participants id (coma separated for several)", required=False)
         g.add_argument("--pid-file", help="Participants id from this file (exclusive with pid)", required=False)
         
