@@ -99,6 +99,8 @@ vars:
   # ....
   web_app_url: 'https//mywebsite'
   default_language: 'en'
+  # Variable can also make reference to other variables and value will be resolved during template processing
+  my_login_url: "{=web_app_url=}/login"
 ```
 
 You can then use *{=web_app_url=}* into the email templates, it will be replaced by the value of the `web_app_url` variable each time the templates are updated.
@@ -158,6 +160,11 @@ sendTo: "all-users"  # Type of Automessage
 studyKey: ""  # Study keys to use if the type is study-participants
 messageType: "weekly" # Type of template to use
 nextTime: "2020-09-11-12:25:00" # See below
+untilTime:
+ - relative: true
+   weekday: "sunday"
+ - hour: 14
+   min: 0
 period: 86400
 defaultLanguage: "en" # If not provided the platform default can be used
 label: "message label" # Optional message label
@@ -167,7 +174,11 @@ translations:
     templateFile: "en.html"
 ```
 
-'nextTime' can be either a string with next time or a dictionary object with
+'nextTime' and untilTime can be either a string with next time or a dictionary object with hour parameter or a list of dictionary
+A list will apply each rule, this enable to combine several time modifiers.
+Dictionary describes rule to apply on each time part, either fixed or relative to set the time
+
+Relative rule have the entry `relative: true`, if not or false, the rule fix the value
 
 ```yaml
 nextTime:
@@ -175,3 +186,28 @@ nextTime:
   hour: 1 # Number of hours to add or fixed hour if relative = false
   min: 1 # Number of minutes to add or fixed minutes if relative = false
 ```
+
+The following example show the combination of relative and fixed rule
+
+```yaml
+untilTime:
+ - relative: true
+   weekday: "sunday"
+ - hour: 14
+   min: 0
+```
+
+The untilTime will be, the next sunday (first rule, relative), and next fix time to 14:00 to the result of the first rule,
+the combination, will give "next sunday at 14:00"
+
+Available time/date part:
+
+relative time rules (with `relative:true`):
+- `hour` (number of hour to shift)
+- `min` (number of minutes to shift)
+- `day` (number of days)
+- `weekday` (days of the week)
+
+Fixed rules (with `relative:false` or omitted in the rule):
+- `hour`
+- `min`
