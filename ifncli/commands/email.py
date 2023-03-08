@@ -5,35 +5,10 @@ from cliff.formatters.table import TableFormatter
 from typing import Dict, Union,Optional
 from ..platform import PlatformResources
 from . import register
-from dateutil.relativedelta import relativedelta
 from ..utils import check_keys, read_yaml,  read_content,readable_yaml
 from ..api.messaging import SYSTEM_MESSAGE_TYPES, Message, MessageTranslation, MessageHeaders,AutoMessage
+from ..managers.messaging import read_and_convert_html, find_template_file, TemplateLoader, AutoMessageCollection, parse_time_rules
 
-from ..managers.messaging import read_and_convert_html, find_template_file, TemplateLoader, AutoMessageCollection
-
-def parse_next_time(time):
-    if isinstance(time, dict):
-        now = datetime.now().replace(second=0)
-        if 'relative' in time and time['relative']:
-            if 'hour' in time:
-               r = relativedelta(hours=int(time['hour']))
-               now = now + r
-            if 'min' in time:
-                r = relativedelta(minutes=int(time['min']))
-                now = now + r
-            if 'day' in time:
-                r = relativedelta(days=int(time['day']))
-                now = now + r
-        else:
-            if 'hour' in time:
-                now = now.replace(hour=int(time['hour']))
-            if 'min' in time:
-                now = now.replace(minute=int(time['min']))
-            if now < datetime.now():
-                now = now + relativedelta(days=1)
-    else:
-        now = datetime.strptime(time, "%Y-%m-%d-%H:%M:%S")
-    return int(now.timestamp())
 
 class UpdateAutoMessage(Command):
     """
@@ -104,16 +79,33 @@ class UpdateAutoMessage(Command):
         studyKey = email_config["studyKey"]
 
         if args.at is not None:
-            d = datetime.fromisoformat(args.at)
-            nextTime = d.timestamp()
+            nextTime = datetime.fromisoformat(args.at)
         else:
-            nextTime = parse_next_time(email_config["nextTime"])
+            nextTime = parse_time_rules(email_config["nextTime"])
+        
+        if nextTime < datetime.now():
+                raise Exception("Nexttime (%s) is in the past, to force nextime use --at " % (str(nextTime)))
+
+        nextTime = int(nextTime.timestamp())
+
+        if 'untilTime' in email_config:
+            untilTime = parse_time_rules(email_config["untilTime"])
+            untilTime = int(untilTime.timestamp())
+        else:
+            untilTime = None
 
         print("nextTime", nextTime, datetime.fromtimestamp(nextTime).isoformat())
+        if untilTime is not None:
+            print("untilTime", untilTime, datetime.fromtimestamp(untilTime).isoformat())
+        else:
+            print("No untilTime set")
 
         autoMessage = AutoMessage(email_config["sendTo"], studyKey=studyKey, nextTime=nextTime,  period=email_config["period"] )
         if "label" in email_config:
             autoMessage.setLabel(email_config['label'])
+
+        if untilTime is not None:
+            autoMessage.setUntilTime(untilTime)
 
         autoMessage.setTemplate(email)
 
