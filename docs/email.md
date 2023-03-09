@@ -191,8 +191,10 @@ The following example show the combination of relative and fixed rule
 
 ```yaml
 untilTime:
- - relative: true
+ # First rule using relative time
+ - relative: true 
    weekday: "sunday"
+# Second rule using fixed time, value for each time part will replace the part of the previous time (result of the first rule)
  - hour: 14
    min: 0
 ```
