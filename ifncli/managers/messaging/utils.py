@@ -1,7 +1,7 @@
 import os
 import re
 import base64
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 from ...utils import write_content
 
 def find_template_file(m_type, folder_with_templates):
@@ -36,14 +36,27 @@ def wrap_layout(content, layout=None, vars=None):
         vars provides the values for each extra variable as a dictionary (key=variable name)
     """
     content, errors = bind_content(content, vars)
+    if len(errors) > 0:
+        raise TemplateError("Error parsing content", errors)
+    
     if layout is not None:
         content = layout.replace('{=main_content=}', content)
-    return content, errors
-
+    
+    return content
 """"
 Variable syntax regexp {=name=} {= name =}
 """
 VAR_REGEXP = re.compile("(\{=\s*([-\w]+)\s*=\})", re.IGNORECASE)
+
+class TemplateError(Exception):
+
+    def __init__(self, msg, problems=Optional[List[str]]):
+        if len(problems):
+            m = msg + ":" + ", ".join(problems)
+        else:
+            m = msg
+        super().__init__(m)
+        self.problems = problems
 
 def resolve_vars(vars:Optional[Dict]):
     """"
@@ -51,7 +64,7 @@ def resolve_vars(vars:Optional[Dict]):
         So variables can contains reference to other variables
     """
     if vars is None:
-        return (None, None)
+        return None, []
     values = {} # Resolved values
     temporary = [] # Visiting items
     marked = [] # Already visited 
@@ -86,7 +99,7 @@ def bind_vars(data:str, vars:Optional[Dict]):
     """
     problems = []
     if vars is None:
-        return data
+        return data, []
     for p in VAR_REGEXP.findall(data):
         m = p[0]
         name = p[1]
@@ -103,11 +116,11 @@ def bind_content(data, vars):
         vars can also contain variables reference (with the same syntax) and are resolved before parsing the content 
 
         Returns:
-            data : content with variables binded with their resolved values
+            data : content with variables bind with their resolved values
             problems: List[str] list of problems detected in content ()
     """
     if vars is None:
-        return data
+        return data, []
     problems = []
     values, pp = resolve_vars(vars)
     if len(pp) > 0:
@@ -119,15 +132,10 @@ def bind_content(data, vars):
 
 def read_and_convert_html(path, vars=None, layout=None):
     content = open(path, 'r', encoding='UTF-8').read()
-    content, problems = wrap_layout(content, layout=layout, vars=vars)
+    content = wrap_layout(content, layout=layout, vars=vars)
     built = vars is not None or layout is not None
     if built:
         write_content(path + '.built.html', content)
-        if len(problems) > 0:
-            write_content(path + '.built.problems', "\n".join(problems))
-    if len(problems) > 0:
-        for p in problems:
-            print("%s : %s" % (path, p))
     return encode_template(content)
 
 def read_and_encode_template(path, vars=None, layout=None):

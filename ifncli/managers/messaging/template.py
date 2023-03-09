@@ -3,15 +3,6 @@ from ...utils import read_content
 from .utils import read_and_encode_template, wrap_layout, decode_template
 
 from typing import Optional, List
-
-class TemplateResult:
-    def __init__(self, content:str, problems=Optional[List[str]]):
-        self.content = content
-        self.problems = problems
-
-    def has_problems(self):
-        return len(self.problems) > 0
-
 class TemplateLoader:
     """
             Load a Template html and wrap it with an optional layout and bind platform variables 
@@ -49,10 +40,10 @@ class TemplateLoader:
         data['language'] = language
         return read_and_encode_template(template_path, layout=self.layout, vars=data)
 
-    def bind(self, content:str, language:str, is_encoded:bool)->TemplateResult:
+    def bind(self, content:str, language:str, is_encoded:bool):
         data = self.vars.copy()
         data['language'] = language
         if is_encoded:
             content = decode_template(content)
-        content, problems = wrap_layout(content, layout=self.layout, vars=data)
-        return TemplateResult(content, problems)
+        content= wrap_layout(content, layout=self.layout, vars=data)
+        return content
