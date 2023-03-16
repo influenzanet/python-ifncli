@@ -121,13 +121,24 @@ Arguments:
 
 - **--rules** : JSON File containing the rule to apply
 - **--study** or **--study_key** Key of the study to which apply the rule
-- **--output**" path of file to output results
+- **--output**" : path of file to output results (optional, if not provided results will be printed to console)
 
-And One of the following:
+And One of the following to define the participant list to apply the rule to:
 
 - --all : Apply to all participants
 - --pid : participantID (or coma separated list if several)
-- --pid-file : file path containing the list of participantID
+- --pid-file : file path containing the list of participantID, can be provided as a text file (one line by pid) or JSON file (extension .json)
+
+If pid-file is a json file containing a dictionary, one of the 2 options **must** be provided :
+--pid-json-keys : the participant ID is in the key of the provided dictionary
+--pid-json-values : the participant ID is in the value of the provided dictionary
+
+If a participant list is provided (so except for **--all** source), optional parameters can be provided:
+
+- --done-file : name of file to store the list of successfully applied participant ID (will create a text file, one pid by line)
+- --exclude-done : if provided will read the file given in **--done-file** and exclude participant already in done file of the given list 
+ 
+This can be used if list is very long, to be able to replay the action without applying twice the rule to participants.
 
 ## study:import-survey Update a new survey definition for study
 

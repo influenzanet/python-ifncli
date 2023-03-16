@@ -1,6 +1,7 @@
 import os
 import json
 import sys
+import time
 from datetime import datetime
 import re
 from cliff.command import Command
@@ -422,48 +423,115 @@ class CustomStudyRules(Command):
         parser.add_argument("--rules", help="Rules files", required=True, action="store")
         parser.add_argument("--study", "--study_key", help="key of the study (survey from api)", required=True)
         parser.add_argument("--output", help="path of file to output results", required=False)
+        parser.add_argument("--dry-run", help="Prepare but do not send", required=False, action="store_true")
+        parser.add_argument("--done-file", help="File to write participant ids done with success", required=False)
+        parser.add_argument("--exclude-done", help="Read done file and dont redo for those in file", required=False, action="store_true")
         
         g = parser.add_mutually_exclusive_group(required=True)
         g.add_argument("--all", help="All participants", required=False, action="store_true")
         g.add_argument("--pid", help="Participants id (coma separated for several)", required=False)
-        g.add_argument("--pid-file", help="Participants id from this file (exclusive with pid)", required=False)
+        g.add_argument("--pid-file", help="Participants id from this file (exclusive with pid), if json dictionary needs --pid-json-* option", required=False)
+
+        g2 = parser.add_mutually_exclusive_group(required=False)
         
+        g2.add_argument("--pid-json-keys", help="Use key of json dictionary", required=False, action="store_true")
+        g2.add_argument("--pid-json-values", help="Use values of json dictionary", required=False, action="store_true")
+        
+
         # parser.add_argument("--format", help="Output format available 'human', 'dict-yaml','dict-json', html default is 'human'", required=False, action="store", default=None)
         return parser
 
     def take_action(self, args):
         study_key = args.study
         rules_path = args.rules
-
+        dry_run = args.dry_run
         client = self.app.get_management_api()
         
         participants = None
+        done_file = None
+        
         if args.pid is not None:
             participants = args.pid.split(',')
             participants = [x.strip() for x in participants]
                 
         if args.pid_file is not None:
-            with open(args.pid_file, 'r') as f:
-                participants = f.readlines()
-            participants = [x.strip() for x in participants]
+            if args.pid_file.endswith('.json'):
+                participants = read_json(args.pid_file)
+                if not isinstance(participants, list):
+                    if isinstance(participants, dict):
+                        if not args.pid_json_keys and not args.pid_json_values:
+                            raise Exception("Participant json dictionnary must have either --pid-json-keys or --pid-json-values options")
+                        if args.pid_json_keys:
+                            participants : list(participants.keys())
+                        if args.pid_json_values:
+                            participants : list(participants.values())
+                    else:
+                        raise Exception("participant json file must be a dictionnary or a list")
+
+            else:            
+                with open(args.pid_file, 'r') as f:
+                    participants = f.readlines()
+                participants = [x.strip() for x in participants]
+
+        if not args.all:
+            print(" Participants loaded : %d" % len(participants))
+            done_file = args.done_file
+            exclude_done = args.exclude_done
+            if done_file is not None and exclude_done:
+                with open(done_file, 'r') as f:
+                        exclude = f.readlines()
+                exclude = [x.strip() for x in exclude]
+                print(" Participants to be excluded : %d" % len(exclude))
+                participants = list(filter(lambda x: x not in exclude, participants))
+                print(" Participants kept : %d" % len(participants))
 
         rules = read_json(rules_path)
         
         if args.all:
             # Only 
-            resp = client.run_custom_study_rules(study_key, rules)
+            if dry_run:
+                print("[fake] dry-run mode, call run_custom_study_rules for all participants")
+                resp = []
+            else:
+                resp = client.run_custom_study_rules(study_key, rules)
             print(resp)
         else:
             if len(participants) == 0:
                 print("No participant in list, aborting")
                 return
             resp = {}
+            max_batch = 100
+            sleep_batch = 1
+            count_errors = 0
+            count_ok = 0
+            count_run = 0
             for pid in participants:
-                print("Appplying to %s" % pid)
-                r = client.run_custom_study_rules_for_single_participant(study_key, rules, pid)
+                print("Appplying to %s" % pid, end="")
+                count_run += 1
+                if dry_run:
+                    print("[fake] dry-run call for %s" % pid)
+                    r = {}
+                else:
+                    try:
+                        r = client.run_custom_study_rules_for_single_participant(study_key, rules, pid)
+                        count_ok += 1
+                        print("  OK")
+                        if done_file is not None:
+                            with open(done_file, 'a') as f:
+                                f.write(pid + "\n")
+                    except Exception as e:
+                        count_errors += 1
+                        print(" Error")
+                        r = {'error': str(e)}
                 resp[pid] = r
+                if (count_run % max_batch) == 0:
+                    print("Sleep")
+                    time.sleep(sleep_batch)
+                    
         output = Output(args.output)
         output.write(readable_yaml(resp))
+        if not args.all:
+            print("Count OK: %d  Errors: %d" % (count_ok, count_errors))
 
 register(ImportSurvey)
 register(CreateStudy)
