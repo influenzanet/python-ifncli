@@ -8,7 +8,7 @@ class MessageTranslation:
     """
         Message translation
     """
-    def __init__(self, lang: str, subject: str) -> None:
+    def __init__(self, lang: str, subject: str):
         self.lang = lang
         self.subject = subject
     
@@ -17,9 +17,9 @@ class MessageTranslation:
 
     def toAPI(self):
         return {
-                'lang':self.lang,
-                'subject': self.subject,
-                'templateDef': self.template
+            'lang':self.lang,
+            'subject': self.subject,
+            'templateDef': self.template
         }
 
 class MessageHeaders:
@@ -143,16 +143,16 @@ class AutoMessage:
         now = int(now.timestamp())
         ee = []
         if self.nextTime <= now:
-            ee.append("NexTime in the past")
+            ee.append("NexTime (%d) in the past (now %d)" % (self.nextTime, now))
         if self.untilTime is not None:
             if self.untilTime <= now:
-                ee.append("untilTime in the past")
-            if self.nextTime <= self.untilTime:
-                ee.append("untilTime is before nextTime")
+                ee.append("untilTime (%d) in the past (now %d)" % (self.untilTime, self.now))
+            if self.untilTime <= self.nextTime:
+                ee.append("untilTime (%d) is before nextTime (%d)" % (self.untilTime, self.nextTime))
         if self.period <= 0:
-            ee.append("Periodicity must be a positive integer")
-        if self.period < 60*60*24:
-            ee.append("Periodicity must be at least one day")
+            ee.append("Periodicity must be a positive integer (given %d)" % (self.period))
+        if self.period < 60 * 60 * 24:
+            ee.append("Periodicity must be at least one day (given %d)" % (self.period))
         return ee
 
     def toAPI(self):
