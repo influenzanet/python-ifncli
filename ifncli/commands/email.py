@@ -66,7 +66,18 @@ class UpdateAutoMessage(Command):
         
         templateLoader = TemplateLoader(layout_path, platform)
 
-        for tr in email_config['translations']:
+        translations_file = os.path.join(email_folder_path, 'translations.yaml')
+        
+        
+        if os.path.isfile(translations_file):
+            tr_config = read_yaml(translations_file)
+            translations_config = tr_config['translations']
+            if 'translations' in email_config:
+                print("Warning: 'translations' exists in settings and in translations.yaml. The translations.yaml is used in place of the provided in settings.yaml")
+        else:
+            translations_config = email_config['translations']
+            
+        for tr in translations_config:
             trans = MessageTranslation(tr['lang'], tr['subject'])
             template_file = os.path.join(email_folder_path, tr['templateFile'])
             
