@@ -166,10 +166,10 @@ class ListAutoMessages(Command):
         
         for m in existing_auto_messages.messages.values():
             if not args.json:
-                m['template']['translations'] = [  remove_template(t) for t in m['template']['translations']]
+                m['template']['translations'] = [remove_template(t) for t in m['template']['translations']]
             time = datetime.fromtimestamp(int(m['nextTime']))
             m['_nextTime'] = time.isoformat()
-        print(readable_yaml(m))
+            print(readable_yaml(m))
 
 class EmailTemplate(Command):
     """
