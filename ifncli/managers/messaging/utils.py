@@ -35,14 +35,18 @@ def wrap_layout(content, layout=None, vars=None):
         Some other variables can be replaced in the layout using the same syntax {=var=} (e.g. title variable the expected placeholder is {=title=} in the layout)
         vars provides the values for each extra variable as a dictionary (key=variable name)
     """
-    content, errors = bind_content(content, vars)
+
+    built = False
+
+    content, errors, built = bind_content(content, vars)
     if len(errors) > 0:
         raise TemplateError("Error parsing content", errors)
     
     if layout is not None:
+        built = True
         content = layout.replace('{=main_content=}', content)
     
-    return content
+    return content, built
 """"
 Variable syntax regexp {=name=} {= name =}
 """
@@ -79,7 +83,7 @@ def resolve_vars(vars:Optional[Dict]):
                 for p in VAR_REGEXP.findall(value):
                     n = p[1]
                     resolve(n)
-                value, pp = bind_vars(value, values)
+                value, pp, _ = bind_vars(value, values)
                 if len(pp) > 0:
                     for p in pp:
                         problems.append( "%s in '%s'" % (p, name) )
@@ -97,17 +101,21 @@ def bind_vars(data:str, vars:Optional[Dict]):
         Bind variables with values in vars in a content string data
         variables are using the syntax {= name =}
     """
+    built = False
     problems = []
     if vars is None:
         return data, []
     for p in VAR_REGEXP.findall(data):
+
+        built = True
+
         m = p[0]
         name = p[1]
         if name in vars:
             data = data.replace(m, vars[name])
         else:
             problems.append("'%s' not found" % name)
-    return data, problems
+    return data, problems, built
 
 def bind_content(data, vars):
     """
@@ -125,15 +133,16 @@ def bind_content(data, vars):
     values, pp = resolve_vars(vars)
     if len(pp) > 0:
         problems.extend(pp)
-    data, pp = bind_vars(data, values)
+    data, pp, built = bind_vars(data, values)
     if len(pp) > 0:
         problems.extend(pp)
-    return data, problems
+    return data, problems, built
 
 def read_and_convert_html(path, vars=None, layout=None):
     content = open(path, 'r', encoding='UTF-8').read()
-    content = wrap_layout(content, layout=layout, vars=vars)
-    built = vars is not None or layout is not None
+    content, built = wrap_layout(content, layout=layout, vars=vars)
+    # NOTE: save content if any variable has been replaced, otherwise this was a
+    # plain template
     if built:
         write_content(path + '.built.html', content)
     return encode_template(content)

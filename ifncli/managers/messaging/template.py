@@ -45,5 +45,5 @@ class TemplateLoader:
         data['language'] = language
         if is_encoded:
             content = decode_template(content)
-        content= wrap_layout(content, layout=self.layout, vars=data)
+        content, _ = wrap_layout(content, layout=self.layout, vars=data)
         return content
