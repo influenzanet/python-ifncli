@@ -113,8 +113,6 @@ class MyApp(App):
         return self.configManager.get_current()
             
 def main(argv=sys.argv[1:]):
-    if len(argv) == 0:
-        argv = ["help"]
     app = MyApp(
             description="InfluenzaNet CLI",
             version="0.0.1",
