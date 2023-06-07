@@ -106,7 +106,7 @@ class CreateStudy(Command):
                     "systemDefaultStudy": study_def["props"]["systemDefaultStudy"],
                     "startDate": startDate,
                     "name": yaml_obj_to_loc_object(study_def["props"]["name"]),
-                    "description": yaml_obj_to_loc_object(study_def["props"]["name"]),
+                    "description": yaml_obj_to_loc_object(study_def["props"]["description"]),
                     "tags": [{"label": yaml_obj_to_loc_object(t)} for t in study_def["props"]["tags"]]
                 },
                 "rules": rules
