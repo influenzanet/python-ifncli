@@ -73,6 +73,7 @@ class CreateStudy(Command):
 
         if args.study_key:
             path = self.app.get_platform().get_path()
+            study_path = path.get_study_path(args.study_key).resolve()
             study_props_path = path.get_study_props_file(args.study_key)
             study_rules_path = path.get_study_rules_file(args.study_key)
         else:
