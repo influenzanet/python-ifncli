@@ -61,7 +61,7 @@ class CreateStudy(Command):
         parser.add_argument("--secret-from", help="Get secret key from this file, default=$study_path/secret", required=False)
         parser.add_argument("--dry-run", help="Show the study json but do not submit", required=False, action="store_true")
 
-        g = parser.add_mutually_exclusive_group()
+        g = parser.add_mutually_exclusive_group(required=True)
         g.add_argument("--study-def-path", help="folder with study def yaml and rules json")
         g.add_argument("--study-key", "--study", help="Key of the study (will use default layout in resources path)")
     
