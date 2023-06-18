@@ -175,7 +175,7 @@ class ExportCatalog:
             'period': self.period,
             'files': files
         }
-        write_content(self.file, json.dumps(d, default=encoder))
+        write_content(self.file, json.dumps(d, default=encoder, indent=2))
 
     def get_last_time(self):
         return self.current_end
@@ -248,7 +248,6 @@ class Exporter:
         os.makedirs(output_folder, exist_ok=True)
         now = datetime.now()
         start_time = catalog.get_start_time(now)
-        already_has_data = False
         # Max download time, if not provided only load one years (prevent infinite loop)
         loaded = 0
         print("Loading %s data from %s to %s by %d days" % (self.profile.survey_key, start_time, max_time, period_size ))
@@ -260,11 +259,7 @@ class Exporter:
             end_time = end_time.replace(hour=23, minute=59)
             print("> %s - %s" % (start_time, end_time))
             r = self.export(start_time, end_time, output_folder)
-            if r is None: 
-                if already_has_data:
-                    break
-            else:
-                already_has_data = True
+            if r is not None:
                 loaded += 1
                 catalog.append(start_time, end_time, r, updated=now)
                 catalog.save()
