@@ -1,5 +1,6 @@
 import os
 from datetime import datetime, timedelta
+from argparse import Namespace
 from cliff.command import Command
 from cliff.formatters.table import TableFormatter  
 from typing import Dict, Union,Optional
@@ -171,21 +172,24 @@ class ListAutoMessages(Command):
             m['_nextTime'] = time.isoformat()
             print(readable_yaml(m))
 
+
 class EmailTemplate(Command):
     """
-        Import email templates
+        Import a custom email template
 
         Email templates are described here https://github.com/influenzanet/messaging-service/blob/master/docs/email-templates.md
     """
-    
-    name = 'email:import-templates'
+
+    name = 'email:import-template'
 
     def get_parser(self, prog_name):
         parser = super(EmailTemplate, self).get_parser(prog_name)
         parser.add_argument("--dry-run", help="Just prepare template, dont update", default=False, action="store_true")
         parser.add_argument("--email_template_folder", help="Email template folder (by default 'email_templates' in resources directory)", default=None, required=False)
+        parser.add_argument("--study_key", "--study", help="Study associated to this email template", default=None, required=False)
+        parser.add_argument("name", help="Name of the message template to import.")
         return parser
-        
+
     def take_action(self, args):
 
         dry_run = args.dry_run
@@ -197,10 +201,10 @@ class EmailTemplate(Command):
             email_template_folder = platform.get_path() / 'email_templates'
 
         default_language = platform.get('default_language', 'en')
-        
+
         print("Using '%s' path " % (email_template_folder))
         print("Default language : %s" % default_language)
-        
+
         # Automatically extract languages:
         languages = []
         for language_code in os.listdir(email_template_folder):
@@ -215,39 +219,58 @@ class EmailTemplate(Command):
 
         templateLoader = TemplateLoader(os.path.join(email_template_folder, 'layout.html'), platform)
 
+        template = Message(args.name, default_language)
+
+        if headerOverrides is not None:
+            if args.name in headerOverrides:
+                headers = MessageHeaders()
+                headers.fromDict(headerOverrides[args.name])
+                template.setHeaders(headers)
+
+        if args.study_key is not None:
+            template.setStudy(args.study_key)
+        elif args.name not in SYSTEM_MESSAGE_TYPES:
+            raise Exception(f"{args.name} is not a system message --study_key argument is required")
+
+        for lang in languages:
+            translated_template = find_template_file(args.name, lang["path"])
+            subject_lines = read_yaml(os.path.join(lang["path"], 'subjects.yaml'))
+
+            tpl_content = templateLoader.load(translated_template, lang['code'])
+
+            trans = MessageTranslation(lang['code'], subject_lines[args.name] )
+            trans.setTemplate(tpl_content)
+
+            template.addTranslation(trans)
+
+        if dry_run:
+            print("dry-run mode, template %s" % args.name)
+        else:
+            client = self.app.get_management_api()
+            r = client.save_email_template(template.toAPI())
+            print('saved templates for: ' + args.name)
+
+class EmailTemplates(Command):
+    """
+        Import email templates
+
+        Email templates are described here https://github.com/influenzanet/messaging-service/blob/master/docs/email-templates.md
+    """
+    
+    name = 'email:import-templates'
+
+    def get_parser(self, prog_name):
+        parser = super(EmailTemplates, self).get_parser(prog_name)
+        parser.add_argument("--dry-run", help="Just prepare template, dont update", default=False, action="store_true")
+        parser.add_argument("--email_template_folder", help="Email template folder (by default 'email_templates' in resources directory)", default=None, required=False)
+        return parser
+        
+    def take_action(self, args):
+
         for m_type in SYSTEM_MESSAGE_TYPES:
-            
-            template = Message(m_type, default_language)
-
-            if headerOverrides is not None:
-                if m_type in headerOverrides:
-                    headers = MessageHeaders()
-                    headers.fromDict(headerOverrides[m_type])
-                    template.setHeaders(headers)
-
-            for lang in languages:
-                translated_template = find_template_file(m_type, lang["path"])
-                subject_lines = read_yaml(os.path.join(lang["path"], 'subjects.yaml'))
-
-                try:
-                    check_keys(subject_lines, SYSTEM_MESSAGE_TYPES, True)
-                except KeyError as e:
-                    raise Exception("Invalid %s/subject.yaml : %s " % (lang['code'], str(e)) )
-                
-                tpl_content = templateLoader.load(translated_template, lang['code'])
-                
-                trans = MessageTranslation(lang['code'], subject_lines[m_type] )
-                trans.setTemplate(tpl_content)
-                
-                template.addTranslation(trans)
-
-            if dry_run:
-                print("dry-run mode, template %s" % m_type)
-            else:
-                client = self.app.get_management_api()
-                r = client.save_email_template(template.toAPI())
-                print('saved templates for: ' + m_type)
-
+            email_template_cmd = EmailTemplate(self.app, self.app_args)
+            args_ = Namespace(**args.__dict__, name=m_type, study=None)
+            email_template_cmd.take_action(args_)
 
 class SendCustom(Command):
     """ Send a custom email message
@@ -292,6 +315,7 @@ class SendCustom(Command):
             client.send_message_to_all_users(message.toAPI())
 
 register(EmailTemplate)
+register(EmailTemplates)
 register(UpdateAutoMessage)
 register(ListAutoMessages)
 register(SendCustom)
