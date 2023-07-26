@@ -269,7 +269,7 @@ class EmailTemplates(Command):
 
         for m_type in SYSTEM_MESSAGE_TYPES:
             email_template_cmd = EmailTemplate(self.app, self.app_args)
-            args_ = Namespace(**args.__dict__, name=m_type, study=None)
+            args_ = Namespace(**args.__dict__, name=m_type, study_key=None)
             email_template_cmd.take_action(args_)
 
 class SendCustom(Command):
