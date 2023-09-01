@@ -3,6 +3,30 @@
 
 # Changelog
 
+## v1.3
+
+### General:
+
+- Revert back to cliff behavior (interactive mode) when no command provided. Can change this behaviour by using env variable `IFNCLI_DEFAULT_COMMAND`
+- studies path and auto_messages path can be configured in plaform config if directory layout is not used
+- Force renew token before execution of a command to Admin API
+
+### Messages
+- Email layout ca be disabled
+- Improve email layout template processing (detect unknown variable and circular dependency)
+- Can import custom message type for studies
+- email:import-auto : handle next time expression for email template
+- email:import-auto : can separate translations in a file named 'translations.yaml' instead of providing it in settings (to be able to switch settings)
+### Study
+- study:create : at least one study key or study def path are required (study key will use default directory layout)
+- study:create :  Fix study property description import (name was used)
+- study:import-survey : Support for uploading  old survey (<=v1.1) into system handling v1.2 surveys
+- study:custom-rules : accepts several format for participants id list (), handle done-file and exclude-done file to be able to resume the action
+
+### Response downloading
+- response:export-plan : fix plan path detection 
+- response export: fix download loop
+
 ## v1.2
 
 ### General:
