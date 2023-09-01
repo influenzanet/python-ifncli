@@ -146,7 +146,7 @@ class ImportSurvey(Command):
     def get_parser(self, prog_name):
         parser = super(ImportSurvey, self).get_parser(prog_name)
         parser.add_argument("--study_key", "--study", help="study key to which study the survey should be saved", required=False)
-        parser.add_argument("--input-format", help="input survey format: v1.1, [v1.2]", default="v1", required=False)
+        parser.add_argument("--input-format", help="input survey format: v1.1, [v1.2]", default="v1.2", required=False)
         
         group = parser.add_mutually_exclusive_group(required=True)
 
