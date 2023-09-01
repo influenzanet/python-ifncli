@@ -68,8 +68,8 @@ class ShowConfig(Command):
         print("Directory layout (where files are expected to be placed)")
         layout = platform.get_path()
         print("Resources path root %s" % (layout))
-        print(" - Study : %s" % (layout.get_study_path()))
-        print(" - Automessages : %s" % (layout.get_auto_messages_path()))
+        print(" - Study : %s" % (layout.studies_path))
+        print(" - Automessages : %s" % (layout.auto_messages_path))
 
 
 class ShowContexts(Command):
