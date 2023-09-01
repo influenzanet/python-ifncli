@@ -13,12 +13,12 @@ class TemplateLoader:
         self.layout = None
         # Check if global layout exists
         if path is None and not platform.template_layout is None:
-               path = platform.template_layout
+            path = platform.template_layout
         
         if not path is None and path != "":
-            self.layout = read_content(path, must_exist=True)
+            self.layout = read_content(path, must_exist=False)
         
-        if self.layout is None:
+        if self.layout is not None:
             print("Using layout in '%s'" % (path))
     
         template_vars = platform.get_vars()
@@ -45,5 +45,5 @@ class TemplateLoader:
         data['language'] = language
         if is_encoded:
             content = decode_template(content)
-        content= wrap_layout(content, layout=self.layout, vars=data)
+        content, _ = wrap_layout(content, layout=self.layout, vars=data)
         return content

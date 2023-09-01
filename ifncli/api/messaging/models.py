@@ -70,18 +70,20 @@ class MessageHeaders:
 
 class Message:
     def __init__(self, messageType: str, defaultLanguage: str) -> None:
-        if not messageType in ALL_MESSAGE_TYPES:
-            raise Exception("Unknown type message type '%s'" % (messageType,))
         self.messageType = messageType
         self.defaultLanguage = defaultLanguage
         self.headerOverrides = None
         self.translations = []
+        self.study = None
 
     def addTranslation(self, trans: MessageTranslation):
         self.translations.append(trans)
 
     def setHeaders(self, headerOverrides:MessageHeaders):
         self.headerOverrides = headerOverrides
+
+    def setStudy(self, study:str):
+        self.study = study
 
     def toAPI(self):
 
@@ -92,6 +94,9 @@ class Message:
             "defaultLanguage": self.defaultLanguage,
             "translations": tt,
         }
+
+        if self.study is not None:
+            data["studyKey"] = self.study
 
         if self.headerOverrides is not None:
             data['headerOverrides'] = self.headerOverrides

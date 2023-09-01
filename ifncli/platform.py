@@ -16,6 +16,10 @@ class ResourcesLayoutPath(_Path_):
         if the directory follows the default layout organization
     """
 
+    def __init__(self, *args, studies_path="study", auto_messages_path="auto_messages", **kwargs):
+        self.studies_path = studies_path
+        self.auto_messages_path = auto_messages_path
+
     def get_survey_file(self, study_key, name):
         return self.get_study_path(study_key) / 'surveys' / (name + ".json")
 
@@ -26,10 +30,10 @@ class ResourcesLayoutPath(_Path_):
         return self.get_study_path(study_key) / 'props.yaml'
 
     def get_study_path(self, study_key)->_Path_:
-        return self / 'study' / study_key
+        return self / self.studies_path / study_key
 
     def get_auto_messages_path(self, name)->_Path_:
-        return self / 'auto_messages' / name
+        return self / self.auto_messages_path / name
 
 class PlatformResources:
     """
@@ -78,6 +82,16 @@ class PlatformResources:
             if not p.exists():
                 raise PlatformException("Email template layout '%s' not found" % p)
             self.template_layout = p
+        if 'studies_path' in d:
+            p = self.path.joinpath(d['studies_path'])
+            if not p.exists():
+                raise PlatformException("Studies path '%s' not found" % p)
+            self.path.studies_path = p
+        if 'auto_messages_path' in d:
+            p = self.path.joinpath(d['auto_messages_path'])
+            if not p.exists():
+                raise PlatformException("Auto messages path '%s' not found" % p)
+            self.path.auto_messages_path = p
 
     def get_vars(self)->Dict:
         return self.vars

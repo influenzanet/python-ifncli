@@ -127,8 +127,9 @@ class ResponseBulkExporter(Command):
         plan = read_yaml(args.plan)
 
         study_key = plan['study']
-        
-        plan_folder = os.path.dirname(args.plan)
+
+
+        plan_folder = os.path.dirname(os.path.abspath(args.plan))
         
         client = self.app.get_management_api()
         
