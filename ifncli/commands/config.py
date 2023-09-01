@@ -53,7 +53,6 @@ class ShowConfig(Command):
             return
 
         print("Configuration in %s, from context '%s' resolved by %s %s" % (cfg['__config_file'], cmg.get_current(), cmg.cfg_from, cmg.context_file))
-
         
         print("Management API  : %s" % cfg["management_api_url"])
         print("Participant API : %s" % cfg['participant_api_url'])
@@ -65,6 +64,13 @@ class ShowConfig(Command):
         for name, value in data.items():
             source_name = value_from.get(name, None)
             print(" - %s : %s (%s)" % (name, str(value), source_name))
+
+        print("Directory layout (where files are expected to be placed)")
+        layout = platform.get_path()
+        print("Resources path root %s" % (layout))
+        print(" - Study : %s" % (layout.get_study_path()))
+        print(" - Automessages : %s" % (layout.get_auto_messages_path()))
+
 
 class ShowContexts(Command):
     name = 'config:contexts'
