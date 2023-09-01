@@ -69,7 +69,9 @@ class MyApp(App):
         
         """
         if 'management' in self._apis:
-            return self._apis['management']
+            client = self._apis['management']
+            client.renew_token()
+            return client
         user_credentials = self._configs["user_credentials"]
         management_api_url = self._configs["management_api_url"]
         participant_api_url = self._configs["participant_api_url"]
