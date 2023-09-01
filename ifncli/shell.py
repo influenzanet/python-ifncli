@@ -122,7 +122,7 @@ def main(argv=sys.argv[1:]):
 
     app = MyApp(
             description="InfluenzaNet CLI",
-            version="0.0.1",
+            version="1.3",
             command_manager=CommandManager('ifncli'),
             deferred_help=True,
         )
