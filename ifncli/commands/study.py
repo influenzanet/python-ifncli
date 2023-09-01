@@ -12,6 +12,7 @@ from pathlib import Path
 from ..utils import read_yaml, read_json, json_to_list, readable_yaml, to_json, read_content, Output
 
 from influenzanet.surveys import readable_study, readable_translatable, readable_survey, create_context, survey_to_dictionnary, survey_to_html, read_survey_json
+from influenzanet.surveys.influenzanet.loader import survey_transform_to_12
 
 def yaml_obj_to_loc_object(obj):
     """ 
@@ -145,8 +146,9 @@ class ImportSurvey(Command):
     def get_parser(self, prog_name):
         parser = super(ImportSurvey, self).get_parser(prog_name)
         parser.add_argument("--study_key", "--study", help="study key to which study the survey should be saved", required=False)
+        parser.add_argument("--input-format", help="input survey format: v1.1, [v1.2]", default="v1", required=False)
         
-        group = parser.add_mutually_exclusive_group()
+        group = parser.add_mutually_exclusive_group(required=True)
 
         group.add_argument("--survey-json", "--json", help="path to the survey json", required=False)
         group.add_argument("--from-name", help="Name of the survey (can be study-key/survey-key) if the files are organized following the common layout", required=False)
@@ -172,7 +174,11 @@ class ImportSurvey(Command):
 
         print("Using survey in '%s'" % survey_path)
 
-        survey_def = read_json(survey_path)        
+        survey_def = read_json(survey_path)
+
+        if args.input_format == "v1.1":
+            survey_def = survey_transform_to_12(survey_def, preserve_item_version=True)
+
         resp = client.save_survey_to_study(study_key, survey_def)
         print("Survey uploaded id=%s  version=%s" % ( resp['id'], resp['versionId']))
 
