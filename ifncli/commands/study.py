@@ -467,13 +467,13 @@ class CustomStudyRules(Command):
                 if not isinstance(participants, list):
                     if isinstance(participants, dict):
                         if not args.pid_json_keys and not args.pid_json_values:
-                            raise Exception("Participant json dictionnary must have either --pid-json-keys or --pid-json-values options")
+                            raise Exception("Participant json dictionary must have either --pid-json-keys or --pid-json-values options")
                         if args.pid_json_keys:
-                            participants : list(participants.keys())
+                            participants = list(participants.keys())
                         if args.pid_json_values:
-                            participants : list(participants.values())
+                            participants = list(participants.values())
                     else:
-                        raise Exception("participant json file must be a dictionnary or a list")
+                        raise Exception("participant json file must be a dictionary or a list")
 
             else:            
                 with open(args.pid_file, 'r') as f:
