@@ -115,6 +115,11 @@ class MyApp(App):
         return self.configManager.get_current()
             
 def main(argv=sys.argv[1:]):
+    if len(argv) == 0:
+        default_command = os.getenv('IFNCLI_DEFAULT_COMMAND')
+        if default_command is not None:
+            argv = [default_command]
+
     app = MyApp(
             description="InfluenzaNet CLI",
             version="0.0.1",
