@@ -88,7 +88,7 @@ class UpdateAutoMessage(Command):
 
             email.addTranslation(trans)
 
-        studyKey = email_config["studyKey"]
+        studyKey = email_config.get("studyKey")
 
         if args.at is not None:
             nextTime = datetime.fromisoformat(args.at)
