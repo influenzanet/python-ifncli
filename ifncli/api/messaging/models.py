@@ -53,6 +53,7 @@ class MessageHeaders:
                     value = value > 0
                 if not isinstance(value, bool):
                     raise MessageException("Field '%s' must be a list" % name)
+            setattr(self, attr_name, value)
         
     def toAPI(self):
         data = {}
@@ -99,7 +100,7 @@ class Message:
             data["studyKey"] = self.study
 
         if self.headerOverrides is not None:
-            data['headerOverrides'] = self.headerOverrides
+            data['headerOverrides'] = self.headerOverrides.toAPI()
 
         return data
 
