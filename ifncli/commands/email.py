@@ -61,6 +61,11 @@ class UpdateAutoMessage(Command):
 
         email = Message(email_config["messageType"], default_language,  )
 
+        if 'headerOverrides' in email_config:
+            headers = MessageHeaders()
+            headers.fromDict(email_config['headerOverrides'])
+            email.setHeaders(headers)
+
         layout_path = None
         if 'layout' in email_config:
             layout_path = email_folder_path / email_config['layout']
