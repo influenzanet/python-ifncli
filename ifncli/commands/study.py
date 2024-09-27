@@ -73,7 +73,7 @@ class CreateStudy(Command):
         secret_file = args.secret_from
 
         if args.study_key:
-            path = self.app.get_platform().get_path()
+            path = self.app.appConfigManager.get_platform().get_path()
             study_path = path.get_study_path(args.study_key).resolve()
             study_props_path = path.get_study_props_file(args.study_key)
             study_rules_path = path.get_study_rules_file(args.study_key)
@@ -159,10 +159,10 @@ class ImportSurvey(Command):
 
         study_key, survey_key = extract_survey_args(args.study_key, args.from_name)
 
-        client = self.app.get_management_api()
+        client = self.app.appConfigManager.get_management_api()
 
         if survey_key is not None:        
-            path = self.app.get_platform().get_path()
+            path = self.app.appConfigManager.get_platform().get_path()
             survey_path = path.get_survey_file(study_key, survey_key)
         else:
             survey_path = args.survey_json
@@ -225,12 +225,12 @@ class UpdateSurveyRules(Command):
         study_key = args.study_key
         
         if args.default:
-            platform_path = self.app.get_platform().get_path()
+            platform_path = self.app.appConfigManager.get_platform().get_path()
             rules_path = platform_path.get_study_rules_file(study_key)
         else:
             rules_path = args.rules_json_path
 
-        client = self.app.get_management_api()
+        client = self.app.appConfigManager.get_management_api()
 
         rules = read_json(rules_path)
         client.update_study_rules(study_key, rules)
@@ -255,7 +255,7 @@ class ManageStudyMembers(Command):
         user_id = args.user_id
         user_name = args.user_name
 
-        client = self.app.get_management_api()
+        client = self.app.appConfigManager.get_management_api()
 
         if action == 'ADD':
             client.add_study_member(study_key, user_id, user_name)
@@ -280,7 +280,7 @@ class ListSurveys(Command):
     def take_action(self, args):
         study_key = args.study_key
        
-        client = self.app.get_management_api()
+        client = self.app.appConfigManager.get_management_api()
 
         surveys = client.get_surveys_in_study(study_key, extract_infos=True)
 
@@ -311,7 +311,7 @@ class ListStudies(Lister):
     name = 'study:list'
 
     def take_action(self, args):
-        client = self.app.get_management_api()
+        client = self.app.appConfigManager.get_management_api()
         r = client.get_studies()
         return json_to_list(r, ['id','key','status'])
 
@@ -330,7 +330,7 @@ class ShowStudy(Command):
         return parser
     
     def take_action(self, args):
-        client = self.app.get_management_api()
+        client = self.app.appConfigManager.get_management_api()
         study = client.get_study(args.study_key)
         if args.json:
             print(to_json(study))
@@ -375,7 +375,7 @@ class ShowSurvey(Command):
         else:
             if args.survey is None:
                 raise Exception("survey argument is missing. I need this to get the survey from the study")
-            client = self.app.get_management_api()
+            client = self.app.appConfigManager.get_management_api()
             survey = client.get_survey_definition(args.study_key, args.survey)
             if survey is None:
                 raise Exception("No survey available for %s:%s" % (args.study_key, args.survey))
@@ -452,7 +452,7 @@ class CustomStudyRules(Command):
         study_key = args.study
         rules_path = args.rules
         dry_run = args.dry_run
-        client = self.app.get_management_api()
+        client = self.app.appConfigManager.get_management_api()
         
         participants = None
         done_file = None

@@ -10,13 +10,13 @@ class Login(Command):
     name = 'login'
 
     def take_action(self, parsed_args):
-        cfg = self.app.get_configs()
+        cfg = self.app.appConfigManager.get_configs()
         print("Management API  : %s", cfg["management_api_url"])
         print("Participant API : %s", cfg['participant_api_url'])
         creds = cfg['user_credentials']
         print("Account         : <%s>@%s" % (creds['email'], creds['instanceId']))
         try:
-            api = self.app.get_management_api()
+            api = self.app.appConfigManager.get_management_api()
             print("Login Ok")
         except Exception as e:
             print("Problem during login")
@@ -35,11 +35,11 @@ class ShowConfig(Command):
         return parser
 
     def take_action(self, args):
-        cfg = self.app.get_configs()
+        appConfigManager = self.app.appConfigManager
 
-        cmg = self.app.configManager
+        cfg = appConfigManager.get_configs()
         
-        platform = self.app.get_platform()
+        platform = appConfigManager.get_platform()
 
         creds = cfg['user_credentials']
         
@@ -52,7 +52,10 @@ class ShowConfig(Command):
             print(json.dumps(output))
             return
 
-        print("Configuration in %s, from context '%s' resolved by %s %s" % (cfg['__config_file'], cmg.get_current(), cmg.cfg_from, cmg.context_file))
+        print("Configuration in %s, from context '%s' resolved by %s %s" % (cfg['__config_file'],
+                                                                            appConfigManager.current_context,
+                                                                            appConfigManager.cfg_from,
+                                                                            appConfigManager.context_file))
         
         print("Management API  : %s" % cfg["management_api_url"])
         print("Participant API : %s" % cfg['participant_api_url'])
@@ -76,7 +79,7 @@ class ShowContexts(Command):
     name = 'config:contexts'
 
     def take_action(self, args):
-        cfg = self.app.configManager
+        cfg = self.app.appConfigManager
         print("Known contexts")
         current = cfg.get_current()
         for name, file in cfg.get_contexts().items():
@@ -97,7 +100,7 @@ class SwitchContext(Command):
         return parser
 
     def take_action(self, args):
-        cfg = self.app.configManager
+        cfg = self.app.appConfigManager
         cfg.switch(args.name)
         print("Context switched to '%s'" % (cfg.get_current()))
 

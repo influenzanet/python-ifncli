@@ -83,7 +83,7 @@ class MigrateUser(Command):
         sleep_delay = args.sleep
         dry_run = args.dry_run
 
-        client = self.app.get_management_api()
+        client = self.app.appConfigManager.get_management_api()
         
         new_users = read_json(user_batch_path)
 
