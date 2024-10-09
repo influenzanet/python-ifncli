@@ -1,12 +1,10 @@
-
 import os
-import re
 import json
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from cliff.command import Command
 from . import register
-from ..utils import read_yaml,  read_json, from_iso_time, ISO_TIME_FORMAT, to_iso_time
+from ..utils import read_yaml,  read_json, from_iso_time, to_iso_time
 from ..managers.export import Exporter, ExportProfile, export_data
 
 class ResponseDownloader(Command):
@@ -20,9 +18,9 @@ class ResponseDownloader(Command):
         parser = super(ResponseDownloader, self).get_parser(prog_name)
         parser.add_argument("--query-start", default=None)
         parser.add_argument("--query-end", default=None)
-        parser.add_argument("--profile", help="Export profile yaml file", default=None)
+        parser.add_argument("--profile", required=True, help="Export profile yaml file", default=None)
         parser.add_argument("--study-key", type=str, required=True, help="Study key")
-        parser.add_argument("--output", type=str, help="Output folder", default=None)
+        parser.add_argument("--output", type=str, default="", help="Output folder")
         return parser
         
     def take_action(self, args):
@@ -31,7 +29,7 @@ class ResponseDownloader(Command):
         query_end_date = args.query_end
         profile = ExportProfile(args.profile)
 
-        output_folder = "export_" + datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+        output_folder = "export_" + datetime.now().strftime("%Y-%m-%d-%H-%M-%S") if args.output == "" else args.output
         
         query_start_time = datetime.strptime(query_start_date, "%Y-%m-%d-%H-%M-%S") if query_start_date is not None else None
         query_end_time = datetime.strptime(query_end_date, "%Y-%m-%d-%H-%M-%S") if query_end_date is not None else None
@@ -39,7 +37,7 @@ class ResponseDownloader(Command):
         client = self.app.get_management_api()
             
         exporter = Exporter(profile, client, study_key)
-        r = exporter.export(query_start_time, query_end_time, output_folder )
+        r = exporter.export(query_start_time, query_end_time, output_folder)
         exporter.export_info(output_folder, prefix_name=True)
 
 class ResponseSchemaDownloader(Command):
@@ -56,7 +54,7 @@ class ResponseSchemaDownloader(Command):
         parser.add_argument("--short", help="Short keys")
         parser.add_argument("--lang", type=str, required=True, help="Study key")
         parser.add_argument("--format", type=str, required=True, help="Study key")
-        parser.add_argument("--output", type=str, help="Output folder", default=None)
+        parser.add_argument("--output", type=str, default="", help="Output folder")
         return parser
      
     def take_action(self, args):
@@ -93,7 +91,7 @@ class ResponseExporter(Command):
         parser = super(ResponseExporter, self).get_parser(prog_name)
         parser.add_argument("--profile", type=str, required=True, help="Profile yaml with export parameters for this survey")
         parser.add_argument("--study", type=str, required=True, help="Study key")
-        parser.add_argument("--output", type=str, help="Output folder where to place the export (will create a subfolder)")
+        parser.add_argument("--output", type=str, default="", help="Output folder where to place the export (will create a subfolder)")
         return parser
         
     def take_action(self, args):
@@ -106,7 +104,7 @@ class ResponseExporter(Command):
             
         exporter = Exporter(profile, client, study_key)
 
-        r = exporter.export_all(output_folder )
+        r = exporter.export_all(output_folder)
 
 class ResponseBulkExporter(Command):
     """
@@ -117,8 +115,8 @@ class ResponseBulkExporter(Command):
 
     def get_parser(self, prog_name):
         parser = super(ResponseBulkExporter, self).get_parser(prog_name)
-        parser.add_argument("--plan", type=str, help="yaml files with export plan")
-        parser.add_argument("--output", type=str, help="Output folder")
+        parser.add_argument("--plan", type=str, required=True, help="yaml files with export plan")
+        parser.add_argument("--output", type=str, default="", help="Output folder")
         return parser
         
     def take_action(self, args):
@@ -127,7 +125,6 @@ class ResponseBulkExporter(Command):
         plan = read_yaml(args.plan)
 
         study_key = plan['study']
-
 
         plan_folder = os.path.dirname(os.path.abspath(args.plan))
         
