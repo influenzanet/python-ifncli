@@ -241,7 +241,7 @@ class Exporter:
         """"
             Incrementally export data 
         """
-        output_folder = output + '/' + self.profile.survey_key
+        output_folder = os.path.join(output, self.profile.survey_key)
         period_size = 7 # Number of days to load (> 1)
         max_time = self.profile.max_time  
         catalog = ExportCatalog(output_folder, self.profile.start_time, max_time, period_size)
