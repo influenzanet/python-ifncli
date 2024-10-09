@@ -35,7 +35,7 @@ class UpdateAutoMessage(Command):
 
         dry_run = args.dry_run
 
-        platform: PlatformResources = self.app.get_platform()
+        platform: PlatformResources = self.app.appConfigManager.get_platform()
 
         path = platform.get_path()
 
@@ -124,7 +124,7 @@ class UpdateAutoMessage(Command):
         if 'condition' in email_config:
             autoMessage.setCondition(email_config['condition'])
         
-        client = self.app.get_management_api()
+        client = self.app.appConfigManager.get_management_api()
         existing_auto_messages = AutoMessageCollection(client.get_auto_messages())
         
         if existing_auto_messages.exists(autoMessage):
@@ -158,7 +158,7 @@ class ListAutoMessages(Command):
         return parser
         
     def take_action(self, args):
-        client = self.app.get_management_api()
+        client = self.app.appConfigManager.get_management_api()
         existing_auto_messages = AutoMessageCollection(client.get_auto_messages())
         
         def remove_template(trans):
@@ -194,7 +194,7 @@ class EmailTemplate(Command):
 
         dry_run = args.dry_run
 
-        platform: PlatformResources = self.app.get_platform()
+        platform: PlatformResources = self.app.appConfigManager.get_platform()
 
         email_template_folder = args.email_template_folder
         if email_template_folder is None:
@@ -246,7 +246,7 @@ class EmailTemplate(Command):
         if dry_run:
             print("dry-run mode, template %s" % args.name)
         else:
-            client = self.app.get_management_api()
+            client = self.app.appConfigManager.get_management_api()
             r = client.save_email_template(template.toAPI())
             print('saved templates for: ' + args.name)
 
@@ -288,7 +288,7 @@ class SendCustom(Command):
         
     def take_action(self, args):
 
-        client = self.app.get_management_api()
+        client = self.app.appConfigManager.get_management_api()
 
         study_key = args.study_key
         email_folder_path = args.email_folder

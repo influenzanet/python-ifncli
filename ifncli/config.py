@@ -1,5 +1,5 @@
 """
-App configuration management
+File Configuration Manager
 """
 from typing import Dict, List
 import sys
@@ -19,12 +19,13 @@ class ConfigManager:
         self.contexts: Dict[str] = {}
         self.current:str = None
         self.cfg_from = None
- 
+        self.context_file = None
+
     def load(self, cfg_path=None):
         # Warning for common error
         if os.getenv('INF_CONFIG') is not None:
             print("INF_CONFIG is defined, are you sure you didnt mistyped IFN_CONFIG ?")
-        
+
         context_file = os.getenv('IFNCLI_CONTEXT')
         if context_file is not None:
             ctx = read_yaml(context_file)
@@ -41,10 +42,10 @@ class ConfigManager:
                 cfg_path = env_path
                 self.cfg_from = "env:IFN_CONFIG"
             else:
-                self.cfg_form = "arg:--config"
+                self.cfg_from = "arg:--config"
             self.contexts['default'] = cfg_path
             self.current = 'default'
-            
+
         return self.load_context()
 
     def load_context(self, name=None):
@@ -52,7 +53,7 @@ class ConfigManager:
             name = self.current
         if name is None:
             raise ConfigException("Context name is None")
-        cfg_path = self.get_context(name) 
+        cfg_path = self.get_context(name)
         return self.load_config(cfg_path)
 
     def get_context(self, name:str):
@@ -74,7 +75,7 @@ class ConfigManager:
     def get_contexts(self):
         return self.contexts
 
-    def get_current(self,):
+    def get_current(self):
         return self.current
 
     def switch(self, name:str):

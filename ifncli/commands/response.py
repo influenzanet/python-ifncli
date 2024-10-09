@@ -36,7 +36,7 @@ class ResponseDownloader(Command):
         query_start_time = datetime.strptime(query_start_date, "%Y-%m-%d-%H-%M-%S") if query_start_date is not None else None
         query_end_time = datetime.strptime(query_end_date, "%Y-%m-%d-%H-%M-%S") if query_end_date is not None else None
         
-        client = self.app.get_management_api()
+        client = self.app.appConfigManager.get_management_api()
             
         exporter = Exporter(profile, client, study_key)
         r = exporter.export(query_start_time, query_end_time, output_folder )
@@ -68,7 +68,7 @@ class ResponseSchemaDownloader(Command):
         output_folder = args.output
         survey_info_text = ""
 
-        client = self.app.get_management_api()
+        client = self.app.appConfigManager.get_management_api()
         
         
         if output_format == "csv":
@@ -102,7 +102,7 @@ class ResponseExporter(Command):
 
         output_folder = args.output
         
-        client = self.app.get_management_api()
+        client = self.app.appConfigManager.get_management_api()
             
         exporter = Exporter(profile, client, study_key)
 
@@ -131,7 +131,7 @@ class ResponseBulkExporter(Command):
 
         plan_folder = os.path.dirname(os.path.abspath(args.plan))
         
-        client = self.app.get_management_api()
+        client = self.app.appConfigManager.get_management_api()
         
         for profile_name in plan['profiles']:
             fp = plan_folder + '/' + profile_name
@@ -154,7 +154,7 @@ class ResponseStats(Command):
         
     def take_action(self, args):
         study_key = args.study
-        client = self.app.get_management_api()
+        client = self.app.appConfigManager.get_management_api()
         print(client.get_response_statistics(study_key))
 
 class ResponseStatsDaily(Command):
@@ -193,7 +193,7 @@ class ResponseStatsDaily(Command):
             dates = OrderedDict()
             data['dates'] = dates
 
-        client = self.app.get_management_api()
+        client = self.app.appConfigManager.get_management_api()
 
         start_time = start_time.replace(hour=0, minute=0, second=0)
         while start_time < max_time:

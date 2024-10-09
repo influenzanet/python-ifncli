@@ -32,7 +32,7 @@ class UserStatsCommand(Command):
 
     def take_action(self, args):
         
-        cfg = self.app.get_configs()
+        cfg = self.app.appConfigManager.get_configs()
 
         instance = cfg['user_credentials']['instanceId']
         
