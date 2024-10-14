@@ -103,8 +103,10 @@ def bind_vars(data:str, vars:Optional[Dict]):
     """
     built = False
     problems = []
+
     if vars is None:
-        return data, []
+        return data, [], True # no variables to bind
+    
     for p in VAR_REGEXP.findall(data):
 
         built = True
@@ -128,7 +130,8 @@ def bind_content(data, vars):
             problems: List[str] list of problems detected in content ()
     """
     if vars is None:
-        return data, []
+        return data, [], True # no variables to bind
+    
     problems = []
     values, pp = resolve_vars(vars)
     if len(pp) > 0:
