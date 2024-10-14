@@ -53,7 +53,7 @@ class ShowConfig(Command):
             return
 
         print("Configuration in %s, from context '%s' resolved by %s %s" % (cfg['__config_file'],
-                                                                            appConfigManager.current_context,
+                                                                            appConfigManager.get_current(),
                                                                             appConfigManager.cfg_from,
                                                                             appConfigManager.context_file))
         
