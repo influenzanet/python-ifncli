@@ -133,7 +133,7 @@ class CreateStudy(Command):
             print(study_obj)
             return
 
-        client = self.app.get_management_api()
+        client = self.app.appConfigManager.get_management_api()
         client.create_study(study_obj)
 
 class ImportSurvey(Command):
