@@ -9,12 +9,17 @@ from .platform import PlatformResources
 from influenzanet.api import ManagementAPIClient
 
 class AppConfigManager(ConfigManager):
-    def __init__(self, cfg_path=None):
+
+    def __init__(self, cfg_path=None, api_class=None):
         super().__init__()
 
         self._configs = {}
         self._apis = {}
-        self.api_shown = False
+        self.api_shown = False 
+        if api_class is None:
+            self.api_class = ManagementAPIClient
+        else:
+            self.api_class = api_class
 
         self._cfg_path = cfg_path
         self._configs = self.load(self._cfg_path)
@@ -39,7 +44,9 @@ class AppConfigManager(ConfigManager):
         management_api_url = self._configs["management_api_url"]
         participant_api_url = self._configs["participant_api_url"]
 
-        client = ManagementAPIClient(management_api_url, user_credentials, participant_api_url, verbose=False)
+        api_class = self.api_class
+
+        client = api_class(management_api_url, user_credentials, participant_api_url, verbose=False)
         self._apis['management'] = client
 
         if not self.api_shown:

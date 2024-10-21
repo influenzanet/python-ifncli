@@ -13,3 +13,9 @@ class BasePlugin:
         
         """
         pass
+
+    def get_management_api_class(self):
+        """
+            Return management api class to allow extension
+        """
+        pass

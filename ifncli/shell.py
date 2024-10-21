@@ -27,9 +27,12 @@ class MyApp(App):
         try:
             from plugins import Plugin
             self.plugin = Plugin()
-        except:
-            pass
-       # self.plugin_manager.build_option_parser(parser)
+        except ModuleNotFoundError as e:
+            if "named 'plugins'" in str(e):
+                pass
+            else:
+                raise e
+        # self.plugin_manager.build_option_parser(parser)
 
         return parser
 
@@ -44,7 +47,13 @@ class MyApp(App):
                 name = command.__name__
             self.command_manager.add_command(name.lower(), command)
 
-        self.appConfigManager = AppConfigManager(self.options.config)
+        api_class = None
+        if self.plugin is not None:
+            custom_api_class = self.plugin.get_management_api_class()
+            if custom_api_class is not None:
+                api_class = custom_api_class
+        
+        self.appConfigManager = AppConfigManager(self.options.config, api_class=api_class)
 
     def get_management_api(self):
         return self.appConfigManager.get_management_api()

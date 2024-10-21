@@ -57,6 +57,7 @@ class ShowConfig(Command):
                                                                             appConfigManager.cfg_from,
                                                                             appConfigManager.context_file))
         
+        print("Management API Class %s" % appConfigManager.api_class)
         print("Management API  : %s" % cfg["management_api_url"])
         print("Participant API : %s" % cfg['participant_api_url'])
         print("Account         : <%s>@%s" % (creds['email'], creds['instanceId']))
