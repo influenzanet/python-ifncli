@@ -1,18 +1,13 @@
 # Influenzanet Command Line tool
 
 Influenzanet CLI tools provides some command line tools to manage Influenzanet instances.
-
-## Disclaimer:
-
-- These tools are *not* official tools but WIP tools (several implementations of such tools exist) from standalone python scripts
-- It's not as complete as the other ones (we complete them as soon as we need the tool)
   
 It proposes:
-- An organization layout for resources files layout (things work easier when files are placed following it)
+- An organization layout for resources files layout (things work easier when files are placed following this layout)
 - A way to handle configuration of instances with common variables (useable in email templates) by instance and by deployment environment
 - A common HTML layout useable for email templates (the templates files will be wrapped in the layout before submission)
 - Tools to check survey consistency (including expressions) 
-- Transformation ofs survey json to (more) human readable html or yaml document
+- Transformation of survey json to (more) human readable html or yaml document
 
 ifncli is based on :
 
