@@ -3,6 +3,18 @@
 
 # Changelog
 
+## v1.4
+
+### General
+- Fix dependency for python 3.12
+- Fix api manager when switching context
+
+### Messages
+- handle headerOverrides in email templates
+
+### Response downloading
+- Harmonize output argument handling
+
 ## v1.3
 
 ### General:
