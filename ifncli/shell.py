@@ -5,6 +5,7 @@ from cliff.app import App
 from cliff.commandmanager import CommandManager
 from .commands import get_commands
 from .appConfig import AppConfigManager
+from .platform import PlatformResources
 
 class MyApp(App):
 
@@ -13,13 +14,13 @@ class MyApp(App):
             description,
             version,
         )
+
         parser.add_argument(
             "-c",
             "--config",
             help="Config path (if not present will look IFN_CONFIG env variable",
             default=os.path.join('resources', 'config.yaml')
         )
-
 
         self.plugin = None
 
@@ -28,7 +29,6 @@ class MyApp(App):
             self.plugin = Plugin()
         except:
             pass
-
        # self.plugin_manager.build_option_parser(parser)
 
         return parser
@@ -45,6 +45,13 @@ class MyApp(App):
             self.command_manager.add_command(name.lower(), command)
 
         self.appConfigManager = AppConfigManager(self.options.config)
+
+    def get_management_api(self):
+        return self.appConfigManager.get_management_api()
+    
+    def get_platform(self, resources_path=None)->PlatformResources:
+        return self.appConfigManager.get_platform(resources_path)
+    
 
 def main(argv=sys.argv[1:]):
     if len(argv) == 0:
