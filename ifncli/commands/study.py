@@ -540,6 +540,45 @@ class CustomStudyRules(Command):
         if not args.all:
             print("Count OK: %d  Errors: %d" % (count_ok, count_errors))
 
+class ShowStudyCurrentRules(Command):
+    """
+        Show study
+    """
+    name = 'study:rules:current'
+
+    def get_parser(self, prog_name):
+        parser = super(ShowStudyCurrentRules, self).get_parser(prog_name)
+        parser.add_argument("--study_key", "--study", help="key of the study", required=True)
+        parser.add_argument("--output", help="Output file", required=False, default=None)
+        return parser
+    
+    def take_action(self, args):
+        client = self.app.get_management_api()
+        rules = client.current_study_rules(args.study_key)
+        output = Output(args.output)
+        output.write(json.dumps(rules))
+
+class ShowStudyRulesHistory(Command):
+    """
+        Show study
+    """
+    name = 'study:rules:history'
+
+    def get_parser(self, prog_name):
+        parser = super(ShowStudyRulesHistory, self).get_parser(prog_name)
+        parser.add_argument("--study_key", "--study", help="key of the study", required=True)
+        parser.add_argument("--output", help="Output file", required=False, default=None)
+        return parser
+    
+    def take_action(self, args):
+        client = self.app.get_management_api()
+        rules = client.study_rules_history(args.study_key)
+        output = Output(args.output)
+        output.write(json.dumps(rules))
+
+
+register(ShowStudyRulesHistory)
+register(ShowStudyCurrentRules)
 register(ImportSurvey)
 register(CreateStudy)
 register(UpdateSurveyRules)

@@ -3,5 +3,5 @@ PyYAML==6.0.1
 # For export
 python-dateutil==2.8.2
 influenzanet.surveys[validator]==1.0.6
-influenzanet.api==1.1.*
+influenzanet.api==1.2.*
 cliff==3.10.*
