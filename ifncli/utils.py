@@ -21,15 +21,21 @@ def write_content(path, content):
     with open(path, 'w') as f:
         f.write(content)
         f.close()
-    
 
 def read_yaml(path):
     obj = yaml.load(open(path, 'r', encoding='UTF-8'),  Loader=yaml.FullLoader)
     return obj
 
 def read_json(path):
-    data = json.load(open(path, 'r', encoding='UTF-8'))
+    with open(path, 'r', encoding='UTF-8') as f:
+        data = json.load(f)
+        f.close()
     return data
+
+def write_json(path, content):
+    with open(path, 'w') as f:
+        json.dump(content, f)
+        f.close()
 
 def to_json(object):
     return json.dumps(object)
