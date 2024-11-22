@@ -9,7 +9,7 @@ from cliff.lister import Lister
 from . import register
 from pathlib import Path
 
-from ..utils import read_yaml, read_json, json_to_list, readable_yaml, to_json, read_content, Output
+from ..utils import read_yaml, read_json, json_to_list, readable_yaml, to_json, read_content, write_json, Output
 
 from influenzanet.surveys import readable_study, readable_translatable, readable_survey, create_context, survey_to_dictionnary, survey_to_html, read_survey_json
 from influenzanet.surveys.influenzanet.loader import survey_transform_to_12
@@ -576,7 +576,77 @@ class ShowStudyRulesHistory(Command):
         output = Output(args.output)
         output.write(json.dumps(rules))
 
+class BulkApplyRules(Command):
+    """
+        Execute a custom study rules for each participant (each participant has different rules)
+        Rules are provided as a dictionnary with participant id as key and rules as value
+    """
+    name = 'study:rules:bulk'
 
+    def get_parser(self, prog_name):
+        parser = super(BulkApplyRules, self).get_parser(prog_name)
+        parser.add_argument("--rules", help="Rules files", required=True, action="store")
+        parser.add_argument("--study", "--study_key", help="key of the study (survey from api)", required=True)
+        parser.add_argument("--dry-run", help="Prepare but do not send", required=False, action="store_true")
+        parser.add_argument("--max-run", help="Maximum count to run", required=False, default=0, type=int)
+        parser.add_argument("--max-batch", help="Maximum count by round", required=False, default=100, type=int)
+        
+        return parser
+
+    def take_action(self, args):
+        study_key = args.study
+        dry_run = args.dry_run
+        max_run = args.max_run
+        max_batch = args.max_batch
+        client = self.app.get_management_api()
+        rules = read_json(args.rules)
+        
+        print("Loaded rules for %d participants" % (len(rules)))
+
+        if not isinstance(rules, dict):
+            raise Exception("Must be an dictionary, key is particpant is and value is exoression")
+        
+        done_file = args.rules + '.done'
+        if os.path.isfile(done_file):
+            done = read_json(done_file)
+            print("Resuming from %s with %d already done" % (done_file, len(done)))
+        else:
+            done = {}
+
+        sleep_batch = 1
+        count_errors = 0
+        count_ok = 0
+        count_run = 0
+            
+        for participant_id, rule in rules.items():
+            if participant_id in done:
+                continue
+            count_run += 1
+            if dry_run:
+                print("[fake] dry-run mode, call run_custom_study_rules for all participants")
+            else:
+                try:
+                    print("%s" % (participant_id))
+                    if isinstance(rule, dict):
+                        rule = [rule]
+                    r = client.run_custom_study_rules_for_single_participant(study_key, rule, participant_id)
+                    count_ok += 1
+                except Exception as e:
+                    count_errors += 1
+                    print(" Error", e)
+                    r = {'error': str(e)}
+                done[participant_id] = r
+                write_json(done_file, done)
+            if (count_run % max_batch) == 0:
+                print("Sleeping...")
+                time.sleep(sleep_batch)
+            if max_run > 0 and count_run >= max_run:
+                print("Max run reached, stopping")
+                break
+        print("Count OK: %d  Errors: %d" % (count_ok, count_errors))
+
+
+register(BulkApplyRules)
 register(ShowStudyRulesHistory)
 register(ShowStudyCurrentRules)
 register(ImportSurvey)

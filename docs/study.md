@@ -140,6 +140,27 @@ If a participant list is provided (so except for **--all** source), optional par
  
 This can be used if list is very long, to be able to replay the action without applying twice the rule to participants.
 
+## study:rules:bulk
+
+Bulk apply rules to participants.
+
+This command allow to apply different rules for participant. Each participant can have a list of rules to apply to it
+
+Parameters
+
+- `--rules` : JSON files containing rules. See rules format
+- `--study` : Study key
+
+Optional parameters
+
+- `--dry-run` : Only iterate but do not apply rules
+- `--max-run` : Maximum count of participants to run and then exit
+- `--max-batch` : Maximum count of participants to apply before to make a pause
+
+Rules format:
+Expected format is a json dictionnary with 
+- participant id as key, and the list of rules to apply as value of each entry (so an array of expression)
+
 ## study:import-survey Update a new survey definition for study
 
 This command will create (if not existing) or update a previous survey definition identified by the `survey key`. If a survey currently exists with the key, by default this will be "unpublished" and the new version published.
@@ -168,7 +189,7 @@ Example:
 
 ```
 
-### `study:replace-survey` Replace survey object (incl. history)
+## `study:replace-survey` Replace survey object (incl. history)
 
 Before executing the upload, a prompt will ask for confirmation (type "yes" if you want to proceed).
 
