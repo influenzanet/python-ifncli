@@ -172,12 +172,14 @@ class ResponseStatsDaily(Command):
         data = read_json(file)
 
         study_key = data['study']
-        max_time = from_iso_time(data['max_time'])
-
+        
         now = datetime.now()
 
-        if max_time > now:
-            max_time = now
+        max_time = now
+        if 'max_time' in data:
+            max_time = from_iso_time(data['max_time'])
+            if max_time > now:
+                max_time = now
 
         if 'start_time' in data:
             start_time = from_iso_time(data['start_time'])
@@ -199,9 +201,10 @@ class ResponseStatsDaily(Command):
             print("> %s - %s" % (start_time, end_time), flush=False)
             try:
                 r = client.get_response_statistics(study_key, start=start_time.timestamp(), end=end_time.timestamp())
-                stats = r['surveyResponseCounts']
-                dates[date] = stats
-                print(stats)
+                if 'surveyResponseCounts' in r:
+                    stats = r['surveyResponseCounts']
+                    dates[date] = stats
+                    print(stats)
             except Exception as e:
                 print(e)
             last_done = start_time
