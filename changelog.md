@@ -24,13 +24,16 @@ New methods added, they are dependent on API v1.5.0 and study-service v1.7.0+
 ## v1.4
 
 ### General
+
 - Fix dependency for python 3.12
 - Fix api manager when switching context
 
 ### Messages
+
 - handle headerOverrides in email templates
 
 ### Response downloading
+
 - Harmonize output argument handling
 
 ## v1.3
@@ -42,35 +45,43 @@ New methods added, they are dependent on API v1.5.0 and study-service v1.7.0+
 - Force renew token before execution of a command to Admin API
 
 ### Messages
+
 - Email layout ca be disabled
 - Improve email layout template processing (detect unknown variable and circular dependency)
 - Can import custom message type for studies
 - email:import-auto : handle next time expression for email template
 - email:import-auto : can separate translations in a file named 'translations.yaml' instead of providing it in settings (to be able to switch settings)
+
 ### Study
+
 - study:create : at least one study key or study def path are required (study key will use default directory layout)
 - study:create :  Fix study property description import (name was used)
 - study:import-survey : Support for uploading  old survey (<=v1.1) into system handling v1.2 surveys
 - study:custom-rules : accepts several format for participants id list (), handle done-file and exclude-done file to be able to resume the action
 
 ### Response downloading
+
 - response:export-plan : fix plan path detection 
 - response export: fix download loop
 
 ## v1.2
 
 ### General:
+
 - Accepts "plugins" module to define local extra commands (not versioned in this repo)
 
 ### Messages
+
 - automessages settings accepts untilTime and condition
 - email:import-auto accepts alternate yaml file name (to send the same automessage with different settings)
 
 ### Study
+
 - standardize args for study:* commands, accepts `--study-key` or `--study`
 - **study:custom-rules** accepts participants ids as argument (coma separated) or from a file
 
 ### Other
+
 - add **stats:user** command to fetch data from user-stats-service (https://github.com/grippenet/user-stats-service)
 
 ## v1.1
