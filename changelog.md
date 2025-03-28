@@ -3,14 +3,23 @@
 
 # Changelog
 
-## v1.x
+## v1.5
+
+### General
 
 New methods added, they are dependent on API v1.5.0 and study-service v1.7.0+
 
-- add command `participants:flags:stats` to build statistics on participant flags
+### Study management
+
+- add command `study:survey-versions` to show list of surveys version
 - add command `study:rules:bulk` to apply bulk rules on participants (different rules set for each participant)
 - add command `study:rules:current` to get the current study rules (need study-service 1.7.4)
 - add command `study:rules:history` to get history (need study-service 1.7.4)
+
+### Participants
+
+- add command `participants:flags:stats` to build statistics on participant flags
+- add command `participants:surveys:stats` to build statistics on assigned surveys for each participants
 
 ## v1.4
 
