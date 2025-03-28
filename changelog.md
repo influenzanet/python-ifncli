@@ -3,6 +3,18 @@
 
 # Changelog
 
+## v1.x
+
+### General
+
+Upgrade dependency to influenzanet.survey v1.1.0 (dependency upgrade needed)
+
+### Survey Repository
+
+New survey repository feature to upload survey definition into centralized Influenzanet Survey Repository
+
+- add commands `survey:repo:import` and `survey:repo:list`
+
 ## v1.5
 
 ### General
