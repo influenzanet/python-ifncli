@@ -343,7 +343,19 @@ class ListSurveysVersions(Lister):
             print(readable_yaml(surveys))
             return
         
-        
+        data = []
+        for survey in surveys:
+            try:
+                published = int(survey['published'])
+            except ValueError:
+                published = 0
+            if published > 0:
+                d = datetime.fromtimestamp(published)
+                pub_date = d.isoformat()
+            else:
+                pub_date = "Unknown"
+            d = (survey['id'], pub_date, survey['versionId'], survey['surveyDefinition']['key'])
+            data.append(d)
         return (
                 ('id','published', 'version', 'key'), 
                 data
