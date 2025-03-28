@@ -49,6 +49,15 @@ Output formats:
 - dict-json: json dictionary of the simplified human readable format (use --json to get the full json from API) 
 - html: static HTML document of the survey definition
 
+## `study:survey-versions` List survey versions
+
+- `--study_key` or `--study`: the study key
+- `--survey` : the survey key to show
+- `--json` : show the list as json (raw result from backed)
+- `--yaml` : show a readable version in yaml
+
+By default (without `--json` or `--yaml`), the result is shown as a formatted table
+
 ## `study:create` Create a new study
 
 Arguments:

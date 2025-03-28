@@ -8,6 +8,8 @@ from cliff.command import Command
 from cliff.lister import Lister
 from . import register
 from pathlib import Path
+from cliff.formatters.table import TableFormatter  
+
 
 from ..utils import read_yaml, read_json, json_to_list, readable_yaml, to_json, read_content, write_json, Output
 
@@ -304,7 +306,50 @@ class ListSurveys(Command):
 
         print(readable_yaml(data))
 
-class ListStudies(Lister):
+class ListSurveysVersions(Lister):
+    """
+        List surveys version
+    """
+    name = 'study:survey-versions'
+
+    def get_parser(self, prog_name):
+        parser = super(ListSurveysVersions, self).get_parser(prog_name)
+        parser.add_argument("--study_key", "--study", help="key of the study", required=True)
+        parser.add_argument("--survey", "--study", help="key of the survey", required=True)
+        parser.add_argument("--raw", help="get the raw data", required=False, action="store_true")
+        parser.add_argument("--json", help="get the json", required=False, action="store_true")
+        parser.add_argument("--yaml", help="show readable yaml", required=False, action="store_true")
+        self.formatter = TableFormatter()
+       
+        return parser
+
+    def take_action(self, args):
+        study_key = args.study_key
+       
+        client = self.app.get_management_api()
+
+        surveys = client.get_survey_history(study_key, args.survey)
+
+        if 'surveyVersions' not in surveys:
+            raise ValueError("Unable to get versions in response")
+            
+        surveys = surveys['surveyVersions']
+
+        if args.json:
+            print(to_json(surveys))
+            return
+        
+        if args.yaml:
+            print(readable_yaml(surveys))
+            return
+        
+        
+        return (
+                ('id','published', 'version', 'key'), 
+                data
+            )
+        
+class ListStudies(Command):
     """
         List studies
     """
@@ -658,3 +703,4 @@ register(ListStudies)
 register(ShowStudy)
 register(ShowSurvey)
 register(CustomStudyRules)
+register(ListSurveysVersions)
