@@ -11,8 +11,8 @@ class Login(Command):
 
     def take_action(self, parsed_args):
         cfg = self.app.appConfigManager.get_configs()
-        print("Management API  : %s", cfg["management_api_url"])
-        print("Participant API : %s", cfg['participant_api_url'])
+        print("Management API  : %s" %(cfg["management_api_url"]))
+        print("Participant API : %s" % (cfg['participant_api_url']))
         creds = cfg['user_credentials']
         print("Account         : <%s>@%s" % (creds['email'], creds['instanceId']))
         try:
