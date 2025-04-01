@@ -91,6 +91,25 @@ resources_path: path/to/resources/dir # Path pointing to directory with resource
 vars:  # Variables of the platform to be used in the email templates. They overrides the ones in the platform config file (see Resource Directory)
   web_app_url: value
   default_language: en
+
+# If you plan to use survey repository
+# user, password and platform code have to be provided by the Influenzanet admin team.
+survey_repository:
+ user: your-user
+ password: your-password
+ platform_code: your-platform-code
+ # Optional list of studies with for each study a list of survey to send
+ studies: 
+  my-study: # Name to the study holding the surveys to send to the repository
+    - intake
+    - weekly
+    - vaccination
+    # Influenzanet standard names are : intake, weekly, vaccination
+    # If the survey key used by the platform is not the standard name
+    # You can rename the survey with a common name as common_name=survey_key
+    # In the following, the survey key 'intake_vac' (survey name in your study) will be sent with the common survey name 'vaccination'
+    # In this case the line value must be between quote ''   
+    - vaccination=intake_vac
 ```
 
 `web_app_url` is an example (you have to use it in your email templates using the syntax described in [the doc](docs/email.md), as it's user defined you can define the variables you want and use them in templates.
@@ -103,14 +122,13 @@ You can either:
 - Define the environment variable `IFN_CONFIG` with the path of the yaml file to use (caution it's not 'INF_CONFIG').
 - or use the '--config' argument and pass the file location
 
-To manage several platforms you can have one config for each, and switch from one another by changing the environment variable value to point to another configuration variable.
+To manage several platforms you can have one config for each and use the **context** feature described below.
 
 **Tips:** : To know what is the current config, you can use starship (see [Starship](#use-with-starship))
 
 The following resources directory is probably to be tracked by a VCS (like git) so it's recommended to put those configuration files outside it.
 
 For example on my local copy, the config files are in a .local directory and files (survey, templates) in the resources/ (symlink from another location)
-
 
 ### Context
 
