@@ -7,7 +7,7 @@
 
 ### General
 
-Upgrade dependency to influenzanet.survey v1.1.0 (dependency upgrade needed)
+Upgrade dependency to influenzanet.survey v1.1.2 (dependency upgrade needed)
 
 ### Survey Repository
 
