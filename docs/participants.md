@@ -53,3 +53,30 @@ Output:
 - Flags counts returns a named list (dict) with flag name and count of occurence of this name in flags as value
 - category returns a named list, with flag value as key, and count of this value occurences in flags as value
 - summary retuns a named list with metrics : 'n' (count with values), 'mean', 'variance', 'min', 'max', invalid (value not parseable as float), nan: 
+
+## participants:flags:sync
+
+This command allow to synchronize flags of participants with a file describing the target values for each participants.
+
+Arguments:
+
+  -  `--study` : the study key
+  -  `--file` : path to the json file with flags values for each participants
+
+Optional arguments:
+
+  - `--dry-run` : Will only show what should be updated but do not update flags
+  - `--page-size` : Count of participants to load in each step, default=500
+
+The json file should be contains an object (dictionary in python) with participant id as key,
+the value must be another object with flag key and value to sync.
+
+```json
+{
+  "my-participant-id": {
+    "flag1":"0"
+  }
+}
+```
+
+The example will synchronize, the flag named 'flag1' set to value '0' for the participant 'my-participant-id'.

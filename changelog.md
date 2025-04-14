@@ -15,6 +15,10 @@ New survey repository feature to upload survey definition into centralized Influ
 
 - add commands `survey:repo:import` and `survey:repo:list`
 
+### Participants
+
+- add command `participants:flags:sync` to synchronize flags of participants with an external json file
+
 ## v1.5
 
 ### General
