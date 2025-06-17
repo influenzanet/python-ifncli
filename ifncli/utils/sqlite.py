@@ -31,23 +31,33 @@ class SqliteDb:
         return r is not None and len(r) == 1
 
     def fetch_one(self, query, data=()): 
-        cur = self.db.cursor()
+        cur = self.db.cursor() 
         res = cur.execute(query, data)
-        return res.fetchone()
+        r = res.fetchone()
+        cur.close()
+        return r
     
     def fetch_all(self, query, data=()): 
         cur = self.db.cursor()
-        res = cur.execute(query, data)
-        return res.fetchall()
-    
+        try:
+            res = cur.execute(query, data)
+            return res.fetchall()
+        finally:
+            cur.close()
+        
     def execute(self, query, data=(), commit=True):
         cur = self.db.cursor()
         cur.execute(query, data)
         if commit:
             self.db.commit()
+        cur.close()
 
     def execute_many(self, query, data:List, commit=True):
         cur = self.db.cursor()
         cur.executemany(query, data)
         if commit:
             self.db.commit()
+        cur.close()
+
+    def cursor(self):
+        return self.db.cursor()
