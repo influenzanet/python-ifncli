@@ -46,7 +46,6 @@ class ExportCatalogDb:
             
         return self.midnight(last_start)
 
-
 class ExportSqlite(ExportDatabase):
     
     def setup(self, empty_db:bool):
@@ -55,7 +54,11 @@ class ExportSqlite(ExportDatabase):
             self.execute("CREATE TABLE {}(time INT, survey_key TEXT, start INT, end INT)".format(import_table))
         meta = self.export_meta_table()
         if not self.table_exists(meta):
-            self.execute("CREATE TABLE {}(id INTEGER PRIMARY KEY CHECK (id = 0), key_separator TEXT)".format(meta))
+            self.execute("CREATE TABLE {}(id INTEGER PRIMARY KEY CHECK (id = 0), key_separator TEXT, use_jsonb INT)".format(meta))
+
+    def supports_jsonb(self):
+        r = self.fetch_one("select exists(select 1 from pragma_function_list where name='jsonb')")
+        return int(r[0])
 
     def setup_meta(self, key_separator):
         meta_table = self.export_meta_table()
@@ -63,8 +66,10 @@ class ExportSqlite(ExportDatabase):
         if meta is not None:
             if meta[0] != key_separator:
                 raise ValueError("Cannot defined key_separator '{}' as its already defined to '{}'".format(key_separator, meta[0]))
-            return True
-        self.execute("INSERT INTO {}(id, key_separator) VALUES (0, ?)".format(meta_table), (key_separator))    
+        else:
+            use_jsonb = self.supports_jsonb()
+            self.execute("INSERT INTO {}(id, key_separator, use_jsonb) VALUES (0, ?, ?)".format(meta_table), (key_separator, use_jsonb))
+        return self.get_meta()    
 
 class DbExporter:
 
@@ -76,7 +81,6 @@ class DbExporter:
         self.page_size = page_size
         
     def register_import(self, survey_key:str, start_time: Optional[datetime], end_time: Optional[datetime]):
-        
         query = 'INSERT INTO import_log("time", "survey_key", "start", "end") VALUES (unixepoch(),?,?,?)'
         data = (
                 survey_key, 
@@ -122,7 +126,7 @@ class DbExporter:
             'key_separator': profile.key_separator
         }
 
-        self.db.setup_meta(profile.key_separator)
+        meta = self.db.setup_meta(profile.key_separator)
 
         if start_time is not None:
             args['start'] = int(start_time.timestamp())
@@ -130,7 +134,13 @@ class DbExporter:
             args['end'] = int(end_time.timestamp())
 
         pager = SurveyResponseJSONPaginated(self.client, page_size=self.page_size, study_key=self.study_key, survey_key=survey_key, **args)
-        insert_query = "INSERT OR IGNORE INTO {table_name} (id, submitted, version, data) VALUES (?, ?, ?, jsonb(?)) ".format(table_name=table_name)
+
+        if meta.use_jsonb:
+            json_expr = 'jsonb(?)'
+        else:
+            json_expr = '?'
+
+        insert_query = "INSERT OR IGNORE INTO {table_name} (id, submitted, version, data) VALUES (?, ?, ?, {json_expr}) ".format(table_name=table_name, json_expr=json_expr)
 
         inserted_count = 0
         for r in pager:
@@ -148,7 +158,6 @@ class DbExporter:
                             item[k] = True
                         if v == 'FALSE':
                             item[k] = False
-
 
                 d = (item['ID'], submitted, item['version'], json.dumps(item))
 

@@ -180,11 +180,12 @@ class SourceQuery:
     """
         Query raw data
     """
-    def __init__(self, table_name:str):
+    def __init__(self, table_name:str, use_jsonb: bool):
         self.table_name = table_name
         self.from_time = None
         self.to_time = None
         self.versions = None
+        self.use_jsonb = use_jsonb
         
     def resolve_versions(self, db: ExportDatabase, selector: VersionSelector):
         w = []
@@ -262,7 +263,9 @@ class Importer:
         
         writer = DuckDbWriter(self.profile.target_db, self.profile.target_table)
 
-        query = SourceQuery(self.profile.source_table)
+        meta = self.profile.source_db.get_meta()
+
+        query = SourceQuery(self.profile.source_table, meta.use_jsonb)
         
         if self.profile.versions is not None:
            query.resolve_versions(self.profile.source_db, self.profile.versions)
