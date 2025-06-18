@@ -174,7 +174,7 @@ class DbExporter:
            return midnight(self.profile.start_time)
        return midnight(max_time)
 
-    def export_all(self, force_start=Optional[datetime]):
+    def export_all(self, force_start:Optional[datetime]):
         """"
             Incrementally export data 
         """
