@@ -92,14 +92,16 @@ class ExportProfile:
         self.start_time = datetime.strptime(profile['start_time'], ISO_TIME_FORMAT)
         
         if 'max_time' in profile:
-            self.max_time = datetime.strptime(profile['max_time'], ISO_TIME_FORMAT)
+            max = profile['max_time']
+            if max == 'now':
+                self.max_time = datetime.now()
+            else:
+                self.max_time = datetime.strptime(max, ISO_TIME_FORMAT)
         else:
             self.max_time = self.start_time + timedelta(days=365) 
 
     def __str__(self) -> str:
         return str(self.__dict__)
-    
-        
 
 class ExportCatalog:
     """
