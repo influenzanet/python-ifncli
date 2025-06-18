@@ -36,7 +36,7 @@ class ResponseExportDb(Command):
 
         profile = ExportProfile(args.profile)
         exporter = DbExporter(profile, client, study_key, args.db_path, page_size)
-        exporter.export_all()
+        exporter.export_all(None)
 
 class ResponseBulkExporterDb(Command):
     """
