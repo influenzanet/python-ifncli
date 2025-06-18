@@ -31,5 +31,5 @@ class SurveySchema:
         return schema
 
     def override(self, columns: dict[str,str]):
-        for name, col_type in columns:
+        for name, col_type in columns.items()
             self.column_types[name] = col_type
