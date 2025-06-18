@@ -4,10 +4,16 @@ from cliff.command import Command
 from . import register
 from ifncli.utils import read_yaml, readable_yaml, read_json, write_content, Output
 from ifncli.managers.export import ExportProfile
-from ifncli.managers.export.db import DbExporter, ExportDatabase 
-from ifncli.managers.export.db.describe import describe_database, DatabaseDescriber
-from ifncli.managers.export.db.importer import Importer, ImporterProfile, SurveySchema
-from influenzanet.surveys.preview.schema import ReadableSchema
+try:
+    from ifncli.managers.export.db import DbExporter, ExportDatabase 
+    from ifncli.managers.export.db.describe import describe_database, DatabaseDescriber
+    from ifncli.managers.export.db.importer import Importer, ImporterProfile, SurveySchema
+    from influenzanet.surveys.preview.schema import ReadableSchema
+    export_module_available = True
+    missing_module = None
+except ModuleNotFoundError as e:
+    missing_module = e.msg
+    export_module_available = False
 
 class ResponseExportDb(Command):
 
@@ -252,9 +258,23 @@ class ResponseTestRenamer(Command):
         for index, col in enumerate(columns):
             print("'{}' => '{}'".format(col, renamed[index]))
 
-register(ResponseExportDb)
-register(ResponseBulkExporterDb)
-register(ResponseExportSchema)
-register(ResponseDbImport)
-register(ResponseTestRenamer)
-register(ResponseDbDescribe)
+class ResponseDbUnavailable(Command):
+    """
+        Reason for response:db commands not available (missing module)
+    """
+
+    name = "response:db:unavailable"
+
+    def take_action(self, args):
+        print("response:db actions are not available because of missing python packages")
+        print(missing_module)
+
+if export_module_available:
+    register(ResponseExportDb)
+    register(ResponseBulkExporterDb)
+    register(ResponseExportSchema)
+    register(ResponseDbImport)
+    register(ResponseTestRenamer)
+    register(ResponseDbDescribe)
+else:
+    register(ResponseDbUnavailable)
