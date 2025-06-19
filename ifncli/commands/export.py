@@ -102,7 +102,7 @@ class ResponseExportSchema(Command):
         else:
             version = None
 
-        schema = survey_schema.from_export_db(db, version=version)
+        schema = survey_schema.from_export_db(db, version)
 
         if len(schema.problems) > 0:
             print("Warning: some problems have been found in schema")
