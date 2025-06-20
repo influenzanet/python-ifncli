@@ -70,8 +70,13 @@ class SurveyVersion:
         return "<@{}>".format("-".join([ str(x) for x in self.items]))
     
 class VersionSelectorRule:
+
     def is_version(self, version: SurveyVersion)->bool:
         raise NotImplementedError()
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
 
 class VersionSelector(VersionSelectorRule):
     """
@@ -82,18 +87,18 @@ class VersionSelector(VersionSelectorRule):
         self.including_rules = including_rules
         self.excluding_rules = excluding_rules
 
-    def is_version(self, version:str)->bool:
-        v = parse_version(version)
-        for r in self.excluding_rules:
-            if r.is_version(v):
-                return False
+    def is_version(self, version:SurveyVersion)->bool:
+        if self.excluding_rules is not None:
+            for r in self.excluding_rules:
+                if r.is_version(version):
+                    return False
         for r in self.including_rules:
-            if r.is_version(v):
+            if r.is_version(version):
                 return True
         return False
     
     def __str__(self):
-        return "Selector<In:{}, Exclude:{}>".format(self.including_rules, self.including_rules)
+        return "Selector<In:{}, Exclude:{}>".format(self.including_rules, self.excluding_rules)
 
 class VersionSelectorRange(VersionSelectorRule):
     """
@@ -143,6 +148,8 @@ class VersionSelectorIn(VersionSelectorRule):
     def __str__(self):
         return "In<{}>".format(",".join([str(x) for x in self.candidates]))
                
+    def __repr__(self) -> str:
+        return self.__str__()
 
 
 
