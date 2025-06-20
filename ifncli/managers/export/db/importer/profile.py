@@ -4,7 +4,7 @@ from ifncli.utils.io import read_yaml
 from datetime import datetime
 from typing import Optional
 from .schema import SurveySchema
-from .processor import BasePreprocessor, SchemaCastingProcessor, DefaultRenamingProcessor, ProcessorParserSpec
+from .processor import BasePreprocessor, SchemaCastingProcessor, DefaultRenamingProcessor, ProcessorParserSpec, PROC_TYPE_CASTING, PROC_TYPE_RENAME
 from .version_selector import VersionSelectorRule, VersionSelectorParser, parse_version, SurveyVersion
 
 def parse_iso_time(d):
@@ -38,6 +38,23 @@ class ProcessorSpec:
         if self.version is None:
             return str(self.processor)
         return "{} when version {}".format(str(self.processor), str(self.version))
+
+class ProcessorEntry:
+    """
+        Intermediate class used to order processor by position type
+    """
+
+    def __init__(self, proc: ProcessorSpec, position: str):
+        self.proc = proc
+        self.position = position
+
+POSITION_BEFORE_CASTING = 'before_casting'
+POSITION_AFTER_CASTING = 'after_casting'
+POSITION_END = 'end'
+
+PROC_DEFAULT_CASTING = 'default_casting'
+PROC_DEFAULT_RENAMING = 'default_renaming'
+
 
 
 class Debugger:
@@ -87,7 +104,7 @@ class ImporterProfile:
         Import profile describes the import parameters to import from the download database (raw data) to an analysis database (with flag table)
     """
 
-    def __init__(self, profile_file=None, overrides:dict[str, str]={}):
+    def __init__(self, profile_file=None, overrides:dict[str, str]={}, source_db: Optional[ExportDatabase]=None):
         """
             Load profile parameters if file is provided, possibly overriden with extra values (from command line arguments)
         """
@@ -173,11 +190,13 @@ class ImporterProfile:
 
         self.debugger.parse(debugger_spec)
 
-        source_db_path = get_val_str("source_db")
-        if source_db_path is None:
-            raise ValueError("`source_db` (path to source db) must be provided")
-
-        self.source_db = ExportDatabase(source_db_path)
+        if source_db is None:
+            source_db_path = get_val_str("source_db")
+            if source_db_path is None:
+                raise ValueError("`source_db` (path to source db) must be provided")
+            self.source_db = ExportDatabase(source_db_path)
+        else:
+            self.source_db = source_db
 
         target_db = get_val_str("target_db")
         if target_db is None:
@@ -229,44 +248,66 @@ class ImporterProfile:
         meta = self.source_db.get_meta()
         proc_def = self.conf.get('processors')
 
-        # Processor skip default : do not append default processors after custom ones
-        # In this case you must define all processors sequence by yourself
-        skip_defaults = self.conf.get('processors_skip_defaults', False)
+        # Processor add default : append default processors after custom ones
+        # If False, you must define all processors sequence by yourself
+        add_defaults = self.conf.get('processors_defaults', True)
 
         defaults = {
-            'default_casting':SchemaCastingProcessor(self.survey_schema),
-            'default_renaming': DefaultRenamingProcessor(meta.key_separator),
+            PROC_DEFAULT_CASTING:SchemaCastingProcessor(self.survey_schema),
+            PROC_DEFAULT_RENAMING: DefaultRenamingProcessor(meta.key_separator),
         }
 
         if proc_def is None:
             proc_def = []
 
-        if not skip_defaults:
+        if add_defaults:
             proc_def.extend([
-                'default_casting',
-                'default_renaming'
+                PROC_DEFAULT_CASTING,
+                PROC_DEFAULT_RENAMING
             ])
+
         self.processors = self.parse_processors(proc_def, defaults, meta.key_separator)
     
     def parse_processors(self, proc_defs, defaults, key_separator: str):
         if not isinstance(proc_defs, list):
             raise ValueError("Processor definition must be a list")   
-        processors = []
+        
+        entries: list[ProcessorEntry] = []
+        
+        # Position of the processor in the transformation process
+        # Some processors must be run before the default ones
+        positions = [POSITION_BEFORE_CASTING, PROC_DEFAULT_CASTING, POSITION_AFTER_CASTING, PROC_DEFAULT_RENAMING, POSITION_END]
+
         parser = ProcessorParserSpec(key_separator)
         for proc_def in proc_defs:
             proc = None
+            position = POSITION_END
             if isinstance(proc_def, str):
                 proc = defaults.get(proc_def)
                 if proc is None:
                     raise ValueError("Unknown default processor named '{}'".format(proc_def))
+                position = proc_def
             elif isinstance(proc_def, dict):
                 proc = parser.parse(proc_def)
                 versionSelector = None
                 if "version" in proc_def:
                     versionSelector = parse_version_selector(proc_def['version'])
+                if "position" in proc_def:
+                    position = proc_def['position']
+                else:
+                    position = POSITION_AFTER_CASTING
                 proc = ProcessorSpec(proc, versionSelector)
             if proc is not None:
-                processors.append(proc)
+                if position not in positions:
+                    raise ValueError("Position '{}' is not registered".format(position))
+                entries.append(ProcessorEntry(proc, position))
+
+        # Now reorder processors order using position
+        processors = []
+        for position in positions:
+            for entry in entries:
+                if entry.position == position:
+                    processors.append(entry.proc)
         return processors
     
     def select_processors(self, version:str):

@@ -6,6 +6,11 @@ from typing import Optional
 from ..schema import SurveySchema
 from .columns import BaseColumnSelector, ColumnSelector
 
+PROC_TYPE_RENAME = 'rename'
+PROC_TYPE_CASTING = 'casting'
+PROC_TYPE_DEFAULT_RENAMING = 'default_renaming'
+
+
 def to_str(l:list):
     for x in l:
         yield str(x)
@@ -17,6 +22,8 @@ class BasePreprocessor:
     def apply(self, rows: pandas.DataFrame, debug: bool = False):
         return rows
     
+    def processor_type(self)->str:
+        return 'none'
 
 class BaseRenameRule:
 
@@ -139,7 +146,10 @@ class BaseRenamingProcessor(BasePreprocessor):
         renamed = self.apply_to_list(columns)
         rows.rename(columns=renamed, inplace=True)
         return rows
-    
+
+    def processor_type(self)->str:
+        return PROC_TYPE_RENAME
+
     def __str__(self):
         return "<Rename: rules:{}, excluded:{}>".format(",".join(to_str(self.rules)), self.excluded)
 
@@ -164,6 +174,9 @@ class DefaultRenamingProcessor(BaseRenamingProcessor):
         rows = super(DefaultRenamingProcessor, self).apply(rows)
         rows.rename(columns=self.defaultColumns, inplace=True, errors='ignore')
         return rows
+
+    def processor_type(self)->str:
+        return PROC_TYPE_DEFAULT_RENAMING
 
     def __str__(self):
         return "<DefaultRename:{}>".format(",".join(to_str(self.rules)))
@@ -284,7 +297,10 @@ class SchemaCastingProcessor(BasePreprocessor):
         if self.date_rule is not None:
             self.date_rule.apply(rows)
         return rows
-    
+
+    def processor_type(self)->str:
+        return 'default_casting'
+
     def __str__(self):
         return "SchemaCasting<{},{},{}>".format(self.boolean_rule, self.unjson_rule, self.date_rule)
 
@@ -299,8 +315,13 @@ class RuleBasedProcessor(BasePreprocessor):
         rule = self.rule_class(columns)
         return rule.apply(rows)
     
+    def processor_type(self)->str:
+        return PROC_TYPE_CASTING
 class RenamingProcessor(BaseRenamingProcessor):
     
     def __init__(self, rules: list[BaseRenameRule], excluded: list[str]):
         super(RenamingProcessor, self).__init__(excluded)
         self.rules = rules
+    
+    def processor_type(self)->str:
+        return PROC_TYPE_RENAME
