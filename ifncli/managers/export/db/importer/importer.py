@@ -1,9 +1,6 @@
 
 
-import sqlite3
 import pandas as pd
-import pyarrow as pa
-import pyarrow.parquet as pq
 import json
 import duckdb
 import os
@@ -65,30 +62,7 @@ class Writer:
         pass
 
     def append(self, df: pd.DataFrame):
-        pass    
-
-
-class ParquerWriter(Writer):
-
-    def __init__(self, parquet_file):
-        super().__init__()
-        self.parquet_writer = None
-        self.parquet_file = parquet_file
-        self.row_version = None
-
-    def append(self, df: pd.DataFrame):
-        # Convertir en Arrow Table
-        table = pa.Table.from_pandas(df)
-
-        # Initialiser le ParquetWriter une seule fois
-        if self.parquet_writer is None:
-            self.parquet_writer = pq.ParquetWriter(self.parquet_file, table.schema)
-
-        self.parquet_writer.write_table(table)
-
-    def close(self):
-        if self.parquet_writer is not None:
-            self.parquet_writer.close()
+        pass
 
 class DuckDbWriter(Writer):
     
