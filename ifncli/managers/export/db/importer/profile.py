@@ -4,8 +4,8 @@ from ifncli.utils.io import read_yaml
 from datetime import datetime
 from typing import Optional
 from .schema import SurveySchema
-from .processor import BasePreprocessor, SchemaCastingProcessor, DefaultRenamingProcessor, parse_processor_def
-from .version_selector import VersionSelectorRule, VersionSelectorParser, parse_version
+from .processor import BasePreprocessor, SchemaCastingProcessor, DefaultRenamingProcessor, ProcessorParserSpec
+from .version_selector import VersionSelectorRule, VersionSelectorParser, parse_version, SurveyVersion
 
 def parse_iso_time(d):
     time = datetime.fromisoformat(d)
@@ -20,87 +20,184 @@ defaultSchemaOverrides = {
     'submitted': 'date'
 }
 
-
 class ProcessorSpec:
+    """
+        ProcessorSpec embeds a Processor with an eventual version criteria
+    """
 
-    def __init__(self, processor: BasePreprocessor, version: VersionSelectorRule):
+    def __init__(self, processor: BasePreprocessor, version: Optional[VersionSelectorRule]):
         self.processor = processor
         self.version = version
 
-    def supports(self, version:str):
+    def supports(self, version:SurveyVersion):
         if self.version is None:
             return True
-        v = parse_version(version)
-        return self.version.is_version(v)
+        return self.version.is_version(version)
     
     def __str__(self):
         if self.version is None:
             return str(self.processor)
-        return "{} when version {}".format(self.processor, self.version)
+        return "{} when version {}".format(str(self.processor), str(self.version))
+
+
+class Debugger:
+    """
+        Debugger contains flags to known which part to debug (print)
+    """
+    
+    PROPERTIES = [
+        'json', # Print json parsed
+        'query', # Import query
+        'query_source', # Source query
+        'version', # Version loop block
+        'processors' # Processors run in version block
+    ]
+
+    def __init__(self) -> None:
+        self.flags = dict[str, bool]([ (name, False) for name in Debugger.PROPERTIES])
+
+    def parse(self, spec):
+        tokens = []
+        if isinstance(spec, str):
+            tokens = spec.split(',')
+        if isinstance(spec, list):
+            for s in spec:
+                if not isinstance(s, str):
+                    raise ValueError("Debugger list item must be a string, cannot handle nested list")
+                tokens.extend(s.split(','))
+        activate = set()
+        for token in tokens:
+            name = token.strip()
+            if name == 'all':
+                activate.update(Debugger.PROPERTIES)
+            else:
+                if not name in Debugger.PROPERTIES:
+                    raise ValueError("Unknown debugger flag {}".format(name))
+                activate.add(name)
+        for name in activate:
+            self.flags[name] = True
+
+    def has(self, name:str):
+        if not name in self.flags:
+            print("Warning: Unknown debugger flag {}".format(name))
+        return self.flags.get(name, False)
 
 class ImporterProfile:
     """
-        Import profile describe the import parameters to import from the download database (raw data) to an analysis database (with flag table)
+        Import profile describes the import parameters to import from the download database (raw data) to an analysis database (with flag table)
     """
 
-    def __init__(self, source_db:ExportDatabase):
-        self.source_db = source_db
-        self.source_table = None
-        self.target_table = None
-        self.from_time = None
-        self.to_time = None
-        self.batch_size = 1000
-        self.versions: Optional[VersionSelectorRule] = None
-        self.processors: list[ProcessorSpec] = []
-        self.survey:Optional[str] = None
-        self.conf = {} # The loaded profile configuration 
-        self.survey_schema: Optional[SurveySchema] = None
-       
-    def load(self, profile_file=None, overrides:dict[str, str]={}):
+    def __init__(self, profile_file=None, overrides:dict[str, str]={}):
         """
             Load profile parameters if file is provided, possibly overriden with extra values (from command line arguments)
         """
+        self.versions: Optional[VersionSelectorRule] = None
+        self.processors: list[ProcessorSpec] = []
+        self.conf = {} # The loaded profile configuration 
+        self.survey_schema: Optional[SurveySchema] = None
+        self.debugger = Debugger()
+       
         if profile_file is not None:
             profile = read_yaml(profile_file)
         else:
             profile = {}
 
-        def get_val(name:str, parser=None, required=False, default=None):
+        def get_val_from(name:str):
             value = overrides.get(name)
             origin = 'override'
             if value is None:
                 value = profile.get(name)
                 origin = 'profile' 
-            if value is not None and parser is not None:
-                try:
-                    value = parser(value)
-                except Exception as e:
-                    if origin == 'profile':
-                        o = 'profile file `{}`'.format(profile_file)
-                    else:
-                        o = 'overrides values (command line argument ?)'
-                    raise ValueError("Unable to parse value {} in {} : {}".format(name, o, e))
-            if value is None and required:
-                raise ValueError("A value is required for `{}` and none provided in profile nor overrides")
-            if value is None and default is not None:
-                value = default
-            return value
+            return value, origin
+        
+        def value_error(name, expecting, o, value):
+            if o == 'profile':
+                origin = 'profile file'
+            else:
+                origin = 'override (command line argument)'
+            return f"Unable to parse profile param '{name}' from {origin} expecting {expecting} got '{value}'"
 
-        self.from_time = get_val('from_time', parse_iso_time)
-        self.to_time = get_val('to_time', parse_iso_time)
-        self.source_table = get_val("source_table")
-        self.target_table = get_val("target_table")
-        self.target_db = get_val("target_db")
-        self.versions = get_val("versions", parse_version_selector)
-        self.survey = get_val("survey", required=True)
-        self.batch_size = get_val("batch_size", default=5000)
+        def get_val(name:str):
+            v, _ = get_val_from(name)
+            return v
+        
+        def get_val_str(name:str):
+            v, o = get_val_from(name)
+            if v is not None and not isinstance(v, str):
+                raise ValueError(value_error(name, 'string', o, v))
+            return v
+        
+        def get_val_bool(name, default:bool):
+            v, o = get_val_from(name)
+            if v is None:
+                return default
+            try:
+                return bool(v)
+            except:
+                raise ValueError(value_error(name, 'boolean', o, v))
+        
+        def get_val_int(name, default:int):
+            v, o = get_val_from(name)
+            if v is None:
+                return default
+            try:
+                return int(v)
+            except:
+                raise ValueError(value_error(name, 'integer', o, v))
+            
+        def get_val_time(name):
+            v, o = get_val_from(name)
+            if v is not None:
+                try:
+                    return parse_iso_time(v)
+                except:
+                    raise ValueError(value_error(name, 'iso time', o, v))
+            return v
+
+        self.from_time = get_val_time('from_time')
+        self.to_time = get_val_time('to_time')
+        
+        vv = get_val("versions")
+        if vv is not None:
+            self.versions = parse_version_selector(vv)
+
+        survey = get_val_str("survey")
+        if survey is None:
+            raise ValueError("survey is required")
+        self.survey = survey
+
+        self.batch_size = get_val_int("batch_size", default=5000)
+        self.starting_offset = get_val_int("starting_offset", default=0)
+        self.dry_run = get_val_bool("dry_run", default=False)
+        debugger_spec = get_val("debugger")
+
+        self.debugger.parse(debugger_spec)
+
+        source_db_path = get_val_str("source_db")
+        if source_db_path is None:
+            raise ValueError("`source_db` (path to source db) must be provided")
+
+        self.source_db = ExportDatabase(source_db_path)
+
+        target_db = get_val_str("target_db")
+        if target_db is None:
+            raise ValueError("`target_db` must be provided")
+
+        self.target_db = target_db
         self.conf = profile
 
-        if self.target_table is None:
+        source_table = get_val_str("source_table")
+        target_table = get_val_str("target_table")
+        
+        if target_table is None:
             self.target_table = "pollster_results_{}".format(self.survey)
+        else:
+            self.target_table = target_table
 
-        if self.source_table is None:
+        if source_table is None:
             self.source_table = self.source_db.response_table(self.survey)
+        else:
+            self.source_table = source_table
 
     def build(self):
         self.build_schema()
@@ -114,7 +211,7 @@ class ImporterProfile:
                 infer_schema = bool(infer_schema)
             except:
                 raise ValueError("`infer_schema` in profile must be a boolean value")
-        self.survey_schema = SurveySchema(self.survey)
+        self.survey_schema = SurveySchema(self.survey) # type: ignore
         if infer_schema:
             schema = self.survey_schema.from_export_db(self.source_db, self.versions)
             if len(schema.problems) > 0:
@@ -123,11 +220,18 @@ class ImporterProfile:
         self.survey_schema.override(defaultSchemaOverrides)
         
         if schema_overrides is not None:
-            self.survey_schema.override(self.schema_overrides)
+            self.survey_schema.override(schema_overrides)
 
     def build_processors(self):
+        if self.survey_schema is None:
+            raise ValueError("Survey schema is not available, did you called build_schema() ?")
+
         meta = self.source_db.get_meta()
         proc_def = self.conf.get('processors')
+
+        # Processor skip default : do not append default processors after custom ones
+        # In this case you must define all processors sequence by yourself
+        skip_defaults = self.conf.get('processors_skip_defaults', False)
 
         defaults = {
             'default_casting':SchemaCastingProcessor(self.survey_schema),
@@ -135,28 +239,34 @@ class ImporterProfile:
         }
 
         if proc_def is None:
-            proc_def = [
+            proc_def = []
+
+        if not skip_defaults:
+            proc_def.extend([
                 'default_casting',
                 'default_renaming'
-            ]
-        self.processors = self.parse_processors(proc_def, defaults)
+            ])
+        self.processors = self.parse_processors(proc_def, defaults, meta.key_separator)
     
-    def parse_processors(self, proc_defs, defaults):
+    def parse_processors(self, proc_defs, defaults, key_separator: str):
         if not isinstance(proc_defs, list):
             raise ValueError("Processor definition must be a list")   
         processors = []
+        parser = ProcessorParserSpec(key_separator)
         for proc_def in proc_defs:
+            proc = None
             if isinstance(proc_def, str):
                 proc = defaults.get(proc_def)
                 if proc is None:
                     raise ValueError("Unknown default processor named '{}'".format(proc_def))
             elif isinstance(proc_def, dict):
-                proc = proc.parse_processor_def(proc_def)
+                proc = parser.parse(proc_def)
                 versionSelector = None
                 if "version" in proc_def:
                     versionSelector = parse_version_selector(proc_def['version'])
                 proc = ProcessorSpec(proc, versionSelector)
-            processors.append(proc)
+            if proc is not None:
+                processors.append(proc)
         return processors
     
     def select_processors(self, version:str):
@@ -164,9 +274,10 @@ class ImporterProfile:
             Return list of processors for a given version
         """
         pp = []
+        v = parse_version(version)
         for proc_spec in self.processors:
             if isinstance(proc_spec, ProcessorSpec):
-                if proc_spec.supports(version):
+                if proc_spec.supports(v):
                     pp.append(proc_spec.processor)
             else:
                 pp.append(proc_spec)
@@ -183,6 +294,9 @@ class ImporterProfile:
             'processors': [str(x) for x in self.processors],
             'survey': self.survey,
             'schema': self.survey_schema,
+            'debugger': self.debugger.flags,
+            'batch_size': self.batch_size,
+            'starting_offset': self.starting_offset,
         }
         return d
 

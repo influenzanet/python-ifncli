@@ -1,2 +1,2 @@
 from .processors import BasePreprocessor, DefaultExcludedColumns, DefaultRenamingProcessor, SchemaCastingProcessor
-from .parser import parse_processor_def
+from .parser import ProcessorParserSpec

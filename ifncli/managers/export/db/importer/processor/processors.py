@@ -14,17 +14,23 @@ class BasePreprocessor:
     """
         A Processor apply a transformation to a dataframe
     """
-    def apply(self, rows: pandas.DataFrame):
-        pass
+    def apply(self, rows: pandas.DataFrame, debug: bool = False):
+        return rows
+    
 
-class RemovePrefixRule:
+class BaseRenameRule:
+
+    def apply(self, column:str)->str:
+        raise NotImplementedError()
+
+class RemovePrefixRule(BaseRenameRule):
     """
         Remove prefix of question (group keys), keeping only the last item key
     """
     def __init__(self, separator):
         self.separator = separator
     
-    def apply(self, column:str):
+    def apply(self, column:str)->str:
         q = column.split(self.separator, 1)
         if len(q) == 2:
             question = q[0]
@@ -42,7 +48,7 @@ class RemovePrefixRule:
     def __str__(self):
         return 'remove_prefix'
 
-class RenameRegexpRule:
+class RenameRegexpRule(BaseRenameRule):
     """
         Rename column using regex and replacement
     """
@@ -68,7 +74,7 @@ class RenameRegexpRule:
     def __str__(self):
         return '`{}`:`{}`'.format(self.pattern, self.replace)
 
-class RenameFixedColumnRule:
+class RenameFixedColumnRule(BaseRenameRule):
     """
         Rename columns using a simple dictionnary
     """
@@ -90,37 +96,21 @@ DefaultRenameColumns = {
     'ID':'id',
 }
 
-class DefaultRenamingProcessor(BasePreprocessor):
+class DuplicateColumnError(Exception):
+    pass
 
-    def __init__(self, separator, excluded=DefaultExcludedColumns, defaultColumns=DefaultRenameColumns):
+class BaseRenamingProcessor(BasePreprocessor):
 
-        # PLaceholder <$> stands for the question/response separator (|)
-        rules = [
-            (r'<$>mat\.row(\d+)\.col(\d+)', r"<$>multi_row\1_col\2"), # Legacy column naming to be compatible with data of previous platform
-            (r"<$>likert_(\d+)", r"<$>lk_\1"),
-            ("<$>", "_")
-        ]
-        self.rules = [ RemovePrefixRule(separator)]
-
-        for r in rules:
-            self.rules.append(RenameRegexpRule(separator, r[0], r[1]))
+    def __init__(self, excluded:list[str]=[]):
+        self.rules : list[BaseRenameRule] = []
         self.excluded = excluded
-        self.defaultColumns = DefaultRenameColumns
 
-    def apply(self, rows:  pandas.DataFrame):
-        columns = rows.columns.to_list()
-        renamed = self.apply_to_list(columns)
-        rows.rename(columns=renamed, inplace=True)   
-
-        rows.rename(columns=self.defaultColumns, inplace=True, errors='ignore')
-        
-        return rows
-        
     def apply_to_list(self, columns: list[str], debug=None):
         """
             Apply renaming to a list of columns
         """
         renamed = {}
+        targets = {}
         for column in columns:
             if column in self.excluded:
                 continue
@@ -130,8 +120,50 @@ class DefaultRenamingProcessor(BasePreprocessor):
                 if debug is not None:
                     debug("   - {}: '{}' => '{}'".format(rule, value, r))
                 value = r
+            if value in targets:
+                targets[value].append(column)
+            else:
+                targets[value] = [column]
             renamed[column] = value
+        error = False
+        for target, from_names in targets.items():
+            if len(from_names) > 1:
+                print("Duplicate column {} renamed from {}".format(target, from_names))
+                error = True
+        if error:
+            raise DuplicateColumnError("Duplicate column name after renaming")
         return renamed
+
+    def apply(self, rows:  pandas.DataFrame, debug: bool = False):
+        columns = rows.columns.to_list()
+        renamed = self.apply_to_list(columns)
+        rows.rename(columns=renamed, inplace=True)
+        return rows
+    
+    def __str__(self):
+        return "<Rename: rules:{}, excluded:{}>".format(",".join(to_str(self.rules)), self.excluded)
+
+class DefaultRenamingProcessor(BaseRenamingProcessor):
+
+    def __init__(self, separator, excluded=DefaultExcludedColumns, defaultColumns=DefaultRenameColumns):
+
+        super(DefaultRenamingProcessor, self).__init__(excluded)
+
+        # PLaceholder <$> stands for the question/response separator (|)
+        rules = [
+            (r'<$>mat\.row(\d+)\.col(\d+)', r"<$>multi_row\1_col\2"), # Legacy column naming to be compatible with data of previous platform
+            (r"<$>likert_(\d+)", r"<$>lk_\1"),
+            ("<$>", "_")
+        ]
+        self.rules.append( RemovePrefixRule(separator) )
+        for r in rules:
+            self.rules.append(RenameRegexpRule(separator, r[0], r[1]))
+        self.defaultColumns = DefaultRenameColumns
+
+    def apply(self, rows:  pandas.DataFrame, debug: bool = False):
+        rows = super(DefaultRenamingProcessor, self).apply(rows)
+        rows.rename(columns=self.defaultColumns, inplace=True, errors='ignore')
+        return rows
 
     def __str__(self):
         return "<DefaultRename:{}>".format(",".join(to_str(self.rules)))
@@ -244,7 +276,7 @@ class SchemaCastingProcessor(BasePreprocessor):
         self.unjson_rule = create_rule('json', UnJsonRule)
         self.date_rule = create_rule('date', ToDatetimeRule)
 
-    def apply(self, rows: pandas.DataFrame):
+    def apply(self, rows: pandas.DataFrame, debug: bool = False):
         if self.boolean_rule is not None:
             self.boolean_rule.apply(rows)
         if self.unjson_rule is not None:
@@ -256,17 +288,19 @@ class SchemaCastingProcessor(BasePreprocessor):
     def __str__(self):
         return "SchemaCasting<{},{},{}>".format(self.boolean_rule, self.unjson_rule, self.date_rule)
 
-class RuleBasedProcessor:
+class RuleBasedProcessor(BasePreprocessor):
     def __init__(self, rule_class, columns: ColumnSelector):
         self.columns = columns
         self.rule_class = rule_class
 
-    def apply(self, rows: pandas.DataFrame):
+    def apply(self, rows: pandas.DataFrame, debug: bool = False):
         columns = rows.columns.to_list()
         columns = self.columns.select(columns)
         rule = self.rule_class(columns)
         return rule.apply(rows)
     
-class RenamingProcessor:
-    def __init__(self, rules):
+class RenamingProcessor(BaseRenamingProcessor):
+    
+    def __init__(self, rules: list[BaseRenameRule], excluded: list[str]):
+        super(RenamingProcessor, self).__init__(excluded)
         self.rules = rules

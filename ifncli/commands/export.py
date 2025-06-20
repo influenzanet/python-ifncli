@@ -155,8 +155,6 @@ class ResponseExportSchema(Command):
             write_content(args.output, d)
         else:
             print(d)
-            
-
         
 class ResponseDbImport(Command):
     """
@@ -167,8 +165,8 @@ class ResponseDbImport(Command):
 
     def get_parser(self, prog_name):
         parser = super(ResponseDbImport, self).get_parser(prog_name)
-        parser.add_argument("--survey", help="Survey name", required=True)
-        parser.add_argument("--source-db", help="Database file path", required=True)
+        parser.add_argument("--survey", help="Survey name", required=False)
+        parser.add_argument("--source-db", help="Database file path", required=False)
         parser.add_argument("--target-db", help="Database to import data into", required=False)
         parser.add_argument('--from-time', help="Import data from this time (submitted)", required=False)
         parser.add_argument("--to-time", help="Import data until this time (submited)", required=False)
@@ -176,27 +174,30 @@ class ResponseDbImport(Command):
         parser.add_argument("--target-table", help="Table name to import data into in the target database (default is pollster_response_$(survey))", required=False)
         parser.add_argument("--source-table", help="Table name to import data into in the target database (default is responses_$(survey))", required=False)
         parser.add_argument("--profile", help="Yaml file defining the import profile (all parameters can be in it)", required=False)
+        parser.add_argument("--offset", help="Starting offset", type=int, default=0)
+        parser.add_argument("--batch-size", help="Number of rows to load at once", type=int, default=5000)
+        parser.add_argument('--debugger', help="Debugger list of properties to debug")
         parser.add_argument("--only-show", help="Only show the profile configuration use for import and exit (do not import anything)", action="store_true")
+        parser.add_argument("--dry-run", help="Only prepare data dont run the update on target db", action="store_true")
         return parser
 
-    def take_action(self, args):
-
-        source_db = ExportDatabase(args.source_db)
-
-        # Export parameters are stored in the export db in metadata table
-        export_meta = source_db.get_meta()
-
+    def take_action(self, parsed_args):
+        args = parsed_args
         profile_overides = {
+            'source_db': args.source_db,
             'source_table': args.source_table,
-            'from_time':args.from_time,
-            'to_time': args.to_time,
             'target_table': args.target_table,
             'target_db': args.target_db,
+            'from_time':args.from_time,
+            'to_time': args.to_time,
             'survey': args.survey,
+            'starting_offset': args.offset,
+            'batch_size': args.batch_size,
+            'debugger': args.debugger,
+            'dry_run': args.dry_run,
         }
 
-        profile = ImporterProfile(source_db)
-        profile.load(args.profile, profile_overides)
+        profile = ImporterProfile(args.profile, profile_overides)
         profile.build()
 
         if args.only_show:
@@ -204,7 +205,7 @@ class ResponseDbImport(Command):
             print(readable_yaml(d))
             return
 
-        importer = Importer(profile, debug=False)
+        importer = Importer(profile)
         importer.run()
        
 class ResponseDbDescribder(DatabaseDescriber):
@@ -241,8 +242,8 @@ class ResponseTestRenamer(Command):
 
     def get_parser(self, prog_name):
         parser = super(ResponseTestRenamer, self).get_parser(prog_name)
-        parser.add_argument("--file", help="json file where columns names are stored", required=False)
-        parser.add_argument("--verbose", help="json file where columns names are stored", action="store_true", required=False)
+        parser.add_argument("--survey", help="Survey name", required=False)
+        parser.add_argument("--source-db", help="Database file path", required=False)
         return parser
 
     def take_action(self, args):

@@ -6,11 +6,12 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import json
 import duckdb
+import os
 from typing import Optional
 from collections import OrderedDict
 from .processor import BasePreprocessor
-from .profile import ImporterProfile
-from .version_selector import VersionSelector
+from .profile import ImporterProfile, Debugger
+from .version_selector import VersionSelectorRule
 from ..database import ExportDatabase
 
 TYPE_COMPAT = {
@@ -28,6 +29,33 @@ DuckTypePandaAlias = {
     'datetime64[ns]': 'TIMESTAMPTZ'
 }
 
+DEFAULT_COLUMNS = os.getenv('COLUMNS', 120)
+
+def show_df(df: pd.DataFrame, max_width=None):
+    if max_width is None:
+        max_width = int(DEFAULT_COLUMNS)
+    w = 0
+    desc = []
+    for column in df.columns:
+        col = df[column]
+        if isinstance(col, pd.Series):
+            dtype = col.dtype
+        else:
+            dtype = type(col)
+        s = "`{}` ({})".format(column, dtype)
+        w = max(w, len(s))
+        desc.append(s)
+    width = w + 3
+    cols = int(max_width / width)
+    f = "| {:<" + str(width) + "} "
+    c = 0
+    for d in desc:
+        print(f.format(d), end=" ")
+        c += 1
+        if c >= cols:
+            print("")
+            c = 0
+
 class Writer:
 
     def __init__(self):
@@ -38,6 +66,7 @@ class Writer:
 
     def append(self, df: pd.DataFrame):
         pass    
+
 
 class ParquerWriter(Writer):
 
@@ -63,7 +92,7 @@ class ParquerWriter(Writer):
 
 class DuckDbWriter(Writer):
     
-    def __init__(self, duckdb_file: str, table_name: str, insert_mode:str="ignore"):
+    def __init__(self, duckdb_file: str, table_name: str, debugger: Debugger, insert_mode:str="ignore"):
         super().__init__()
         self.conn = None
         self.duckdb_file = duckdb_file
@@ -71,8 +100,14 @@ class DuckDbWriter(Writer):
         self.first_batch = True
         self.insert_mode = insert_mode
         self.user_table = 'survey_surveyuser'
+        self.debugger = debugger
         
+    def debug(self, name):
+        return self.debugger.has(name)
+
     def connect(self):
+        if self.conn is not None:
+            return self.conn
         self.conn = duckdb.connect(self.duckdb_file)  # ou ":memory:" pour en mémoire
         if self.has_table(self.table_name):
             self.first_batch = False
@@ -80,7 +115,8 @@ class DuckDbWriter(Writer):
             self.execute("CREATE SEQUENCE survey_user_id_seq START 1")
             self.execute("CREATE TABLE {user_table} (id INTEGER DEFAULT nextval('survey_user_id_seq'), global_id TEXT)".format(user_table=self.user_table))
             self.execute("CREATE UNIQUE INDEX survey_user_global_id ON {user_table} (global_id)".format(user_table=self.user_table))     
-
+        return self.conn
+    
     def has_table(self,  table_name):
         cursor = self.conn.cursor()
         cursor.execute("SELECT * FROM information_schema.tables WHERE table_name = '{}'".format(table_name))
@@ -145,15 +181,14 @@ class DuckDbWriter(Writer):
         self.conn.execute("CREATE INDEX {table}_globalid_idx ON {table} (global_id)".format(table=self.table_name))
 
     def append(self, df: pd.DataFrame):
-        if self.conn is None:
-            self.connect()
+        cnx = self.connect()
         if len(df) == 0:
             return
-        self.conn.register("temp_df", df)
+        cnx.register("temp_df", df)
         if self.first_batch:
             print("Registering new table {}".format(self.table_name))
             # Crée une table DuckDB avec le schéma du DataFrame
-            self.conn.execute("CREATE TABLE {} AS SELECT * FROM temp_df".format(self.table_name))
+            cnx.execute("CREATE TABLE {} AS SELECT * FROM temp_df".format(self.table_name))
             self.create_table_index()
             self.first_batch = False
         else:
@@ -168,9 +203,21 @@ class DuckDbWriter(Writer):
                 insert_or = 'OR IGNORE'
             
             query = "INSERT {insert_or} INTO {table} ({columns}) SELECT * FROM temp_df".format(table=self.table_name, columns=col_query, insert_or=insert_or)
-            self.conn.execute(query)
+            
+            if self.debug('query'):
+                print(">>> # QUERY")
+                print(query)
+                print("---------- # QUERY")
+            try:
+                cnx.execute(query)
+            except Exception as e:
+                print("Error during inserting query", e)
+                print(query)
+                print("Dataframe")
+                show_df(df)
+                raise e
         self.update_index("temp_df")
-        self.conn.unregister("temp_df")
+        cnx.unregister("temp_df")
         
     def close(self):
         if self.conn is not None:
@@ -180,16 +227,17 @@ class SourceQuery:
     """
         Query raw data
     """
-    def __init__(self, table_name:str, use_jsonb: bool):
+    def __init__(self, table_name:str, use_jsonb: bool, show_query: bool):
         self.table_name = table_name
-        self.from_time = None
-        self.to_time = None
+        self.from_time: Optional[int] = None
+        self.to_time: Optional[int] = None
         self.versions = None
         self.use_jsonb = use_jsonb
+        self.show_query = show_query
         
-    def resolve_versions(self, db: ExportDatabase, selector: VersionSelector):
+    def resolve_versions(self, db: ExportDatabase, selector: VersionSelectorRule):
         w = []
-        data = {}
+        data: Optional[dict[str, str|int]] = {}
         if self.from_time is not None:
             w.append('submitted >= :from_time')
             data['from_time'] = self.from_time
@@ -232,6 +280,10 @@ class SourceQuery:
         """
         query = self.build_query('json(data) as data, version, id')
         query += "order by version, submitted LIMIT {batch_size} OFFSET {offset}".format(batch_size=batch_size, offset=offset)
+        if self.show_query:
+            print("  # QUERY Source query")
+            print(query)
+            print("---- QUERY")
         return query
     
     def query_count(self):
@@ -252,20 +304,28 @@ class Counter:
             return None
         return 100 * count / total
 
-
 class Importer:
-
-    def __init__(self, profile: ImporterProfile, debug=False):
-        self.debug = debug
+    """
+        Importer process the transformation from the raw data in a source database (usually SQLite) to another format, like Duckdb database
+        through a Writer class
+        Raw data are loaded as json an transformed into pandas DataFrame before to be transformed by processors and then importer using a Writer
+    """
+    def __init__(self, profile: ImporterProfile):
         self.profile = profile
+
+    def debug(self, name:str):
+        return self.profile.debugger.has(name)
 
     def run(self):
         
-        writer = DuckDbWriter(self.profile.target_db, self.profile.target_table)
+        if self.profile.dry_run:
+            writer = Writer()
+        else:
+            writer = DuckDbWriter(self.profile.target_db, self.profile.target_table, debugger=self.profile.debugger)
 
         meta = self.profile.source_db.get_meta()
 
-        query = SourceQuery(self.profile.source_table, meta.use_jsonb)
+        query = SourceQuery(self.profile.source_table, meta.use_jsonb, self.profile.debugger.has('query_source'))
         
         if self.profile.versions is not None:
            query.resolve_versions(self.profile.source_db, self.profile.versions)
@@ -280,7 +340,7 @@ class Importer:
 
     def import_table(self, query: SourceQuery, writer: Writer):
         batch_size = self.profile.batch_size
-        offset = 0
+        offset = self.profile.starting_offset
         
         count = self.profile.source_db.fetch_one(query.query_count())
         total_rows = count[0]
@@ -289,17 +349,25 @@ class Importer:
 
         counts = Counter()
 
+        debug_json = self.debug('json')
+        debug_version = self.debug('version')
+        debug_processors = self.debug('processors')
+        
         while True:
             records = OrderedDict()
 
             cur = self.profile.source_db.cursor()
             res = cur.execute(query.query_data(batch_size=batch_size, offset=offset))
-            
+
             count_fetched = 0
             for row in res:
                 version = row[1]
                 try:
                     data = json.loads(row[0])
+                    if debug_json:
+                        print("JSON at row {} (offset {})".format(count_fetched, offset + count_fetched))
+                        print(data)
+                        print("--- JSON")
                     if version not in records:
                         records[version] = []
                     records[version].append(data)
@@ -314,26 +382,32 @@ class Importer:
                 print("No record fetched, stopping")
                 break
             
-            print("Offset {} {:.2f}%, found  {} versions, {} rows processing...".format(offset, counts.percent('fetched', total_rows), len(records), count_fetched))
+            print("> #BATCH - Offset {} {:.2f}%, found  {} versions, {} rows processing...".format(offset, counts.percent('fetched', total_rows), len(records), count_fetched))
 
             for version, rows in records.items():
 
+                print(" >> #VERSION {}, {} rows from offset {}".format(version, len(rows), offset))
+
                 counts.add(version, len(rows))
-
-                if self.debug:
-                    print(version)
-
-                processors = self.profile.select_processors(version)
 
                 df_struct = pd.DataFrame(rows)
 
+                if debug_version:
+                    print(show_df(df_struct))
+                    print("----------------- #VERSION")
+                    
+                processors = self.profile.select_processors(version)
+
                 for processor in processors:
-                    if self.debug:
+                    if debug_processors:
+                        print(">>> #PROCESSOR ", end=" ")
                         print(processor)
                     df_struct = processor.apply(df_struct)
-                    if self.debug:
-                        print(df_struct.info())
-                if self.debug:
+                    if debug_processors:
+                        print("   Dataframe after processor")
+                        print(show_df(df_struct))
+                        print("----------------------#PROCESSOR")
+                if debug_version:
                     print("Appending {} rows for version '{}'".format(len(df_struct.index), version))
                 writer.append(df_struct)
                 
