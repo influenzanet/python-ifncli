@@ -221,7 +221,7 @@ class DbExporter:
 
         survey_info = self.profile.survey_info
         survey_key = self.profile.survey_key
-        short_keys = self.profile.short_keys
+        short_keys = True
         survey_infos = self.client.get_survey_info_preview(self.study_key, survey_key, survey_info['lang'], short_keys)
         
         if "versions" not in survey_infos:

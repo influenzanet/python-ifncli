@@ -2,7 +2,7 @@ import os
 from datetime import datetime
 from cliff.command import Command
 from . import register
-from ifncli.utils import read_yaml, readable_yaml, read_json, write_content, Output
+from ifncli.utils import read_yaml, readable_yaml, read_json, write_content, Output, from_iso_time
 from ifncli.managers.export import ExportProfile
 try:
     from ifncli.managers.export.db import DbExporter, ExportDatabase 
@@ -21,26 +21,65 @@ class ResponseExportDb(Command):
 
     def get_parser(self, prog_name):
         parser = super(ResponseExportDb, self).get_parser(prog_name)
-        parser.add_argument("--study", help="Study key", required=True)
         parser.add_argument("--profile", help="Path to yaml export profile")
-        parser.add_argument("--db-path", help="Database file path")
+        parser.add_argument("--db-path", help="Database file path", required=True)
+        
+        # Profile overrides
+        parser.add_argument("--study", "--study-key", help="Study key (optional can be in profile)", required=False)
+        parser.add_argument("--survey", help="Only apply this command to this survey (for multiple survey profile)")
+        
+        # Options
         parser.add_argument("--page-size", help="page size", type=int, default=1000)
-        parser.add_argument("--start-from", help="restart export from", default=None)
+        
+        g = parser.add_mutually_exclusive_group()   
+        g.add_argument("--start-from", help="restart export from this time (iso time string)", default=None)
+        g.add_argument("--restart", help="Force restart of plan", action="store_true")
         return parser
 
     def take_action(self, args):
         client = self.app.get_management_api()
 
-        study_key = args.study
         page_size = args.page_size
 
         profile = ExportProfile(args.profile)
-        exporter = DbExporter(profile, client, study_key, args.db_path, page_size)
-        exporter.export_all(None)
+
+        study_key = args.study
+        if study_key is not None:
+            if profile.study_key != '':
+                print("Overriding profile study_key `{}` to `{}`".format(profile.study_key, study_key))
+        else:
+            study_key = profile.study_key
+        
+        if study_key is None or study_key == '':
+            raise ValueError("study_key must be provided in profile or in command line with '--study' parameter")
+
+        if args.survey is not None:
+            surveys = [args.survey]
+        else:
+            surveys = profile.survey_list()
+
+        start_time = None
+        if args.start_from is not None:
+            try:
+                start_time = from_iso_time(args.start_from)
+            except Exception as e:
+                raise ValueError("Unable to parse '--start-from'") from e
+        
+        restart = args.restart
+            
+        for survey in surveys:
+            profile.configure_for_survey(survey)
+            exporter = DbExporter(profile, client, study_key, args.db_path, page_size)
+            if restart:
+                start_time = profile.start_time
+            exporter.export_all(start_time)
 
 class ResponseBulkExporterDb(Command):
     """
         Incremental Export for a set of surveys (each with an export profile)
+        
+        This is only useful if you have different profiles for each survey. If all surveys shared the same profile export parameters
+        you can use `surveys` directly in profile and set a list of surveys to export in one pass.
     """
 
     name = "response:db:export-plan"
@@ -68,6 +107,8 @@ class ResponseBulkExporterDb(Command):
             fp = plan_folder + '/' + profile_name
             print("* Processing %s" % (fp))
             profile = ExportProfile(fp)
+            if profile.study_key != '' and profile.study_key != study_key:
+                print("Overriding profile study_key `{}` to `{}`".format(profile.study_key, study_key))
             exporter = DbExporter(profile, client, study_key, db_path, args.page_size)
             start_time = None
             if args.restart:
