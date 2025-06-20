@@ -25,8 +25,8 @@ class VersionSelectorParser:
         conf = conf.strip()
         if conf == '':
             return
-        if ';' in conf:
-            vv = conf.split(';')
+        if ',' in conf:
+            vv = conf.split(',')
             vv = [ v.strip() for v in vv]
             vv = [ v for v in vv if v != '']
             for v in vv:
