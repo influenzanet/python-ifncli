@@ -17,7 +17,7 @@ Two different databases are used because they are not dedicated to the same usag
 
 Raw data could be transformed to a more convenient format like table, csv. And is indepdendent of the download process (no need to merge and reconciliate multiple csv files).
 
-The import database uses duckdb format and flat tables, much more compact than csv, with data type preservation (boolean columns, date could be date column, ...) and a single file
+The import database uses [duckdb](https://duckdb.org/) format and flat tables, much more compact than csv, with data type preservation (boolean columns, date could be date column, ...) and a single file
 
 ## Import principles
 
@@ -198,7 +198,7 @@ The processor sequence of processors position is :
 By default custom processors are inserted in 'after_casting' position (after `default_casting` processor but before `default_renaming`),
 Renaming must occurs after the default casting because the casting relies on the raw data names (see schema).
 
-If you want your custom processor to run after all the default processor, use 'end' position.
+If you want your custom processor to run after all the default processors, use 'end' position.
 
 The order of processors with the same position is preserved.
 
@@ -221,3 +221,32 @@ Rules:
 - A literal with a single version number will match the exact version number, e.g. '25-2-2'
 - A range of version can be defined using ':', e.g: '25-0-0:25-12-99'
 - '!22-1-2' : Exclude version 22-1-2 from the selection
+
+## Import Command response:db:import
+
+The `response:db:import` command accepts many parameters but most of them could also been defined in a profile yaml file, so if nothing change
+you just have to use '--profile' argument to run the profile.
+
+Parameters passed in command line override the ones in a profile (it can be used to test change). It's up to you to decide what is in the profile (usually fixed parameters) and the one to pass in command line.
+
+Main parameters:
+- `--profile`: Yaml file defining the import profile
+- `--only-show`: Only show the profile configuration use for import and exit (do not import anything).
+- `--dry-run`: Only prepare data dont run the update on target db
+- `--offset`: Starting offset of the query to download the raw data from the source database
+- `--debugger`: Debugger list of properties to debug
+
+Parameters also present in profile:
+- `--batch-size`: Number of rows to load at once (default is 5000)
+- `--survey`: Survey name (must be defined either in command line or in profile)
+- `--source-db`: Database file path where the raw data are stored
+- `--target-db`: Database to import data into
+- `--from-time`: Import data from this time (submitted)
+- `--to-time`: Import data until this time (submited)
+- `--version`: Version selector (default is all)
+- `--target-table`: Table name to import data into in the target database (default is pollster_response_$(survey)). Do not change if you dont know
+- `--source-table `: Table name to import data into in the target database (default is responses_$(survey)). Do not change if you dont know
+       
+Before actually running the import you can use '--only-show' to see how the profile has been loaded to check if everything is ok,
+you can also use '--dry-run' to prepare the import without actually make it (but some errors will only occur during the target db import).
+
