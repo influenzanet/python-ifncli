@@ -12,7 +12,10 @@ class SqliteDb:
     It wraps sqlite db to expose simpler API
     """    
     def __init__(self, db_path, allow_create=True):
-        db_exists = os.path.exists(db_path)
+        if db_path != ':memory:':
+            db_exists = os.path.exists(db_path)
+        else:
+            db_exists = False 
         self.db = sqlite3.connect(db_path)
         if not db_exists and not allow_create:
             raise DbError("Database '%s' doesnt exists" % (db_path))

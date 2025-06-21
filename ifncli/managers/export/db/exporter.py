@@ -70,6 +70,13 @@ class ExportSqlite(ExportDatabase):
             use_jsonb = self.supports_jsonb()
             self.execute("INSERT INTO {}(id, key_separator, use_jsonb) VALUES (0, ?, ?)".format(meta_table), (key_separator, use_jsonb))
         return self.get_meta()    
+    
+    def setup_surveyinfo(self):
+        table_name = "survey_info"
+        if not self.table_exists(table_name):
+            query = "CREATE TABLE {table_name} (survey TEXT, version TEXT, data TEXT, PRIMARY KEY(survey,version))".format(table_name=table_name)
+            self.execute(query)
+
 
 class DbExporter:
 
@@ -214,11 +221,9 @@ class DbExporter:
     def export_info(self, replace=True):
         if self.profile.survey_info is None:
             return
-        table_name = "survey_info"
-        if not self.db.table_exists(table_name):
-            query = "CREATE TABLE {table_name} (survey TEXT, version TEXT, data TEXT, PRIMARY KEY(survey,version))".format(table_name=table_name)
-            self.db.execute(query)
-
+        
+        self.db.setup_surveyinfo()
+        
         survey_info = self.profile.survey_info
         survey_key = self.profile.survey_key
         short_keys = True

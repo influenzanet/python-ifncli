@@ -5,9 +5,9 @@ from . import register
 from ifncli.utils import read_yaml, readable_yaml, read_json, write_content, Output, from_iso_time
 from ifncli.managers.export import ExportProfile
 try:
-    from ifncli.managers.export.db import DbExporter, ExportDatabase 
+    from ifncli.managers.export.db import DbExporter, ExportDatabase, ExportSqlite 
     from ifncli.managers.export.db.describe import describe_database, DatabaseDescriber
-    from ifncli.managers.export.db.importer import Importer, ImporterProfile, SurveySchema
+    from ifncli.managers.export.db.importer import Importer, ImporterProfile, SurveySchema, VersionSelectorParser, fake, PrintWriter
     from influenzanet.surveys.preview.schema import ReadableSchema
     export_module_available = True
     missing_module = None
@@ -139,7 +139,8 @@ class ResponseExportSchema(Command):
         survey_schema = SurveySchema(args.survey)
 
         if args.version:
-            version = spec.parser_version_selector_str(args.version)
+            parser = VersionSelectorParser()
+            version = parser.parse(args.version)
         else:
             version = None
 
@@ -274,31 +275,53 @@ class ResponseDbDescribe(Command):
         parser.add_argument("--db", help="Database file", required=True)
         return parser
 
-    def take_action(self, args):
-        data = describe_database(args.db, describer=ResponseDbDescribder(), debug=True)
+    def take_action(self, parsed_args):
+        data = describe_database(parsed_args.db, describer=ResponseDbDescribder(), debug=True)
         data.show()
 
 class ResponseTestRenamer(Command):
+    """
+        Load a profile with a fake db and Run the Rename processors
+    """
+
     name = "response:db:renamer"
 
     def get_parser(self, prog_name):
         parser = super(ResponseTestRenamer, self).get_parser(prog_name)
         parser.add_argument("--survey", help="Survey name", required=False)
         parser.add_argument("--source-db", help="Database file path", required=False)
+        #parser.add_argument("--columns", help="Comma separated list of columns", required=True)
+        parser.add_argument("--profile", help="The profile", required=True)
+        parser.add_argument("--debugger", help="Debugger", required=False)
         return parser
 
-    def take_action(self, args):
-        columns = read_json(args.file)
-        processor = processor.DefaultRenamingProcessor('|')
-
-        if args.verbose:
-            debug = lambda msg: print(" ", msg)
-        else:
-            debug = None
+    def take_action(self, parsed_args):
+        args = parsed_args
         
-        renamed = processor.apply_to_list(columns, debug=debug)
-        for index, col in enumerate(columns):
-            print("'{}' => '{}'".format(col, renamed[index]))
+        profile_overides = {
+            'source_db': args.source_db,
+            'survey': args.survey,
+            'debugger': args.debugger,
+        }
+
+        if args.source_db is None:
+            fake_db = ExportSqlite(':memory:', allow_create=True)
+            fake_db.setup_meta('|')
+            fake_db.setup_surveyinfo()
+        else:
+            fake_db = None
+
+        profile = ImporterProfile(args.profile, profile_overides, source_db=fake_db)
+        profile.build()
+        profile.dry_run = True
+
+        print(profile.to_readable())
+
+        columns = fake.FakeColumnsData(['Q1|0', 'Q2|2|open'], '23-11-1')
+        loader = fake.FakeDataLoader(columns.data)
+
+        importer = Importer(profile)
+        importer.run(loader, PrintWriter())
 
 class ResponseDbUnavailable(Command):
     """

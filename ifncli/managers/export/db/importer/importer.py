@@ -9,7 +9,8 @@ from collections import OrderedDict
 from .processor import BasePreprocessor
 from .profile import ImporterProfile, Debugger
 from .version_selector import VersionSelectorRule
-from ..database import ExportDatabase
+from ..database import ExportDatabase, ExportMeta
+from .base import SourceDataLoader, Writer
 
 TYPE_COMPAT = {
     'int':['int','int32','int8','int64', 'float64','int16'],
@@ -52,17 +53,6 @@ def show_df(df: pd.DataFrame, max_width=None):
         if c >= cols:
             print("")
             c = 0
-
-class Writer:
-
-    def __init__(self):
-        pass
-
-    def close(self):
-        pass
-
-    def append(self, df: pd.DataFrame):
-        pass
 
 class DuckDbWriter(Writer):
     
@@ -197,9 +187,26 @@ class DuckDbWriter(Writer):
         if self.conn is not None:
             self.conn.close()
 
-class SourceQuery:
+
+class Counter:
+
+    def __init__(self):
+        self.counters = {}
+    
+    def add(self, name:str, count:int):
+        prev = self.counters.get(name, 0)
+        self.counters[name] = prev + count
+
+    def percent(self, name, total:int):
+        count = self.counters.get(name)
+        if count is None:
+            return None
+        return 100 * count / total
+
+
+class SourceDbQueryBuilder:
     """
-        Query raw data
+        Build Query from the raw data database with profile criteria
     """
     def __init__(self, table_name:str, use_jsonb: bool, show_query: bool):
         self.table_name = table_name
@@ -246,7 +253,6 @@ class SourceQuery:
             query += " WHERE ".join(w)
         return query
 
-
     def query_data(self, batch_size:int, offset:int):
         """
             Return the query to fetch the data in raw tables
@@ -263,20 +269,56 @@ class SourceQuery:
     def query_count(self):
         return self.build_query('count(*)')
 
-class Counter:
+class SourceDbDataLoader(SourceDataLoader):
+    """
+        Load raw data from the Raw data database
+    """
 
-    def __init__(self):
-        self.counters = {}
-    
-    def add(self, name:str, count:int):
-        prev = self.counters.get(name, 0)
-        self.counters[name] = prev + count
+    def __init__(self, profile: ImporterProfile, meta:ExportMeta):
+        
+        query = SourceDbQueryBuilder(profile.source_table, meta.use_jsonb, profile.debugger.has('query_source'))
+        
+        if profile.versions is not None:
+           query.resolve_versions(profile.source_db, profile.versions)
 
-    def percent(self, name, total:int):
-        count = self.counters.get(name)
-        if count is None:
-            return None
-        return 100 * count / total
+        if profile.from_time is not None:
+            query.from_time = profile.from_time
+
+        if profile.to_time is not None:
+            query.to_time = profile.to_time   
+
+        self.query = query
+        self.source_db = profile.source_db
+        self.debug_json = profile.debugger.has('json')
+        
+
+    def total_rows(self):
+        count = self.profile.source_db.fetch_one(self.query.query_count())
+        return count[0]
+
+    def load(self, batch_size: int, offset:int):
+        records = OrderedDict()
+
+        cur = self.profile.source_db.cursor()
+        res = cur.execute(self.query.query_data(batch_size=batch_size, offset=offset))
+
+        count_fetched = 0
+        for row in res:
+            version = row[1]
+            try:
+                data = json.loads(row[0])
+                if self.debug_json:
+                    print("JSON at row {} (offset {})".format(count_fetched, offset + count_fetched))
+                    print(data)
+                    print("--- JSON")
+                if version not in records:
+                    records[version] = []
+                records[version].append(data)
+            except json.JSONDecodeError as e:
+                print("Error parsing data for row {} : {}".format(row[2], e))
+            count_fetched += 1
+        cur.close()
+        return (count_fetched, records)
 
 class Importer:
     """
@@ -290,65 +332,37 @@ class Importer:
     def debug(self, name:str):
         return self.profile.debugger.has(name)
 
-    def run(self):
+    def run(self, loader: Optional[SourceDataLoader]=None, writer: Optional[Writer]=None):
         
-        if self.profile.dry_run:
-            writer = Writer()
-        else:
-            writer = DuckDbWriter(self.profile.target_db, self.profile.target_table, debugger=self.profile.debugger)
+        if writer is None:
+            if self.profile.dry_run:
+                writer = Writer()
+            else:
+                writer = DuckDbWriter(self.profile.target_db, self.profile.target_table, debugger=self.profile.debugger)
 
         meta = self.profile.source_db.get_meta()
 
-        query = SourceQuery(self.profile.source_table, meta.use_jsonb, self.profile.debugger.has('query_source'))
-        
-        if self.profile.versions is not None:
-           query.resolve_versions(self.profile.source_db, self.profile.versions)
+        if loader is None:
+            loader = SourceDbDataLoader(self.profile, meta)
 
-        if self.profile.from_time is not None:
-            query.from_time = self.profile.from_time
+        self.import_table(loader, writer)
 
-        if self.profile.to_time is not None:
-            query.to_time = self.profile.to_time        
-
-        self.import_table(query, writer)
-
-    def import_table(self, query: SourceQuery, writer: Writer):
+    def import_table(self, loader: SourceDataLoader, writer: Writer):
         batch_size = self.profile.batch_size
         offset = self.profile.starting_offset
         
-        count = self.profile.source_db.fetch_one(query.query_count())
-        total_rows = count[0]
+        total_rows = loader.total_rows()
 
         print("Fetching data of {} rows by {}".format(total_rows, batch_size))
 
         counts = Counter()
 
-        debug_json = self.debug('json')
         debug_version = self.debug('version')
         debug_processors = self.debug('processors')
         
         while True:
-            records = OrderedDict()
-
-            cur = self.profile.source_db.cursor()
-            res = cur.execute(query.query_data(batch_size=batch_size, offset=offset))
-
-            count_fetched = 0
-            for row in res:
-                version = row[1]
-                try:
-                    data = json.loads(row[0])
-                    if debug_json:
-                        print("JSON at row {} (offset {})".format(count_fetched, offset + count_fetched))
-                        print(data)
-                        print("--- JSON")
-                    if version not in records:
-                        records[version] = []
-                    records[version].append(data)
-                except json.JSONDecodeError as e:
-                    print("Error parsing data for row {} : {}".format(row[2], e))
-                count_fetched += 1
-            cur.close()
+            
+            count_fetched, records = loader.load(batch_size, offset)
             
             counts.add('fetched', count_fetched)
 
