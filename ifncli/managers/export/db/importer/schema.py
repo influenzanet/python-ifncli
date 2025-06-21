@@ -33,3 +33,9 @@ class SurveySchema:
     def override(self, columns: dict[str,str]):
         for name, col_type in columns.items():
             self.column_types[name] = col_type
+
+    def to_readable(self):
+        cols = []
+        for name, col_type in self.column_types.items():
+            cols.append( "{}: {}".format(name, col_type))
+        return cols

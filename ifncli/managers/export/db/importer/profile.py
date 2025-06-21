@@ -39,6 +39,13 @@ class ProcessorSpec:
             return str(self.processor)
         return "{} when version {}".format(str(self.processor), str(self.version))
 
+    def to_readable(self):
+        if self.version is None:
+            return self.processor.to_readable()
+        return {
+            'version': str(self.version),
+            'processor': self.processor.to_readable()
+        }
 class ProcessorEntry:
     """
         Intermediate class used to order processor by position type
@@ -325,6 +332,9 @@ class ImporterProfile:
         return pp
                 
     def to_readable(self):
+        schema = None
+        if self.survey_schema is not None:
+            schema = self.survey_schema.to_readable()
         d = {
             'source_table': self.source_table,
             'target_table': self.target_table,
@@ -332,9 +342,9 @@ class ImporterProfile:
             'from_time': self.from_time,
             'to_time': self.to_time,
             'versions': str(self.versions),
-            'processors': [str(x) for x in self.processors],
+            'processors': [p.to_readable() for p in self.processors],
             'survey': self.survey,
-            'schema': self.survey_schema,
+            'schema': schema,
             'debugger': self.debugger.flags,
             'batch_size': self.batch_size,
             'starting_offset': self.starting_offset,

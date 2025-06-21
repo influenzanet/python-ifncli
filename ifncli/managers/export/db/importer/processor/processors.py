@@ -9,7 +9,15 @@ from .columns import BaseColumnSelector, ColumnSelector
 PROC_TYPE_RENAME = 'rename'
 PROC_TYPE_CASTING = 'casting'
 PROC_TYPE_DEFAULT_RENAMING = 'default_renaming'
+PROC_TYPE_DEFAULT_CASTING = 'default_casting'
 
+
+def dict_to_readable(d: dict, glue:str):
+    """ readable simple representation of dictionary in a single line"""
+    s = []
+    for k, v in d.items():
+        s.append("`{}`{}`{}`".format(k, glue, v))
+    return ', '.join(s)
 
 def to_str(l:list):
     for x in l:
@@ -25,10 +33,17 @@ class BasePreprocessor:
     def processor_type(self)->str:
         return 'none'
 
+    def to_readable(self):
+        return 'Unknown'
+
 class BaseRenameRule:
 
     def apply(self, column:str)->str:
         raise NotImplementedError()
+
+    def to_readable(self):
+        """ readable simple representation (simple yaml to be human readed)"""
+        return self.__str__()
 
 class RemovePrefixRule(BaseRenameRule):
     """
@@ -54,6 +69,10 @@ class RemovePrefixRule(BaseRenameRule):
         
     def __str__(self):
         return 'remove_prefix'
+    
+    def to_readable(self):
+        """ readable simple representation (simple yaml to be human readed)"""
+        return self.__str__()
 
 class RenameRegexpRule(BaseRenameRule):
     """
@@ -81,6 +100,17 @@ class RenameRegexpRule(BaseRenameRule):
     def __str__(self):
         return '`{}`:`{}`'.format(self.pattern, self.replace)
 
+    def to_readable(self):
+        """ readable simple representation (simple yaml to be human readed)"""
+        f = ''
+        if self.pattern.flags & re.IGNORECASE:
+            f += 'i'
+        if self.pattern.flags & re.MULTILINE:
+            f += 'm'
+        if self.pattern.flags & re.DOTALL:
+            f += 's'
+        return "regexp:/{}/{} => '{}'".format(self.pattern.pattern, f, self.replace)
+
 class RenameFixedColumnRule(BaseRenameRule):
     """
         Rename columns using a simple dictionnary
@@ -93,6 +123,10 @@ class RenameFixedColumnRule(BaseRenameRule):
         
     def __str__(self):
         return 'fixed `{}`'.format(self.to_rename)
+
+    def to_readable(self):
+        """ readable simple representation (simple yaml to be human readed)"""
+        return {'fixed': self.to_rename}
 
 
 DefaultExcludedColumns = ['submitted', 'language', 'participantID','engineVersion', 'opened', 'ID']
@@ -107,7 +141,9 @@ class DuplicateColumnError(Exception):
     pass
 
 class BaseRenamingProcessor(BasePreprocessor):
-
+    """
+        Base processor to rename columns based on list of renaming rules (regex, fixed, ...)
+    """
     def __init__(self, excluded:list[str]=[]):
         self.rules : list[BaseRenameRule] = []
         self.excluded = excluded
@@ -150,6 +186,13 @@ class BaseRenamingProcessor(BasePreprocessor):
     def processor_type(self)->str:
         return PROC_TYPE_RENAME
 
+    def to_readable(self):
+        return {
+            'name': 'rename',
+            'rules': [ rule.to_readable() for rule in self.rules],
+            'excluded': "`{}`".format('`, `'.join(self.excluded)),
+        }
+
     def __str__(self):
         return "<Rename: rules:{}, excluded:{}>".format(",".join(to_str(self.rules)), self.excluded)
 
@@ -168,7 +211,7 @@ class DefaultRenamingProcessor(BaseRenamingProcessor):
         self.rules.append( RemovePrefixRule(separator) )
         for r in rules:
             self.rules.append(RenameRegexpRule(separator, r[0], r[1]))
-        self.defaultColumns = DefaultRenameColumns
+        self.defaultColumns = defaultColumns
 
     def apply(self, rows:  pandas.DataFrame, debug: bool = False):
         rows = super(DefaultRenamingProcessor, self).apply(rows)
@@ -180,6 +223,13 @@ class DefaultRenamingProcessor(BaseRenamingProcessor):
 
     def __str__(self):
         return "<DefaultRename:{}>".format(",".join(to_str(self.rules)))
+
+    def to_readable(self):
+        r = super(DefaultRenamingProcessor, self).to_readable()
+        r['name'] = PROC_TYPE_DEFAULT_RENAMING
+        r['defaults']= dict_to_readable(self.defaultColumns,'=>')
+        return r
+
 
 class ToBooleanRule:
     """
@@ -202,7 +252,7 @@ class ToBooleanRule:
         return rows
 
     def __str__(self):
-        return "<boolean:{}>".format(",".join(self.columns))
+        return "<boolean:{}>".format(", ".join(self.columns))
     
 class ToDatetimeRule:
     """
@@ -220,7 +270,7 @@ class ToDatetimeRule:
         return rows
 
     def __str__(self):
-        return "<date:{}>".format(",".join(self.columns))
+        return "<date:{}>".format(", ".join(self.columns))
  
 
 def extract_items_keys(data):
@@ -260,7 +310,7 @@ class UnJsonRule:
         return rows
 
     def __str__(self):
-        return "<unjson:{}>".format(','.join(self.columns))
+        return "<unjson:{}>".format(', '.join(self.columns))
 
 class SchemaCastingProcessor(BasePreprocessor):
 
@@ -303,6 +353,16 @@ class SchemaCastingProcessor(BasePreprocessor):
 
     def __str__(self):
         return "SchemaCasting<{},{},{}>".format(self.boolean_rule, self.unjson_rule, self.date_rule)
+    
+    def to_readable(self):
+        return {
+            'name': PROC_TYPE_DEFAULT_CASTING,
+            'rules': [
+                str(self.boolean_rule),
+                str(self.date_rule),
+                str(self.unjson_rule),
+            ]
+        }
 
 class RuleBasedProcessor(BasePreprocessor):
     def __init__(self, rule_class, columns: ColumnSelector):
@@ -317,6 +377,13 @@ class RuleBasedProcessor(BasePreprocessor):
     
     def processor_type(self)->str:
         return PROC_TYPE_CASTING
+    
+    def to_readable(self):
+        return {
+            'name': self.rule_class,
+            'columns': self.columns,
+        }
+
 class RenamingProcessor(BaseRenamingProcessor):
     
     def __init__(self, rules: list[BaseRenameRule], excluded: list[str]):
@@ -325,3 +392,9 @@ class RenamingProcessor(BaseRenamingProcessor):
     
     def processor_type(self)->str:
         return PROC_TYPE_RENAME
+
+    def to_readable(self):
+        return {
+            'name': PROC_TYPE_RENAME,
+            'rules': [ rule.to_readable() for rule in self.rules],
+        }
