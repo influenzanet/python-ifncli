@@ -277,7 +277,7 @@ class ResponseDbDescribe(Command):
 
     def take_action(self, parsed_args):
         data = describe_database(parsed_args.db, describer=ResponseDbDescribder(), debug=True)
-        data.show()
+        data.show(self.app.stdout)
 
 class ResponseTestRenamer(Command):
     """

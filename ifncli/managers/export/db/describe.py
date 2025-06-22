@@ -7,37 +7,37 @@ except ImportError:
     pass
 
 import sqlite3
+import typing
+from ifncli.utils.formatter import TableFormatter
 
 class DatabaseDescriber:
 
     def __init__(self):
-        self.columns = ['table']
-        self.data = []
+        self.formater = TableFormatter(column_formatter=self.format_column)
     
     def append(self, d:dict):
-        o = {}
-        for k, v in d.items():
-            if not k in self.columns:
-                self.columns.append(k)
-            value = self.format_column(k, v)
-            o[k] = value
-        self.data.append(o)
+        self.formater.append(d)
     
     def query_columns(self, table_name:str):
+        """
+            Returns list of columns to add to the query to fetch metrics about the table
+        """
         return []
     
     def format_column(self, column:str, value):
+        """
+            Format column value
+        """
         return value
 
-    def show(self):
-        for row in self.data:
-            r = []
-            for column in self.columns:
-                if column in row:
-                    r.append("{}={}".format(column, row[column]))
-            print(", ".join(r))
+    def show(self, stdout:typing.TextIO):
+        self.formater.reorder(['table'])
+        self.formater.print(stdout)
 
 def describe_database(path, describer=None, debug=False):
+    """"
+        Describe database tables with simple metrics (count of rows, more for some table)
+    """
     db = None
     for dbtype in ['sqlite', 'duckdb']:
         try:
