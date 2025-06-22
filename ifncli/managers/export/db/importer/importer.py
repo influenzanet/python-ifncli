@@ -306,13 +306,13 @@ class SourceDbDataLoader(SourceDataLoader):
         self.debug_json = profile.debugger.has('json')
         
     def total_rows(self):
-        count = self.profile.source_db.fetch_one(self.query.query_count())
+        count = self.source_db.fetch_one(self.query.query_count())
         return count[0]
 
     def load(self, batch_size: int, offset:int):
         records = OrderedDict()
 
-        cur = self.profile.source_db.cursor()
+        cur = self.source_db.cursor()
         res = cur.execute(self.query.query_data(batch_size=batch_size, offset=offset))
 
         count_fetched = 0
