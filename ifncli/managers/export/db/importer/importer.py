@@ -75,6 +75,9 @@ class DuckDbWriter(Writer):
     def debug(self, name):
         return self.debugger.has(name)
 
+    def open(self):
+        self.connect()
+
     def connect(self):
         if self.conn is not None:
             return self.conn
@@ -146,9 +149,9 @@ class DuckDbWriter(Writer):
 
     def register_survey(self, survey_key: str, table_name: str):
         survey_table_name = "survey_response_table"
-        if not self.table_exists(survey_table_name):
+        if not self.conn.table_exists(survey_table_name):
             query = 'CREATE TABLE {table_name} ("survey" TEXT, "table" TEXT, "type" TEXT, PRIMARY KEY("table"))'.format(table_name=survey_table_name)
-            self.execute(query)
+            self.conn.execute(query)
         table_type = 'flat'
         query = 'INSERT OR IGNORE INTO {} ("survey", "table", "type") VALUES (?, ?, ?)'.format(survey_table_name)
         self.conn.execute(query, (survey_key, table_name, table_type))
@@ -373,6 +376,7 @@ class Importer:
         debug_version = self.debug('version')
         debug_processors = self.debug('processors')
         
+        writer.open()
         writer.register_survey(self.profile.survey, self.profile.target_table)
 
         while True:

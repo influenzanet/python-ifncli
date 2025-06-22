@@ -22,6 +22,9 @@ class Writer:
     def close(self):
         pass
 
+    def open(self):
+        pass
+
     def append(self, df: pandas.DataFrame):
         pass
 
