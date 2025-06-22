@@ -83,9 +83,10 @@ class ExportSqlite(ExportDatabase):
     def register_survey_table(self, survey, table, table_type):
         table_name = "survey_response_table"
         if not self.table_exists(table_name):
-            query = 'CREATE TABLE {table_name} ("survey" TEXT, "table" TEXT, "type" TEXT, PRIMARY KEY(table))'.format(table_name=table_name)
+            query = 'CREATE TABLE {table_name} ("survey" TEXT, "table" TEXT, "type" TEXT, PRIMARY KEY("table"))'.format(table_name=table_name)
             self.execute(query)
-        self.execute('INSERT OR IGNORE ("table", "survey", "type") INTO {} VALUES (?, ?, ?)'.format(table_name), (survey, table, table_type))
+        query = 'INSERT OR IGNORE INTO {} ("survey", "table", "type") VALUES (?, ?, ?)'.format(table_name)
+        self.execute(query, (survey, table, table_type))
 
 class DbExporter:
 

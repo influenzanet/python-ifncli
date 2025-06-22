@@ -147,10 +147,11 @@ class DuckDbWriter(Writer):
     def register_survey(self, survey_key: str, table_name: str):
         survey_table_name = "survey_response_table"
         if not self.table_exists(survey_table_name):
-            query = 'CREATE TABLE {table_name} ("survey" TEXT, "table" TEXT, "type" TEXT, PRIMARY KEY(table))'.format(table_name=survey_table_name)
+            query = 'CREATE TABLE {table_name} ("survey" TEXT, "table" TEXT, "type" TEXT, PRIMARY KEY("table"))'.format(table_name=survey_table_name)
             self.execute(query)
         table_type = 'flat'
-        self.conn.execute('INSERT OR IGNORE ("table", "survey", "type") INTO {} VALUES (?, ?, ?)'.format(survey_table_name), (survey_key, table_name, table_type))
+        query = 'INSERT OR IGNORE INTO {} ("survey", "table", "type") VALUES (?, ?, ?)'.format(survey_table_name)
+        self.conn.execute(query, (survey_key, table_name, table_type))
 
     def create_table_index(self):
         self.conn.execute("ALTER TABLE {table} ADD PRIMARY KEY(id)".format(table=self.table_name))
