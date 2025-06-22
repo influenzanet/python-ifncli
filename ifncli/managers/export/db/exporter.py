@@ -77,6 +77,12 @@ class ExportSqlite(ExportDatabase):
             query = "CREATE TABLE {table_name} (survey TEXT, version TEXT, data TEXT, PRIMARY KEY(survey,version))".format(table_name=table_name)
             self.execute(query)
 
+    def register_survey_table(self, survey, table, table_type):
+        table_name = "survey_response_table"
+        if not self.table_exists(table_name):
+            query = 'CREATE TABLE {table_name} ("survey" TEXT, "table" TEXT, "type" TEXT, PRIMARY KEY(table))'.format(table_name=table_name)
+            self.execute(query)
+        self.execute('INSERT OR IGNORE ("table", "survey", "type") VALUES (?, ?, ?)', (survey, table, table_type))
 
 class DbExporter:
 
@@ -124,6 +130,7 @@ class DbExporter:
             self.db.execute(query)
             query = "CREATE INDEX {table_name}_submitted ON {table_name}(submitted)".format(table_name=table_name)
             self.db.execute(query)
+            self.db.register_survey_table(survey_key, table_name, 'raw')
 
         if not profile.short_keys:
             print("Disabling Short keys is ignored")
