@@ -262,7 +262,7 @@ class ResponseDbDescribder(DatabaseDescriber):
         return []
 
     def format_column(self, column:str, value):
-        if 'submitted' in column:
+        if 'submitted' in column and not isinstance(value, datetime):
             return datetime.fromtimestamp(value)
         return value
 
