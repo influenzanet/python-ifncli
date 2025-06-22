@@ -30,6 +30,9 @@ DuckTypePandaAlias = {
 DEFAULT_COLUMNS = os.getenv('COLUMNS', 120)
 
 def show_df(df: pd.DataFrame, max_width=None):
+    """
+        Show dataframe in a more compact form than pandas info()
+    """
     if max_width is None:
         max_width = int(DEFAULT_COLUMNS)
     w = 0
@@ -55,6 +58,9 @@ def show_df(df: pd.DataFrame, max_width=None):
             c = 0
 
 class DuckDbWriter(Writer):
+    """
+        Writer to a duckdb database
+    """
     
     def __init__(self, duckdb_file: str, table_name: str, debugger: Debugger, insert_mode:str="ignore"):
         super().__init__()
@@ -138,12 +144,20 @@ class DuckDbWriter(Writer):
                 self.conn.execute('ALTER TABLE "{}" {}'.format(self.table_name, statement))
         return columns
 
+    def register_survey(self, survey_key: str, table_name: str):
+        survey_table_name = "survey_response_table"
+        if not self.table_exists(survey_table_name):
+            query = 'CREATE TABLE {table_name} ("survey" TEXT, "table" TEXT, "type" TEXT, PRIMARY KEY(table))'.format(table_name=survey_table_name)
+            self.execute(query)
+        table_type = 'flat'
+        self.conn.execute('INSERT OR IGNORE ("table", "survey", "type") INTO {} VALUES (?, ?, ?)'.format(survey_table_name), (survey_key, table_name, table_type))
+
     def create_table_index(self):
         self.conn.execute("ALTER TABLE {table} ADD PRIMARY KEY(id)".format(table=self.table_name))
         #self.conn.execute("CREATE UNIQUE INDEX {table}_id_idx ON {table} (id)".format(table=self.table_name))
         self.conn.execute("CREATE INDEX {table}_timestamp_idx ON {table} (timestamp)".format(table=self.table_name))
         self.conn.execute("CREATE INDEX {table}_globalid_idx ON {table} (global_id)".format(table=self.table_name))
-
+    
     def append(self, df: pd.DataFrame):
         cnx = self.connect()
         if len(df) == 0:
@@ -186,7 +200,6 @@ class DuckDbWriter(Writer):
     def close(self):
         if self.conn is not None:
             self.conn.close()
-
 
 class Counter:
 
@@ -291,7 +304,6 @@ class SourceDbDataLoader(SourceDataLoader):
         self.source_db = profile.source_db
         self.debug_json = profile.debugger.has('json')
         
-
     def total_rows(self):
         count = self.profile.source_db.fetch_one(self.query.query_count())
         return count[0]
@@ -360,6 +372,8 @@ class Importer:
         debug_version = self.debug('version')
         debug_processors = self.debug('processors')
         
+        writer.register_survey(self.profile.survey, self.profile.target_table)
+
         while True:
             
             count_fetched, records = loader.load(batch_size, offset)

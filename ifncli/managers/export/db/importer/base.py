@@ -25,6 +25,11 @@ class Writer:
     def append(self, df: pandas.DataFrame):
         pass
 
+    def register_survey(self, survey_key: str, table_name:str):
+        """
+            Register a table to hold given survey's data
+        """
+        pass
 
 class PrintWriter(Writer):
 
