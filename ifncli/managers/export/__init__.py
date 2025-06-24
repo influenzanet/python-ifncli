@@ -59,7 +59,7 @@ class ExportProfile:
             o[name] = value
         return o
 
-    def __init__(self, yaml_file):
+    def __init__(self, yaml_file, defaults: dict={}):
         
         profile = read_yaml(yaml_file)
         
@@ -96,10 +96,16 @@ class ExportProfile:
 
         self.response_extension = 'json' if self.response_format == 'json' else 'csv'
 
-        self.short_keys = self.get_bool(profile, 'short_keys', False)
+        default_short_keys = self.get_bool(defaults,'short_keys', False)
+        default_key_separator = self.get_string(defaults, 'key_separator', '|', None)
+
+        self.short_keys = self.get_bool(profile, 'short_keys', default_short_keys)
    
-        self.key_separator = profile.get('key_separator', '|')
+        self.key_separator = profile.get('key_separator', default_key_separator)
         
+        # Compressor for db export
+        self.compressor = profile.get('compressor', '')
+
         self.meta_infos = self.get_meta_infos(profile.get('meta', {}))
 
         self.rename_columns = profile.get('rename_columns', None)
