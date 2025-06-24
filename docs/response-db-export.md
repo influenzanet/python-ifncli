@@ -38,6 +38,11 @@ survey_info: # If survey_info is provided then survey structure will be exported
   # format: json # Export format will be stored as json, format is ignored
 # format: wide -> not used
 # short_keys: false -> short keys are always use, providing 'False' will be ignored
+
+compressor: 'zstd' # How to compress json raw data in the database 'zstd','zlib','zlib-1','none'
+                   # By default use the best available (zstd if present or zlib-1)
+                   # Once created it cannot be changed as the data are already compressed. 
+                   # All data in the same data must have the same compression policy (even if defined in separated profile, compressor choice is stored in db)
 ```
 
 > Warning: `key_separator` must be the same for all surveys in the target database, it's advised to use always the same response key separator character (default is pipe character `|`). Never use dot '.' or any character used in survey keys ('-', '_' are not advised)
