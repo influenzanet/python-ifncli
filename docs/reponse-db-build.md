@@ -1,17 +1,17 @@
-# Import Data into analysis database
+# Build Analysis database from a raw data export
 
 Requirements:
 - Some python packages need to be installed to make the commands available, if not 'response:db:unavailable' command is only available
 - Data must be exported in an sqlite database using the response:db:export* command
 - The export profile must have `survey_info` entry to ensure survey schema is available
 
-The 'import' commands are dedicated to reimport raw data into another database and transform the raw response data (in json) into flat table
+The 'build-flat' commands are dedicated to reimport raw data into another database and transform the raw response data (in json) into flat table
 
 The general schema of the export is:
 
-response:db:export -> raw sqlite database (json response) -> response:db:import -> duckddb (flat table columns=question responses)
+response:db:export -> raw sqlite database (json response) -> response:db:build-flat -> duckddb (flat table columns=question responses)
 
-To **import** data you will need a source database used to export raw data, and a target database 
+To **build** the analysis database you will need a source database used to export raw data, and a target database 
 
 Two different databases are used because they are not dedicated to the same usage. The database containing raw data is dedicated to synchronise the export from the platform which are intented to be transformed in a a more convenient format for the data analysis. It contains data in a raw format (json) which is really heavy.
 
@@ -19,9 +19,9 @@ Raw data could be transformed to a more convenient format like table, csv. And i
 
 The import database uses [duckdb](https://duckdb.org/) format and flat tables, much more compact than csv, with data type preservation (boolean columns, date could be date column, ...) and a single file
 
-## Import principles
+## Builder principles
 
-The raw data are provided as a json, each question will produces one or several data element each with a unique key and a value.
+The raw data are provided as a json, each question will produces one or several data element with a unique key and a value.
 A single survey response is a list of key, value pairs represented in json a json object with mostly a single string value but sometime it can be a json object (if the server data exporter cannot infer the question type).
 
 The import into flat table will need to define the *schema* of the data, associating each data element of the response with a name and a data type. 
@@ -30,13 +30,13 @@ Name of the data could be the ones provided in the raw data, but those names are
 
 Data types are not well represented in the raw data, many values are provided as string but are natively more simpler types (boolean are provided as text 'TRUE' and 'FALSE', datetime are provided as integer timestamp). In case of using custom question or complex question (with different response types in the same question) data will be provided as a json entry
 
-### The import process
+### The building process
 
-The import will provide 2 transformations :
-- Name of each data element (using transformation rules)
-- Data type of each column
+The builder will process 2 transformations :
+- rename of each data element (using transformation rules)
+- Find the best data type of each column (one column contains all the responses for a single data element )
 
-The import process is :
+The build process is done as follow :
 
 - Load a batch of `batch_size` responses from the raw responses database
 - Group the responses in the loaded batch by survey version
@@ -53,6 +53,7 @@ The import process is :
 ### Data Processors 
 
 Processors are operation dedicated to transform the data into a desired format
+
 Two types of processors are provided:
 
 - Renaming processor : transform the name of columns into another name (for example using regular expression)
@@ -77,7 +78,7 @@ The import engine allows to provide a manual schema, by defining for each data e
 
 Beware that the default casting processor is using the schema from the raw data, names of the data are the ones in the raw data. If you add renaming process before it some columns will not be identified and not transformed. It can be handled in the import profile.
 
-## Import profile
+## Builder profile
 
 The import profile is a yaml file configuring how to handle the import. In a simple case it will be very simple. Some options are provided to enable customization and handling problems in the infered schema.
 
@@ -86,10 +87,11 @@ You can mix both (some defined in profile if they dont change, others in command
 
 ```yaml
 survey: survey_key
-# Databases path 
+
+# Databases path (optional they can be provided using the command line option)
 source_db: /path/to/the/raw/export/db
-source_table: 'responses_{survey}' # Optional table containing response data of the survey (default is exporter convention)
 target_db: /path/to/the/target/duckdb
+source_table: 'responses_{survey}' # Optional table containing response data of the survey (default is exporter convention)
 target_table: 'pollster_results_{survey}' # Optional target table name, default is Influenzanet's legacy table name 
 
 # Import criteria (what to import from the )

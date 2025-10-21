@@ -62,8 +62,6 @@ POSITION_END = 'end'
 PROC_DEFAULT_CASTING = 'default_casting'
 PROC_DEFAULT_RENAMING = 'default_renaming'
 
-
-
 class Debugger:
     """
         Debugger contains flags to known which part to debug (print)
@@ -106,9 +104,9 @@ class Debugger:
             print("Warning: Unknown debugger flag {}".format(name))
         return self.flags.get(name, False)
 
-class ImporterProfile:
+class BuilderProfile:
     """
-        Import profile describes the import parameters to import from the download database (raw data) to an analysis database (with flag table)
+        Builder profile describes the parameters to build an analysis database (with flat tables) from the download database (raw data)
     """
 
     def __init__(self, profile_file=None, overrides:dict[str, str]={}, source_db: Optional[ExportDatabase]=None):

@@ -7,7 +7,7 @@ from ifncli.managers.export import ExportProfile
 try:
     from ifncli.managers.export.db import DbExporter, ExportDatabase, ExportSqlite 
     from ifncli.managers.export.db.describe import describe_database, DatabaseDescriber
-    from ifncli.managers.export.db.importer import Importer, ImporterProfile, SurveySchema, VersionSelectorParser, fake, PrintWriter
+    from ifncli.managers.export.db.builder import DatabaseBuilder, BuilderProfile, SurveySchema, VersionSelectorParser, fake, PrintWriter
     from influenzanet.surveys.preview.schema import ReadableSchema
     export_module_available = True
     missing_module = None
@@ -23,7 +23,7 @@ class ResponseDbExport(Command):
 
     def get_parser(self, prog_name):
         parser = super(ResponseDbExport, self).get_parser(prog_name)
-        parser.add_argument("--profile", help="Path to yaml export profile")
+        parser.add_argument("--profile", help="Path to yaml export profile", required=True)
         parser.add_argument("--db-path", help="Database file path", required=True)
         
         # Profile overrides
@@ -200,15 +200,15 @@ class ResponseExportSchema(Command):
         else:
             print(d)
         
-class ResponseDbImport(Command):
+class ResponseDbBuildFlat(Command):
     """
-        Import data into a analysis database with flat table from an exported database
+        Build an analysis database with flat table from an exported database
     """
 
-    name = "response:db:import"
+    name = "response:db:build-flat"
 
     def get_parser(self, prog_name):
-        parser = super(ResponseDbImport, self).get_parser(prog_name)
+        parser = super(ResponseDbBuildFlat, self).get_parser(prog_name)
         parser.add_argument("--survey", help="Survey name", required=False)
         parser.add_argument("--source-db", help="Database file path", required=False)
         parser.add_argument("--target-db", help="Database to import data into", required=False)
@@ -241,7 +241,7 @@ class ResponseDbImport(Command):
             'dry_run': args.dry_run,
         }
 
-        profile = ImporterProfile(args.profile, profile_overides)
+        profile = BuilderProfile(args.profile, profile_overides)
         profile.build()
 
         if args.only_show:
@@ -249,8 +249,8 @@ class ResponseDbImport(Command):
             print(readable_yaml(d))
             return
 
-        importer = Importer(profile)
-        importer.run()
+        builder = DatabaseBuilder(profile)
+        builder.run()
        
 class ResponseDbDescribder(DatabaseDescriber):
     """
@@ -313,7 +313,7 @@ class ResponseTestRenamer(Command):
         else:
             fake_db = None
 
-        profile = ImporterProfile(args.profile, profile_overides, source_db=fake_db)
+        profile = BuilderProfile(args.profile, profile_overides, source_db=fake_db)
         profile.build()
         profile.dry_run = True
 
@@ -322,8 +322,8 @@ class ResponseTestRenamer(Command):
         columns = fake.FakeColumnsData(['Q1|0', 'Q2|2|open'], '23-11-1')
         loader = fake.FakeDataLoader(columns.data)
 
-        importer = Importer(profile)
-        importer.run(loader, PrintWriter())
+        builder = DatabaseBuilder(profile)
+        builder.run(loader, PrintWriter())
 
 class ResponseDbUnavailable(Command):
     """
@@ -340,7 +340,7 @@ if export_module_available:
     register(ResponseDbExport)
     register(ResponseDbExportPlan)
     register(ResponseExportSchema)
-    register(ResponseDbImport)
+    register(ResponseDbBuildFlat)
     register(ResponseTestRenamer)
     register(ResponseDbDescribe)
 else:

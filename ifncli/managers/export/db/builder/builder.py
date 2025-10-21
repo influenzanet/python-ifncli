@@ -7,7 +7,7 @@ import os
 from typing import Optional
 from collections import OrderedDict
 from .processor import BasePreprocessor
-from .profile import ImporterProfile, Debugger
+from .profile import BuilderProfile, Debugger
 from .version_selector import VersionSelectorRule
 from ..database import ExportDatabase, ExportMeta
 from .base import SourceDataLoader, Writer
@@ -291,7 +291,7 @@ class SourceDbDataLoader(SourceDataLoader):
         Load raw data from the Raw data database
     """
 
-    def __init__(self, profile: ImporterProfile, meta:ExportMeta):
+    def __init__(self, profile: BuilderProfile, meta:ExportMeta):
         
         query = SourceDbQueryBuilder(profile.source_table, meta.use_jsonb, profile.debugger.has('query_source'))
         
@@ -336,13 +336,13 @@ class SourceDbDataLoader(SourceDataLoader):
         cur.close()
         return (count_fetched, records)
 
-class Importer:
+class DatabaseBuilder:
     """
-        Importer process the transformation from the raw data in a source database (usually SQLite) to another format, like Duckdb database
+        DatabaseBuilder transform the raw data in a source database (usually SQLite) to another format, like Duckdb database
         through a Writer class
         Raw data are loaded as json an transformed into pandas DataFrame before to be transformed by processors and then importer using a Writer
     """
-    def __init__(self, profile: ImporterProfile):
+    def __init__(self, profile: BuilderProfile):
         self.profile = profile
 
     def debug(self, name:str):
