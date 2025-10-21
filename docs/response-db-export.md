@@ -32,6 +32,7 @@ surveys:
  - survey1
  - survey2
 start_time: '2022-11-28T00:00:00' # Start download on this time, mandatory
+max_time: now # When to end the download (can be necessary if you want to use separated db by year/season for example)
 key_separator: '|' # How to separated item key and response key. Can be omitted, default is pipe '|'
 survey_info: # If survey_info is provided then survey structure will be exported too 
   lang: fr # Language for labels to be exported
@@ -42,7 +43,7 @@ survey_info: # If survey_info is provided then survey structure will be exported
 
 > Warning: `key_separator` must be the same for all surveys in the target database, it's advised to use always the same response key separator character (default is pipe character `|`). Never use dot '.' or any character used in survey keys ('-', '_' are not advised)
 
-> Warning: If you plan to use export with db import (reimport data in a database `response:db:import`), you must provide `survey_info` entry
+> Warning: If you plan to use export with db build-flat (reimport data in a database `response:db:build-flat`), you must provide `survey_info` entry
 
 ### response:db:export
 
