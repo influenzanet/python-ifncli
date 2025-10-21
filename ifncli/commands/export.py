@@ -15,12 +15,14 @@ except ModuleNotFoundError as e:
     missing_module = e.msg
     export_module_available = False
 
-class ResponseExportDb(Command):
-
+class ResponseDbExport(Command):
+    """
+        Download response from platform into a local database (raw data)
+    """
     name = "response:db:export"
 
     def get_parser(self, prog_name):
-        parser = super(ResponseExportDb, self).get_parser(prog_name)
+        parser = super(ResponseDbExport, self).get_parser(prog_name)
         parser.add_argument("--profile", help="Path to yaml export profile")
         parser.add_argument("--db-path", help="Database file path", required=True)
         
@@ -74,9 +76,9 @@ class ResponseExportDb(Command):
                 start_time = profile.start_time
             exporter.export_all(start_time)
 
-class ResponseBulkExporterDb(Command):
+class ResponseDbExportPlan(Command):
     """
-        Incremental Export for a set of surveys (each with an export profile)
+        Incremental download from platform for a set of surveys (each with an export profile)
         
         This is only useful if you have different profiles for each survey. If all surveys shared the same profile export parameters
         you can use `surveys` directly in profile and set a list of surveys to export in one pass.
@@ -85,7 +87,7 @@ class ResponseBulkExporterDb(Command):
     name = "response:db:export-plan"
 
     def get_parser(self, prog_name):
-        parser = super(ResponseBulkExporterDb, self).get_parser(prog_name)
+        parser = super(ResponseDbExportPlan, self).get_parser(prog_name)
         parser.add_argument("--db-path", help="Database file path")
         parser.add_argument("--plan", type=str, required=True, help="yaml files with export plan")
         parser.add_argument("--page-size", help="page size", type=int, default=1000)
@@ -335,8 +337,8 @@ class ResponseDbUnavailable(Command):
         print(missing_module)
 
 if export_module_available:
-    register(ResponseExportDb)
-    register(ResponseBulkExporterDb)
+    register(ResponseDbExport)
+    register(ResponseDbExportPlan)
     register(ResponseExportSchema)
     register(ResponseDbImport)
     register(ResponseTestRenamer)
