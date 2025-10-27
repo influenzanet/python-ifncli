@@ -6,6 +6,7 @@ from typing import Optional
 from .schema import SurveySchema
 from .processor import BasePreprocessor, SchemaCastingProcessor, DefaultRenamingProcessor, ProcessorParserSpec, PROC_TYPE_CASTING, PROC_TYPE_RENAME
 from .version_selector import VersionSelectorRule, VersionSelectorParser, parse_version, SurveyVersion
+from .trace import DictWithOrigin
 
 def parse_iso_time(d):
     time = datetime.fromisoformat(d)
@@ -104,12 +105,68 @@ class Debugger:
             print("Warning: Unknown debugger flag {}".format(name))
         return self.flags.get(name, False)
 
+class Conf(DictWithOrigin):
+    """
+        Helper class to get configuration values from
+        It handles origin of values (using DictWithOrigin) to provides better error message (indicater where the value comes from)
+    """
+    def get_val_from(self, name:str):
+        value = self.get(name)
+        origin = self.origin(name)
+        return value, origin
+    
+    def value_error(self, name, expecting, value):
+        origin = self.origin(name)
+        value = str(value)
+        return ValueError(f"Unable to parse profile param '{name}' from {origin} expecting {expecting} got '{value}'")
+    
+    def get_val_str(self, name:str):
+        v = self.get(name)
+        if v is not None and not isinstance(v, str):
+            raise self.value_error(name, 'string', v)
+        return v
+    
+    def get_val_bool(self, name, default:bool):
+        v = self.get(name)
+        if v is None:
+            return default
+        try:
+            return bool(v)
+        except:
+            raise self.value_error(name, 'boolean', v)
+    
+    def get_val_int(self, name, default:int):
+        v = self.get(name)
+        if v is None:
+            return default
+        try:
+            return int(v)
+        except:
+            raise self.value_error(name, 'integer', v)
+        
+    def get_val_time(self, name):
+        v = self.get(name)
+        if v is not None:
+            try:
+                return parse_iso_time(v)
+            except:
+                raise self.value_error(name, 'iso time', v)
+        return v
+
 class BuilderProfile:
     """
         Builder profile describes the parameters to build an analysis database (with flat tables) from the download database (raw data)
     """
 
-    def __init__(self, profile_file=None, overrides:dict[str, str]={}, source_db: Optional[ExportDatabase]=None):
+    @staticmethod
+    def load_from_file(file, overrides:dict[str, str]={}, overrides_origin='overrides'):
+        profile = read_yaml(file)
+        p = DictWithOrigin(profile, values_origin=file)
+        if len(overrides) > 0:
+            p.merge_from(overrides, origin=overrides_origin, allow_none=False)
+        return p
+
+    def __init__(self, profile: Optional[DictWithOrigin]=None, source_db: Optional[ExportDatabase]=None):
         """
             Load profile parameters if file is provided, possibly overriden with extra values (from command line arguments)
         """
@@ -118,100 +175,49 @@ class BuilderProfile:
         self.conf = {} # The loaded profile configuration 
         self.survey_schema: Optional[SurveySchema] = None
         self.debugger = Debugger()
-       
-        if profile_file is not None:
-            profile = read_yaml(profile_file)
-        else:
+        
+        if profile is None:
             profile = {}
 
-        def get_val_from(name:str):
-            value = overrides.get(name)
-            origin = 'override'
-            if value is None:
-                value = profile.get(name)
-                origin = 'profile' 
-            return value, origin
-        
-        def value_error(name, expecting, o, value):
-            if o == 'profile':
-                origin = 'profile file'
-            else:
-                origin = 'override (command line argument)'
-            return f"Unable to parse profile param '{name}' from {origin} expecting {expecting} got '{value}'"
+        conf = Conf(profile)
 
-        def get_val(name:str):
-            v, _ = get_val_from(name)
-            return v
+        self.from_time = conf.get_val_time('from_time')
+        self.to_time = conf.get_val_time('to_time')
         
-        def get_val_str(name:str):
-            v, o = get_val_from(name)
-            if v is not None and not isinstance(v, str):
-                raise ValueError(value_error(name, 'string', o, v))
-            return v
-        
-        def get_val_bool(name, default:bool):
-            v, o = get_val_from(name)
-            if v is None:
-                return default
-            try:
-                return bool(v)
-            except:
-                raise ValueError(value_error(name, 'boolean', o, v))
-        
-        def get_val_int(name, default:int):
-            v, o = get_val_from(name)
-            if v is None:
-                return default
-            try:
-                return int(v)
-            except:
-                raise ValueError(value_error(name, 'integer', o, v))
-            
-        def get_val_time(name):
-            v, o = get_val_from(name)
-            if v is not None:
-                try:
-                    return parse_iso_time(v)
-                except:
-                    raise ValueError(value_error(name, 'iso time', o, v))
-            return v
-
-        self.from_time = get_val_time('from_time')
-        self.to_time = get_val_time('to_time')
-        
-        vv = get_val("versions")
+        vv = conf.get("versions")
         if vv is not None:
             self.versions = parse_version_selector(vv)
 
-        survey = get_val_str("survey")
+        survey = conf.get_val_str("survey")
         if survey is None:
             raise ValueError("survey is required")
+        
         self.survey = survey
 
-        self.batch_size = get_val_int("batch_size", default=5000)
-        self.starting_offset = get_val_int("starting_offset", default=0)
-        self.dry_run = get_val_bool("dry_run", default=False)
-        debugger_spec = get_val("debugger")
+        self.batch_size = conf.get_val_int("batch_size", default=5000)
+        self.starting_offset = conf.get_val_int("starting_offset", default=0)
+        self.dry_run = conf.get_val_bool("dry_run", default=False)
+        debugger_spec = conf.get("debugger")
 
         self.debugger.parse(debugger_spec)
 
         if source_db is None:
-            source_db_path = get_val_str("source_db")
+            source_db_path = conf.get_val_str("source_db")
             if source_db_path is None:
                 raise ValueError("`source_db` (path to source db) must be provided")
             self.source_db = ExportDatabase(source_db_path)
         else:
             self.source_db = source_db
 
-        target_db = get_val_str("target_db")
+        target_db = conf.get_val_str("target_db")
         if target_db is None:
             raise ValueError("`target_db` must be provided")
 
         self.target_db = target_db
         self.conf = profile
 
-        source_table = get_val_str("source_table")
-        target_table = get_val_str("target_table")
+        source_table = conf.get_val_str("source_table")
+        target_table = conf.get_val_str("target_table")
         
         if target_table is None:
             self.target_table = "pollster_results_{}".format(self.survey)

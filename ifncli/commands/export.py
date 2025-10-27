@@ -2,18 +2,42 @@ import os
 from datetime import datetime
 from cliff.command import Command
 from . import register
-from ifncli.utils import read_yaml, readable_yaml, read_json, write_content, Output, from_iso_time
+from ifncli.utils import read_yaml, readable_yaml, read_json, write_content, Output, from_iso_time, parse_tokens
 from ifncli.managers.export import ExportProfile
 try:
-    from ifncli.managers.export.db import DbExporter, ExportDatabase, ExportSqlite 
+    from ifncli.managers.export.db import DbExporter, ExportDatabase, ExportSqlite, ExportSetupGenerator
     from ifncli.managers.export.db.describe import describe_database, DatabaseDescriber
-    from ifncli.managers.export.db.builder import DatabaseBuilder, BuilderProfile, SurveySchema, VersionSelectorParser, fake, PrintWriter
+    from ifncli.managers.export.db.builder import DatabaseBuilder, BuilderProfile, BuilderPlan, SurveySchema, VersionSelectorParser, fake, PrintWriter
     from influenzanet.surveys.preview.schema import ReadableSchema
     export_module_available = True
     missing_module = None
 except ModuleNotFoundError as e:
     missing_module = e.msg
     export_module_available = False
+
+class ResponseDbSetup(Command):
+    """
+        Setup configuration to use export
+    """
+    name = "response:db:setup"
+
+    def get_parser(self, prog_name):
+        parser = super(ResponseDbSetup, self).get_parser(prog_name)
+        parser.add_argument("--profile-path", help="Path to yaml export profile", required=False)
+        parser.add_argument("--data-path", help="Base Path to use for data export", required=False)
+        parser.add_argument("--generate", help="What kind of setup to generate (coma separated values of 'export', 'build')", required=False, default="export,build")
+        
+    def take_action(self, parsed_args):
+        resources_path = str(self.app.get_platform().get_path())
+        generator = ExportSetupGenerator(resources_path)
+        
+        what = parse_tokens(parsed_args.generate, allowed=['export','build'])
+
+        if 'export' in what:
+            generator.setup_export_profile(parsed_args.profile_path)
+        
+        if 'build' in what:
+            generator.setup_build_plan(parsed_args.data_path)
 
 class ResponseDbExport(Command):
     """
@@ -202,10 +226,9 @@ class ResponseExportSchema(Command):
         
 class ResponseDbBuildFlat(Command):
     """
-        Build an analysis database with flat table from an exported database
+        Build an analysis database from an exported database for a single survey
     """
-
-    name = "response:db:build-flat"
+    name = "response:db:build"
 
     def get_parser(self, prog_name):
         parser = super(ResponseDbBuildFlat, self).get_parser(prog_name)
@@ -251,6 +274,57 @@ class ResponseDbBuildFlat(Command):
 
         builder = DatabaseBuilder(profile)
         builder.run()
+
+class ResponseDbBuildPlan(Command):
+    """
+        Build an analysis database using a build plan (for several surveys at once)
+    """
+    
+    name = "response:db:build-plan"
+
+    def get_parser(self, prog_name):
+        parser = super().get_parser(prog_name)
+        parser.add_argument("--plan", help="Yaml plan file (contains build parameters for several surveys)", required=False)
+        parser.add_argument("--dry-run", help="Run in dry-run mode nothing is written.", required=False)
+        parser.add_argument("--only-show", help="Only show the profile configuration use for import and exit (do not import anything)", action="store_true")
+        parser.add_argument("--data-path", help="Base path where database files are placed")
+        parser.add_argument("--surveys", help="Only build these surveys in the plan (default is all)")
+        return parser
+
+    def take_action(self, parsed_args):
+        args = parsed_args
+
+        # Default path where to find database files 
+        # It replaces the string {data_path} in the database path in plan file (allowing to use path agnostic plan)
+        data_path = args.data_path
+
+        if data_path is not None:
+            if not os.path.exists(data_path):
+                raise ValueError(f"arguments in --data-path point to non existent directory {data_path}")
+            if not os.path.isdir(data_path):
+                raise ValueError(f"path pointed by --data-path is not a directory {data_path}")
+        
+        plan = BuilderPlan(args.data_path)
+
+        plan.load_file(args.plan)
+
+        allowed_surveys = list(plan.surveys.keys())
+
+        if args.surveys is not None:
+            surveys_list = parse_tokens(parsed_args.surveys, allowed=allowed_surveys)
+        else:
+            surveys_list = allowed_surveys
+
+        for survey_name in surveys_list:
+            survey_profile = plan.surveys.get(survey_name)
+            if survey_profile is None:
+                raise ValueError("Unknown survey profile")
+            survey_profile.build()
+            if args.only_show:
+                print(readable_yaml(survey_profile.to_readable()))
+            else:
+                builder = DatabaseBuilder(survey_profile)
+                builder.run()
        
 class ResponseDbDescribder(DatabaseDescriber):
     """
@@ -341,7 +415,9 @@ if export_module_available:
     register(ResponseDbExportPlan)
     register(ResponseExportSchema)
     register(ResponseDbBuildFlat)
+    register(ResponseDbBuildPlan)
     register(ResponseTestRenamer)
     register(ResponseDbDescribe)
+    register(ResponseDbSetup)
 else:
     register(ResponseDbUnavailable)
