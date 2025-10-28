@@ -1,50 +1,14 @@
-import os
 import json
 from datetime import datetime, timedelta
-from typing import Dict,List,Optional
-from ....utils import ISO_TIME_FORMAT, from_iso_time, to_iso_time
-from ....utils.sqlite import SqliteDb
+from typing import Optional
 from .. import ExportProfile
+from .compress import get_best_compressor_available, Compressor
 from .database import ExportDatabase
-import os
 
 from influenzanet.api import SurveyResponseJSONPaginated
 
 def midnight(d:datetime):
     return d.replace(hour=0, minute=0, second=0)
-
-class ExportCatalogDb:
-    """
-        Export Catalog manage list of downloaded response file batches and their period (min,max time)
-    """
-
-    def __init__(self, db, start_time:datetime, max_time:datetime, period: int):
-        self.current_end = start_time
-        self.min_time = self.midnight(start_time)
-        self.max_time = max_time
-        self.period = period
-               
-    def append(self, start_time, end_time):
-        self.current_end = end_time
-        self.current_start = start_time
-
-    def get_last_time(self):
-        return self.current_end
-
-    def get_start_time(self, now: datetime):
-        if len(self.catalog) == 0:
-            return self.midnight(self.min_time)
-        times = sorted(self.catalog.keys())
-        for time in times:
-            entry = self.catalog[time]
-            last_start = entry['start']
-            if entry['end'] < now:
-                continue
-            if now >= entry['start'] and  now <= entry['end']:
-                # Current entry has the now time, then the previous end is to be used
-                return self.midnight(entry['start'])
-            
-        return self.midnight(last_start)
 
 class ExportSqlite(ExportDatabase):
     
@@ -54,22 +18,17 @@ class ExportSqlite(ExportDatabase):
             self.execute("CREATE TABLE {}(time INT, survey_key TEXT, start INT, end INT)".format(import_table))
         meta = self.export_meta_table()
         if not self.table_exists(meta):
-            self.execute("CREATE TABLE {}(id INTEGER PRIMARY KEY CHECK (id = 0), key_separator TEXT, use_jsonb INT)".format(meta))
+            self.execute("CREATE TABLE {}(id INTEGER PRIMARY KEY CHECK (id = 0), key_separator TEXT, compressor TEXT)".format(meta))
 
-    def supports_jsonb(self):
-        r = self.fetch_one("select exists(select 1 from pragma_function_list where name='jsonb')")
-        return int(r[0])
-
-    def setup_meta(self, key_separator):
+    def setup_meta(self, key_separator:str, compressor:str):
         meta_table = self.export_meta_table()
         meta = self.fetch_one('select key_separator from {}'.format(meta_table))
         if meta is not None:
             if meta[0] != key_separator:
                 raise ValueError("Cannot defined key_separator '{}' as its already defined to '{}'".format(key_separator, meta[0]))
         else:
-            use_jsonb = self.supports_jsonb()
-            self.execute("INSERT INTO {}(id, key_separator, use_jsonb) VALUES (0, ?, ?)".format(meta_table), (key_separator, use_jsonb))
-        return self.get_meta()    
+            self.execute("INSERT INTO {}(id, key_separator, compressor) VALUES (0, ?, ?)".format(meta_table), (key_separator, compressor))
+        return self.get_meta()
     
     def survey_info_table(self):
         return "survey_info"
@@ -96,9 +55,16 @@ class DbExporter:
         self.study_key = study_key
         self.db = ExportSqlite(db_path, allow_create=True)
         self.page_size = page_size
+        self.setup_done = False # Flag set once an export round is done, to avoid multiple warning
         
     def register_import(self, survey_key:str, start_time: Optional[datetime], end_time: Optional[datetime]):
-        query = 'INSERT INTO import_log("time", "survey_key", "start", "end") VALUES (unixepoch(),?,?,?)'
+
+        if self.db.supports_function('unixepoch'):
+            now_expr = 'unixepoch()'
+        else:
+            now_expr = "CAST(strftime('%s', 'now') as INT)"
+
+        query = 'INSERT INTO import_log("time", "survey_key", "start", "end") VALUES ({},?,?,?)'.format(now_expr)
         data = (
                 survey_key, 
                 int(start_time.timestamp()) if start_time is not None else 0, 
@@ -136,15 +102,25 @@ class DbExporter:
             self.db.execute(query)
             self.db.register_survey_table(survey_key, table_name, 'raw')
 
-        if not profile.short_keys:
-            print("Disabling Short keys is ignored")
+        if not profile.short_keys and not self.setup_done:
+            print("/!\\ Disabling Short keys is ignored")
 
         args = {
             'short_keys': True,
             'key_separator': profile.key_separator
         }
 
-        meta = self.db.setup_meta(profile.key_separator)
+        compressor = profile.compressor
+
+        if compressor == '':
+            default_compressor = get_best_compressor_available()
+        else:
+            default_compressor = compressor
+
+        meta = self.db.setup_meta(profile.key_separator, default_compressor)
+
+        if meta.compressor != default_compressor and not self.setup_done:
+            print("/!\\ Compressor in export db is already set to '{}' cannot change to '{}'".format(meta.compressor, default_compressor))
 
         if start_time is not None:
             args['start'] = int(start_time.timestamp())
@@ -153,12 +129,11 @@ class DbExporter:
 
         pager = SurveyResponseJSONPaginated(self.client, page_size=self.page_size, study_key=self.study_key, survey_key=survey_key, **args)
 
-        if meta.use_jsonb:
-            json_expr = 'jsonb(?)'
-        else:
-            json_expr = '?'
+        self.setup_done = True
 
-        insert_query = "INSERT OR IGNORE INTO {table_name} (id, submitted, version, data) VALUES (?, ?, ?, {json_expr}) ".format(table_name=table_name, json_expr=json_expr)
+        compressor = Compressor(meta.compressor)
+
+        insert_query = "INSERT OR IGNORE INTO {table_name} (id, submitted, version, data) VALUES (?, ?, ?, ?) ".format(table_name=table_name)
 
         inserted_count = 0
         for r in pager:
@@ -177,13 +152,19 @@ class DbExporter:
                         if v == 'FALSE':
                             item[k] = False
 
-                d = (item['ID'], submitted, item['version'], json.dumps(item))
+                value = bytes(json.dumps(item),'utf-8')
+                value = compressor.compress(value)
 
+                d = (item['ID'], submitted, item['version'], value)
                 data.append(d)
                 inserted_count += 1
             if len(data) > 0:
                 print("Insert %d" % (len(data)))
                 self.db.execute_many(insert_query, data)
+
+            if self.client.is_token_expired(2):
+                print("Renew API token")
+                self.client.renew_token()
 
         if inserted_count > 0:
             self.register_import(survey_key, start_time, end_time)

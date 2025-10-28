@@ -11,6 +11,7 @@ from .profile import BuilderProfile, Debugger
 from .version_selector import VersionSelectorRule
 from ..database import ExportDatabase, ExportMeta
 from .base import SourceDataLoader, Writer
+from ..compress import Compressor
 
 TYPE_COMPAT = {
     'int':['int','int32','int8','int64', 'float64','int16'],
@@ -225,12 +226,11 @@ class SourceDbQueryBuilder:
     """
         Build Query from the raw data database with profile criteria
     """
-    def __init__(self, table_name:str, use_jsonb: bool, show_query: bool):
+    def __init__(self, table_name:str, show_query: bool):
         self.table_name = table_name
         self.from_time: Optional[int] = None
         self.to_time: Optional[int] = None
         self.versions = None
-        self.use_jsonb = use_jsonb
         self.show_query = show_query
         
     def resolve_versions(self, db: ExportDatabase, selector: VersionSelectorRule):
@@ -275,7 +275,7 @@ class SourceDbQueryBuilder:
             Return the query to fetch the data in raw tables
             Must return columns : data, version, id in this order
         """
-        query = self.build_query('json(data) as data, version, id')
+        query = self.build_query('data, version, id')
         query += "order by version, submitted LIMIT {batch_size} OFFSET {offset}".format(batch_size=batch_size, offset=offset)
         if self.show_query:
             print("  # QUERY Source query")
@@ -293,7 +293,7 @@ class SourceDbDataLoader(SourceDataLoader):
 
     def __init__(self, profile: BuilderProfile, meta:ExportMeta):
         
-        query = SourceDbQueryBuilder(profile.source_table, meta.use_jsonb, profile.debugger.has('query_source'))
+        query = SourceDbQueryBuilder(profile.source_table, profile.debugger.has('query_source'))
         
         if profile.versions is not None:
            query.resolve_versions(profile.source_db, profile.versions)
@@ -303,6 +303,8 @@ class SourceDbDataLoader(SourceDataLoader):
 
         if profile.to_time is not None:
             query.to_time = profile.to_time   
+
+        self.compressor = Compressor(meta.compressor)
 
         self.query = query
         self.source_db = profile.source_db
@@ -319,10 +321,13 @@ class SourceDbDataLoader(SourceDataLoader):
         res = cur.execute(self.query.query_data(batch_size=batch_size, offset=offset))
 
         count_fetched = 0
+
+        decompress = self.compressor.decompress
         for row in res:
             version = row[1]
             try:
-                data = json.loads(row[0])
+                data = decompress(row[0])
+                data = json.loads(data)
                 if self.debug_json:
                     print("JSON at row {} (offset {})".format(count_fetched, offset + count_fetched))
                     print(data)
@@ -330,8 +335,9 @@ class SourceDbDataLoader(SourceDataLoader):
                 if version not in records:
                     records[version] = []
                 records[version].append(data)
-            except json.JSONDecodeError as e:
-                print("Error parsing data for row {} : {}".format(row[2], e))
+            except Exception as e:
+                print("Error parsing data for row {} : {} {}".format(row[2], e.__class__, e ))
+            
             count_fetched += 1
         cur.close()
         return (count_fetched, records)

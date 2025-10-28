@@ -8,9 +8,9 @@ from typing import Optional
 
 class ExportMeta:
 
-    def __init__(self, key_separator:str, use_jsonb: bool=False):
+    def __init__(self, key_separator:str, compressor: str=''):
         self.key_separator = key_separator
-        self.use_jsonb = use_jsonb
+        self.compressor = compressor
 
 class ExportDatabase(SqliteDb):
     
@@ -31,10 +31,10 @@ class ExportDatabase(SqliteDb):
     def get_meta(self):
         if self.meta is None:
             meta_table = self.export_meta_table()
-            meta = self.fetch_one('select key_separator, use_jsonb from {}'.format(meta_table))
+            meta = self.fetch_one('select key_separator, compressor from {}'.format(meta_table))
             if meta is None:
                 raise Exception("Meta table is empty or doesnt exist")
-            self.meta = ExportMeta(meta[0], meta[1] == '1')
+            self.meta = ExportMeta(meta[0], meta[1])
         return self.meta
 
     def get_survey_info(self, survey_key:str):

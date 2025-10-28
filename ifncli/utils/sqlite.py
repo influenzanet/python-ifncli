@@ -64,3 +64,11 @@ class SqliteDb:
 
     def cursor(self):
         return self.db.cursor()
+    
+    def is_sqlite_version_greater(self, version: tuple[int, int]):
+        sqlite_version = sqlite3.sqlite_version_info
+        return version[1] >= sqlite_version[1] and version[2] >= sqlite_version[2]
+
+    def supports_function(self, name: str):
+        r = self.fetch_one("select exists(select 1 from pragma_function_list where name='{}')".format(name))
+        return int(r[0]) > 0

@@ -6,6 +6,7 @@ from ifncli.utils import read_yaml, readable_yaml, read_json, write_content, Out
 from ifncli.managers.export import ExportProfile
 try:
     from ifncli.managers.export.db import DbExporter, ExportDatabase, ExportSqlite, ExportSetupGenerator
+    from ifncli.managers.export.db.compress import CompressEvaluator
     from ifncli.managers.export.db.describe import describe_database, DatabaseDescriber
     from ifncli.managers.export.db.builder import DatabaseBuilder, BuilderProfile, BuilderPlan, SurveySchema, VersionSelectorParser, fake, PrintWriter
     from influenzanet.surveys.preview.schema import ReadableSchema
@@ -67,7 +68,7 @@ class ResponseDbExport(Command):
 
         page_size = args.page_size
 
-        profile = ExportProfile(args.profile)
+        profile = ExportProfile(args.profile, {'short_keys': True})
 
         study_key = args.study
         if study_key is not None:
@@ -93,6 +94,10 @@ class ResponseDbExport(Command):
         
         restart = args.restart
             
+        if not profile.short_keys:
+            print("Profile short_keys set to False is ignored")
+            profile.short_keys = True # Avoid warning on each download loop
+
         for survey in surveys:
             profile.configure_for_survey(survey)
             exporter = DbExporter(profile, client, study_key, args.db_path, page_size)
@@ -410,6 +415,24 @@ class ResponseDbUnavailable(Command):
         print("response:db actions are not available because of missing python packages")
         print(missing_module)
 
+
+class ResponseTestCompress(Command):
+    """
+        Reason for response:db commands not available (missing module)
+    """
+
+    name = "response:db:compress"
+
+    def get_parser(self, prog_name):
+        parser = super(ResponseTestCompress, self).get_parser(prog_name)
+        parser.add_argument("--survey", help="Survey name", required=False)
+        parser.add_argument("--source-db", help="Database file path", required=False)
+        return parser
+
+    def take_action(self, parsed_args):
+        evaluator = CompressEvaluator(parsed_args.source_db)
+        evaluator.evaluate(parsed_args.survey)
+
 if export_module_available:
     register(ResponseDbExport)
     register(ResponseDbExportPlan)
@@ -419,5 +442,6 @@ if export_module_available:
     register(ResponseTestRenamer)
     register(ResponseDbDescribe)
     register(ResponseDbSetup)
+    register(ResponseTestCompress)
 else:
     register(ResponseDbUnavailable)
