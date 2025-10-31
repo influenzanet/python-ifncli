@@ -12,7 +12,10 @@ class SqliteDb:
     It wraps sqlite db to expose simpler API
     """    
     def __init__(self, db_path, allow_create=True):
-        db_exists = os.path.exists(db_path)
+        if db_path != ':memory:':
+            db_exists = os.path.exists(db_path)
+        else:
+            db_exists = False 
         self.db = sqlite3.connect(db_path)
         if not db_exists and not allow_create:
             raise DbError("Database '%s' doesnt exists" % (db_path))
@@ -31,23 +34,41 @@ class SqliteDb:
         return r is not None and len(r) == 1
 
     def fetch_one(self, query, data=()): 
-        cur = self.db.cursor()
+        cur = self.db.cursor() 
         res = cur.execute(query, data)
-        return res.fetchone()
+        r = res.fetchone()
+        cur.close()
+        return r
     
     def fetch_all(self, query, data=()): 
         cur = self.db.cursor()
-        res = cur.execute(query, data)
-        return res.fetchall()
-    
+        try:
+            res = cur.execute(query, data)
+            return res.fetchall()
+        finally:
+            cur.close()
+        
     def execute(self, query, data=(), commit=True):
         cur = self.db.cursor()
         cur.execute(query, data)
         if commit:
             self.db.commit()
+        cur.close()
 
     def execute_many(self, query, data:List, commit=True):
         cur = self.db.cursor()
         cur.executemany(query, data)
         if commit:
             self.db.commit()
+        cur.close()
+
+    def cursor(self):
+        return self.db.cursor()
+    
+    def is_sqlite_version_greater(self, version: tuple[int, int]):
+        sqlite_version = sqlite3.sqlite_version_info
+        return version[1] >= sqlite_version[1] and version[2] >= sqlite_version[2]
+
+    def supports_function(self, name: str):
+        r = self.fetch_one("select exists(select 1 from pragma_function_list where name='{}')".format(name))
+        return int(r[0]) > 0

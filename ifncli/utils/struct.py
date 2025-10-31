@@ -59,3 +59,19 @@ def check_keys(data: Dict, keys:Union[List, Set], complete:bool=False):
         missings = list(keys - data_keys)    
         if len(missings) > 0:
             raise KeyError("Some keys are missing : %s" % (','.join(missings)))
+
+def parse_tokens(value:str, allowed:list[str], lower:bool=True):
+    """
+        Parse a list of words in a coma separated list
+    """
+    tokens = value.split(',')
+    if lower:
+        tokens = [ x.lower() for x in tokens ]
+    tokens = [ x for x in tokens if x != ""] 
+    unknown = []
+    for token in tokens:
+        if token not in allowed:
+            unknown.append(token)
+    if len(unknown) > 0:
+        raise ValueError("Unexpected value in list : {}".format(','.join(unknown)))
+    return tokens
