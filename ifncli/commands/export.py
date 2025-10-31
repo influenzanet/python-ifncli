@@ -105,47 +105,6 @@ class ResponseDbExport(Command):
                 start_time = profile.start_time
             exporter.export_all(start_time)
 
-class ResponseDbExportPlan(Command):
-    """
-        Incremental download from platform for a set of surveys (each with an export profile)
-        
-        This is only useful if you have different profiles for each survey. If all surveys shared the same profile export parameters
-        you can use `surveys` directly in profile and set a list of surveys to export in one pass.
-    """
-
-    name = "response:db:export-plan"
-
-    def get_parser(self, prog_name):
-        parser = super(ResponseDbExportPlan, self).get_parser(prog_name)
-        parser.add_argument("--db-path", help="Database file path")
-        parser.add_argument("--plan", type=str, required=True, help="yaml files with export plan")
-        parser.add_argument("--page-size", help="page size", type=int, default=1000)
-        parser.add_argument("--restart", help="Force restart of plan", action="store_true")
-        return parser
-        
-    def take_action(self, args):
-        db_path = args.db_path
-        
-        plan = read_yaml(args.plan)
-
-        study_key = plan['study']
-
-        plan_folder = os.path.dirname(os.path.abspath(args.plan))
-        
-        client = self.app.get_management_api()
-        
-        for profile_name in plan['profiles']:
-            fp = plan_folder + '/' + profile_name
-            print("* Processing %s" % (fp))
-            profile = ExportProfile(fp)
-            if profile.study_key != '' and profile.study_key != study_key:
-                print("Overriding profile study_key `{}` to `{}`".format(profile.study_key, study_key))
-            exporter = DbExporter(profile, client, study_key, db_path, args.page_size)
-            start_time = None
-            if args.restart:
-               start_time = profile.start_time 
-            exporter.export_all(start_time)
-
 class ResponseExportSchema(Command):
     """
         Build and export survey schema from the survey_info in an export database
@@ -435,7 +394,6 @@ class ResponseTestCompress(Command):
 
 if export_module_available:
     register(ResponseDbExport)
-    register(ResponseDbExportPlan)
     register(ResponseExportSchema)
     register(ResponseDbBuildFlat)
     register(ResponseDbBuildPlan)
