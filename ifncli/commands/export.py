@@ -27,6 +27,7 @@ class ResponseDbSetup(Command):
         parser.add_argument("--profile-path", help="Path to yaml export profile", required=False)
         parser.add_argument("--data-path", help="Base Path to use for data export", required=False)
         parser.add_argument("--generate", help="What kind of setup to generate (coma separated values of 'export', 'build')", required=False, default="export,build")
+        return parser
         
     def take_action(self, parsed_args):
         resources_path = str(self.app.get_platform().get_path())
