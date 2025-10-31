@@ -37,8 +37,35 @@ You can use several config file, each one will contains information about how to
   
 - Install the requirements
 
-```python
+The following assume python is installed, globally or using an activated virtual environment 
+
+## Using pip (classic)
+
+```bash
 pip install -r requirements.txt
+## To use new export features you will need to add this new ones
+pip install -r requirements-db.txt
+```
+
+## Using uv
+
+uv is a modern python package manager.
+
+To create a virtual environment (using python currently in path)
+
+```bash
+uv venv
+```
+
+To install requirements use (`--active` force uv to use the current virtual environement, even if it's not in the default path .venv)
+
+```bash
+uv sync --active 
+```
+
+If you want export features use the following
+```bash
+  uv sync --active --extra=export
 ```
 
 - create the .local directory to put your environment config .yaml files (recommended)
