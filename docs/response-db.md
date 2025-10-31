@@ -57,7 +57,7 @@ The script will use survey descriptions to infer the best data type (for example
 For more details, see [Response db Build commands](response-db-build.md)
 
 ```bash
-./ifn response:db:build-plan --profile=./path/to/build-plan.yml --data-path=/path/to/data/files
+./ifn response:db:build --profile=./path/to/build-plan.yml --data-path=/path/to/data/files
 ```
 
 Here `profile` is another configuration file and `data-path` where to find the databases files (it's strongly set here that both database files - raw data and analysis - are in the same directory, if not it's possible to define each by absolute path)

@@ -308,7 +308,9 @@ class ResponseDbDescribder(DatabaseDescriber):
         return value
 
 class ResponseDbDescribe(Command):
-
+    """
+        Describe database content (works with raw data db or analysis db)
+    """
     name = "response:db:describe"
 
     def get_parser(self, prog_name):
@@ -378,7 +380,7 @@ class ResponseDbUnavailable(Command):
 
 class ResponseTestCompress(Command):
     """
-        Reason for response:db commands not available (missing module)
+       Evaluate compression size for a survey data. Only works on an uncompressed data
     """
 
     name = "response:db:compress"
