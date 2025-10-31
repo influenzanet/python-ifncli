@@ -132,7 +132,7 @@ class ExportSetupGenerator:
                     save_path = default_path
             self.save_file(save_path, profile_data)
 
-    def setup_build_plan(self, data_path = None):
+    def setup_build_plan(self, data_path = None, save_path:Optional[str]=None):
         if data_path is None:
             data_path = '{data_path}'
         print("For source & target database path, it's possible to use absolute path or prefix the file path by {data_path}. It will be replaced by a provided path on run")
