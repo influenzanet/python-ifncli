@@ -5,45 +5,49 @@ Requirements:
 - Data must be exported in an sqlite database using the response:db:export* command
 - The export profile must have `survey_info` entry to ensure survey schema is available
 
-The 'build-flat' commands are dedicated to reimport raw data into another database and transform the raw response data (in json) into flat table
+The build commands comes in 2 flavors:
+- response:db:build : Build analysis table for **one** survey 
+- response:db:build-plan: Build analysis database for several surveys 
+
+In production for daily you probably only use the second one (build-plan), the first one is more useful in case of problem or during the setup phase.
+
+These commands use the database created to download the raw data and export it in another file transforming the data in flat table (one table by survey, each response in a column, like in csv files).
 
 The general schema of the export is:
 
-response:db:export -> raw sqlite database (json response) -> response:db:build-flat -> duckddb (flat table columns=question responses)
+response:db:export -> raw sqlite database (response stored as json) -> response:db:build -> duckddb (flat table columns=question responses)
 
-To **build** the analysis database you will need a source database used to export raw data, and a target database 
+To **build** the analysis database you will need a source database used to export raw data, and to define where to put target database (a file name, by convention you can use extension '.db' or '.duckdb')
 
-Two different databases are used because they are not dedicated to the same usage. The database containing raw data is dedicated to synchronise the export from the platform which are intented to be transformed in a a more convenient format for the data analysis. It contains data in a raw format (json) which is really heavy.
+Two different databases are used because they are not dedicated to the same usage. The database containing raw data is used to synchronise the export from the platform which are intented to be transformed in a a more convenient format for the data analysis. It contains data in a raw format (json) which is really heavy.
 
-Raw data could be transformed to a more convenient format like table, csv. And is indepdendent of the download process (no need to merge and reconciliate multiple csv files).
+Raw data could be transformed to a more convenient format like table, csv. It is indepdendent of the download process (no need to merge and reconciliate multiple csv files).
 
-The import database uses [duckdb](https://duckdb.org/) format and flat tables, much more compact than csv, with data type preservation (boolean columns, date could be date column, ...) and a single file
+The import database uses [duckdb](https://duckdb.org/) format and flat tables, much more compact than csv, with data type preservation (boolean columns, date could be date column, ...) and a single file.
 
 ## Builder principles
 
 The raw data are provided as a json, each question will produces one or several data element with a unique key and a value.
 A single survey response is a list of key, value pairs represented in json a json object with mostly a single string value but sometime it can be a json object (if the server data exporter cannot infer the question type).
 
-The import into flat table will need to define the *schema* of the data, associating each data element of the response with a name and a data type. 
+To build flat table from the raw data we will need to define the *schema* of the data, associating each data element of the response to a column name and a data type so we can create the database table.
 
-Name of the data could be the ones provided in the raw data, but those names are not convienient to use in data analysis programs (using some characters not useable as regular variable name) or for Influenzanet not following the names already in use in the previous platform making harder the use with legacy data. So it's usually a better approach to rename data elements to simpler and classic column names (only with letters/numbers and '_')
+Name of the data could be the ones provided in the raw data, but those names are not convienient to use in data analysis programs (using some characters not useable as regular variable name) and for Influenzanet not following the names already in use in the previous platform making harder the use with legacy data. So it's usually a better approach to rename data elements to simpler and classic column names (including only letters, numbers and '_').
 
-Data types are not well represented in the raw data, many values are provided as string but are natively more simpler types (boolean are provided as text 'TRUE' and 'FALSE', datetime are provided as integer timestamp). In case of using custom question or complex question (with different response types in the same question) data will be provided as a json entry
+Data types are not well represented in the raw data, many values are provided as string but are natively more simpler types (boolean are provided as text 'TRUE' and 'FALSE', datetime are provided as integer timestamp). In case of using custom question or complex question (with different response types in the same question) data will be provided as a json entry.
 
 ### The building process
 
-The builder will process 2 transformations :
-- rename of each data element (using transformation rules)
-- Find the best data type of each column (one column contains all the responses for a single data element )
+In very short, it load response and group them by survey version, transform using processors (rename and casting) and the import it in the database, adding new columns if necessary.
 
 The build process is done as follow :
 
 - Load a batch of `batch_size` responses from the raw responses database
-- Group the responses in the loaded batch by survey version
-- From the survey version group
+- Group the responses in the loaded batch by survey version 
+- From the survey version group:
     - Transform to Pandas DataFrame
-    - Define the list of Processors to apply to the data for the survey version of the group
-    - Apply transformation processors to the data in order
+    - Define the list of **data processors** to apply to the data for the survey version of the group
+    - Apply each **processor** to the data batch in order (renaming & casting)
     - Import the transformed data into the target database
         - Create table if not exists (default table is `pollster_results_{survey_key}` as in the legacy platform)
         - If table exists, create non existent columns
@@ -52,7 +56,7 @@ The build process is done as follow :
 
 ### Data Processors 
 
-Processors are operation dedicated to transform the data into a desired format
+**Data Processors** are operation dedicated to transform the data into a desired format, see it as a function with table with data in input and output.
 
 Two types of processors are provided:
 
@@ -69,7 +73,7 @@ Be aware that the default casting processor knows the columns names in the raw d
 
 The data schema is by default inferred from the survey info (they must be activated in the raw data export profile) determining from question type what is the most probable data type. But it's not perfect.
 
-Some problems can occur (in the same survey) if you have defined the same question key but the question type has changed, the response element could have a different data type. In this case you have to override the schema or define you own schema completely (see import profile)
+Some problems can occur (in the same survey) if you have defined the same question key but the question type has changed, the response element could have a different data type. In this case you have to override the schema or define you own schema completely (see import profile).
 
 > Warning: In general case a question key must be applied only once to a given question, if the type of the response (i.e. single response, multiple, ...) it's not the same question then another question key should be used. 
 > If the question response are extended (like adding possible response in single or multiple choice for example) it's not considered as a change of question (but it's up to you to change the question key), it will not break the schema in this case.
@@ -78,11 +82,15 @@ The import engine allows to provide a manual schema, by defining for each data e
 
 Beware that the default casting processor is using the schema from the raw data, names of the data are the ones in the raw data. If you add renaming process before it some columns will not be identified and not transformed. It can be handled in the import profile.
 
-## Builder profile
+## Survey builder profile
+
+The survey builder profile describes how to build a **single** survey into a analysis database.
+It can be provided as a yaml file to be used in response:db:build or 
+
 
 The import profile is a yaml file configuring how to handle the import. In a simple case it will be very simple. Some options are provided to enable customization and handling problems in the infered schema.
 
-Many elements of the profile can also been provided as argument in the command line of command `response:db:import`
+Many elements of the profile can also been provided as argument in the command line of command `response:db:build`
 You can mix both (some defined in profile if they dont change, others in command line), command line parameter will override the one in the profile.
 
 ```yaml
@@ -224,9 +232,13 @@ Rules:
 - A range of version can be defined using ':', e.g: '25-0-0:25-12-99'
 - '!22-1-2' : Exclude version 22-1-2 from the selection
 
-## Import Command response:db:import
+## Build Command for single survey response:db:build
 
-The `response:db:import` command accepts many parameters but most of them could also been defined in a profile yaml file, so if nothing change
+The build command is used to build table in a database for a **single** survey.
+To build periodically an analysis database exporting data from several survey, it will be suitable to the the plan based command
+`response:db:build-plan`
+
+The `response:db:build` command accepts many parameters but most of them could also been defined in a profile yaml file, so if nothing change
 you just have to use '--profile' argument to run the profile.
 
 Parameters passed in command line override the ones in a profile (it can be used to test change). It's up to you to decide what is in the profile (usually fixed parameters) and the one to pass in command line.
@@ -252,3 +264,38 @@ Parameters also present in profile:
 Before actually running the import you can use '--only-show' to see how the profile has been loaded to check if everything is ok,
 you can also use '--dry-run' to prepare the import without actually make it (but some errors will only occur during the target db import).
 
+## Build Command for several survey response:db:build-plan
+
+This command build several survey in one run, it uses a Plan profile, a yaml file describing what to build and where.
+
+
+### Plan profile
+
+General  
+
+```yaml
+source_db: /path/to/raw/database  # file path of the database where data have been downloaded to using respone:db:export
+target_db: /path/to/target/database # Where to create (or update) the analysis database, the name is your choice :)
+
+## Optional section, predefined profile, in case you want to use profile for several surveys
+profiles: 
+ my_survey_profile: <survey_profile>
+
+surveys:
+  intake: <survey_profile> | 'profile_name' | '@profile_file' | ~
+  weekly: <survey_profile> | 'profile_name' | '@profile_file' | ~
+  vaccination: <survey_profile> | 'profile_name' | '@profile_file' | ~
+```
+
+The 'profiles' section is optional, and is only to be used if you need to use the same profile for several surveys, then you can give a name to the profile 
+and then only give this name for each survey using this profile (see it like reusable template).
+
+`source_db` and `target_db`: can be absolute path, relative path, and could contains the placeholder '{data_path}' that will be replaced by the value passed 
+in the '--data-path' argument of the command (this stronlgy assume that both files are in the same path).
+
+Surveys can be:
+
+  - The survey profile itself (as described in 'Survey builder profile' section), you can omit some entries like 'survey', 'source_db' and 'target_db'.
+  - an string, to refer of a profile set in 'profiles' section
+  - '@' followed by a file path, relative to the plan profile to import the survey profile from an external file
+  - the '~' character stands for 'null', to use an empty profile, using only default value

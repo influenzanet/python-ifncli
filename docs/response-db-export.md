@@ -8,16 +8,13 @@ Advantages:
 - The exporter uses pagination to download data, limiting the number of response loaded at each step, reducing the risk of memory problem on the server side.
 - The database also contains survey info (json description of the survey in a simpler form)
 
-
 ## Export Commands
 
 The exports provides 2 commands
 
 - `response:db:export`
-- `response:db:export-plan`
 
-Both commands needs a "profile" yaml file to describe the configuration of the export. Both command can export several surveys from one profile (contrary to the file based command like `response:export-plan`). `response:db:export-plan` is using a profile file for each survey so can be used if each surveys need separated parameters. If only survey key change, then you can simply use a single profile file for all.
-
+This commands needs a "profile" yaml file to describe the configuration of the export. It can export several surveys from one profile 
 
 ### Profile file
 
@@ -48,7 +45,7 @@ compressor: 'zstd' # How to compress json raw data in the database 'zstd','zlib'
 
 > Warning: `key_separator` must be the same for all surveys in the target database, it's advised to use always the same response key separator character (default is pipe character `|`). Never use dot '.' or any character used in survey keys ('-', '_' are not advised)
 
-> Warning: If you plan to use export with db build-flat (reimport data in a database `response:db:build-flat`), you must provide `survey_info` entry
+> Warning: If you plan to build analysis database (using `response:db:build`), you must provide `survey_info` entry
 
 ### response:db:export
 
@@ -67,29 +64,6 @@ Optional parameters:
 - `--start-from`: Force the start time to this time (iso string format e.g. '2024-11-25T00:00:00')
 - `--restart`: Force restart from `start_time` in the profile
 
-### response:db:export-plan
-
-Export several profiles in one command
-
-This command requires a little yaml file, exactly the same as `response:export-plan` command
-
-```yaml
-study: grippenet # Name of the study where the survey lives
-profiles: # Name of the profile files of each survey to export (relative path to the yaml plan file, simplest : in the same directory)
-  - intake.yaml
-  - weekly.yaml
-  - vaccination.yaml
-```
-
-Parameters:
-
-- `--db-path`: Database file path
-- `--plan`:  yaml files with export plan (as described above)
-
-Optional parameters:
-- `--page-size`: Number of response to download at once
-- `--restart`: force restart from `start_time` in each profile 
-        
 ## Export Database Schema
 
 Export database is an SQLite database stored in a single file.
