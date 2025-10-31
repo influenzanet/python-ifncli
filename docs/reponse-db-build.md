@@ -6,8 +6,8 @@ Requirements:
 - The export profile must have `survey_info` entry to ensure survey schema is available
 
 The build commands comes in 2 flavors:
-- response:db:build : Build analysis table for **one** survey 
-- response:db:build-plan: Build analysis database for several surveys 
+- response:db:build: Build analysis database for several surveys 
+- response:db:build-survey : Build analysis table for **one** survey 
 
 In production for daily you probably only use the second one (build-plan), the first one is more useful in case of problem or during the setup phase.
 
@@ -82,27 +82,59 @@ The import engine allows to provide a manual schema, by defining for each data e
 
 Beware that the default casting processor is using the schema from the raw data, names of the data are the ones in the raw data. If you add renaming process before it some columns will not be identified and not transformed. It can be handled in the import profile.
 
+### Builder Plan profile
+
+This is the expected configuration for the `response:db:build` command
+
+```yaml
+source_db: /path/to/raw/database  # file path of the database where data have been downloaded to using respone:db:export
+target_db: /path/to/target/database # Where to create (or update) the analysis database, the name is your choice :)
+
+## Optional section, predefined profile, in case you want to use profile for several surveys
+profiles: 
+ my_survey_profile: <survey_profile>
+
+# For each survey entry is survey_name: survey_config, where config is a dictionary/object, a string or null value
+surveys:
+  intake: <survey_profile> | 'profile_name' | '@profile_file' | ~
+  weekly: <survey_profile> | 'profile_name' | '@profile_file' | ~
+  vaccination: <survey_profile> | 'profile_name' | '@profile_file' | ~
+```
+
+The 'profiles' section is optional, and is only to be used if you need to use the same profile for several surveys, then you can give a name to the profile 
+and then only give this name for each survey using this profile (see it like reusable template).
+
+`source_db` and `target_db`: can be absolute path, relative path, and could contains the placeholder '{data_path}' that will be replaced by the value passed 
+in the '--data-path' argument of the command (this stronlgy assume that both files are in the same path).
+
+Surveys can be:
+
+  - The survey profile itself (as described in next section 'Survey builder profile'), you can omit some entries like 'survey', 'source_db' and 'target_db'.
+  - an string, to refer of a profile set in 'profiles' section
+  - '@' followed by a file path, relative to the plan profile to import the survey profile from an external file
+  - the '~' character stands for 'null', to use an empty profile, using only default value
+
 ## Survey builder profile
 
 The survey builder profile describes how to build a **single** survey into a analysis database.
-It can be provided as a yaml file to be used in response:db:build or 
-
+It can be provided as a standalone yaml file to be used in `response:db:build-survey
+ or as an entry of the `surveys` or `profiles` section of a build plan file.
 
 The import profile is a yaml file configuring how to handle the import. In a simple case it will be very simple. Some options are provided to enable customization and handling problems in the infered schema.
 
-Many elements of the profile can also been provided as argument in the command line of command `response:db:build`
+Many elements of the profile can also been provided as argument in the command line of command `response:db:build-survey`
 You can mix both (some defined in profile if they dont change, others in command line), command line parameter will override the one in the profile.
 
 ```yaml
 survey: survey_key
 
 # Databases path (optional they can be provided using the command line option)
-source_db: /path/to/the/raw/export/db
-target_db: /path/to/the/target/duckdb
+source_db: /path/to/the/raw/export/db. # Mandatory, {data_path} can be used to be replaced by --data-path argument in command line
+target_db: /path/to/the/target/duckdb  # Mandatory, {data_path} can be used to be replaced by --data-path argument in command line
 source_table: 'responses_{survey}' # Optional table containing response data of the survey (default is exporter convention)
 target_table: 'pollster_results_{survey}' # Optional target table name, default is Influenzanet's legacy table name 
 
-# Import criteria (what to import from the )
+# Import criteria (what to import from the source database containing raw data)
 from_time: '' # Optional, starting time of the import (default no time, import all )
 to_time: '' # Optional, ending time of the import (default no time)
 versions: # Version selector of the survey to load (default is all), see version selector below
@@ -116,7 +148,7 @@ debugger: '' # List of debug flags
 # Schema is used only by default casting processor (if you dont use it it's not necessary)
 infer_schema: true # Infer schema from the survey_info, usually it's possible to use it, if you set it to
                    # false you will need to define manually all data types you want to change
-schema: # Override the schema
+schema: # Optional entry, Override the schema by defining explicitely columns and type
     data_name: type
     ....
 
@@ -180,11 +212,11 @@ In regex you can use '<$>' (wihout any escaping), it will be replaced by the key
 
 #### Default Renaming Processor
 
-This renaming processor apply several rules:
+This renaming processor apply several rules (`{}` stands for any in 0-9a-zA-Z)
 - remove any prefix from question key (i.e. remove anything before a dot '.' in the question key)
-- matrix row mat.row{x}.col{y} -> multi_row{x}_col{y} (legacy platform name)
-- likert_{x} -> lk_{x}
-- Any key separator is then replaced by a '_' : 'Q1|0' -> 'Q1_0', 'Q1|0|open' -> 'Q1_0_open'
+- matrix row `mat.row{x}.col{y}` -> `multi_row{x}_col{y}` (legacy platform name)
+- `likert_{x}` -> `lk_{x}`
+- Any key separator ('|' by default) is then replaced by a '_' : 'Q1|0' -> 'Q1_0', 'Q1|0|open' -> 'Q1_0_open'
 - Some predefined columns are renamed to legacy platform names
     - participantID -> global_id 
     - ID -> id
@@ -194,7 +226,7 @@ This renaming processor apply several rules:
 
 The default casting processor uses the schema to change column types to common known types: date, bool, json
  
-Beware that the casting processor must be used before the renaming rules because the schema is inferred from the raw data names
+Beware that the casting processor must be used **before** the renaming rules because the schema is inferred from the raw data names
 
 #### Processors positions
 
@@ -206,6 +238,7 @@ The processor sequence of processors position is :
 - 'end'
 
 By default custom processors are inserted in 'after_casting' position (after `default_casting` processor but before `default_renaming`),
+
 Renaming must occurs after the default casting because the casting relies on the raw data names (see schema).
 
 If you want your custom processor to run after all the default processors, use 'end' position.
@@ -214,7 +247,8 @@ The order of processors with the same position is preserved.
 
 ### Survey Version Selector
 
-Survey version is defined as a 3 number sequence separated by a '-', ex '25-1-2'
+Survey version is defined as a 3 numbers sequence separated by a '-', ex '25-1-2'
+
 2 first numbers are respectively year and month when the survey is published, the last number is the order of the version in the given year/month.
 
 It's strongly infered that the numbers have an order semantic, where a-b-c, evaluation consider in priority a > b > c
@@ -223,7 +257,8 @@ To define a processor to be applied only for a given version, you can use versio
 
 Version selection expression is a boolean expression (will resolve to true/false, true if the proposed version matches the version expression )
 
-It can be represented as a string of rules separated by a comma (',') or a list (in a yaml file) to more readability
+It can be represented as a string of rules separated by a comma (',') or a list (in a yaml file) to more readability.
+
 A rule preceded by a '!' will use the following rule as an exclusing rule (version matching the rule will be excluded)
 
 Rules: 
@@ -232,13 +267,13 @@ Rules:
 - A range of version can be defined using ':', e.g: '25-0-0:25-12-99'
 - '!22-1-2' : Exclude version 22-1-2 from the selection
 
-## Build Command for single survey response:db:build
+## Build Command for single survey response:db:build-survey
 
 The build command is used to build table in a database for a **single** survey.
 To build periodically an analysis database exporting data from several survey, it will be suitable to the the plan based command
-`response:db:build-plan`
+`response:db:build`
 
-The `response:db:build` command accepts many parameters but most of them could also been defined in a profile yaml file, so if nothing change
+The `response:db:build-survey` command accepts many parameters but most of them could also been defined in a profile yaml file, so if nothing change
 you just have to use '--profile' argument to run the profile.
 
 Parameters passed in command line override the ones in a profile (it can be used to test change). It's up to you to decide what is in the profile (usually fixed parameters) and the one to pass in command line.
@@ -264,38 +299,13 @@ Parameters also present in profile:
 Before actually running the import you can use '--only-show' to see how the profile has been loaded to check if everything is ok,
 you can also use '--dry-run' to prepare the import without actually make it (but some errors will only occur during the target db import).
 
-## Build Command for several survey response:db:build-plan
+## Build Command for several survey response:db:build
 
-This command build several survey in one run, it uses a Plan profile, a yaml file describing what to build and where.
+This command build several survey in one run, it uses a plan profile, a yaml file describing what to build and where.
 
-
-### Plan profile
-
-General  
-
-```yaml
-source_db: /path/to/raw/database  # file path of the database where data have been downloaded to using respone:db:export
-target_db: /path/to/target/database # Where to create (or update) the analysis database, the name is your choice :)
-
-## Optional section, predefined profile, in case you want to use profile for several surveys
-profiles: 
- my_survey_profile: <survey_profile>
-
-surveys:
-  intake: <survey_profile> | 'profile_name' | '@profile_file' | ~
-  weekly: <survey_profile> | 'profile_name' | '@profile_file' | ~
-  vaccination: <survey_profile> | 'profile_name' | '@profile_file' | ~
-```
-
-The 'profiles' section is optional, and is only to be used if you need to use the same profile for several surveys, then you can give a name to the profile 
-and then only give this name for each survey using this profile (see it like reusable template).
-
-`source_db` and `target_db`: can be absolute path, relative path, and could contains the placeholder '{data_path}' that will be replaced by the value passed 
-in the '--data-path' argument of the command (this stronlgy assume that both files are in the same path).
-
-Surveys can be:
-
-  - The survey profile itself (as described in 'Survey builder profile' section), you can omit some entries like 'survey', 'source_db' and 'target_db'.
-  - an string, to refer of a profile set in 'profiles' section
-  - '@' followed by a file path, relative to the plan profile to import the survey profile from an external file
-  - the '~' character stands for 'null', to use an empty profile, using only default value
+Parameters of this command are :
+`--plan` : Path to the plan file
+`--dry-run`: Run the profile but do not write anything on the target database
+`--only-show`: Dont run the plan, but print the loaded plan and inferred schema (columns & type)
+`--data-path`: Value to use for '{data_path}' placeholder if used in the profile (no effect if not used)
+`--surveys` : list of surveys (coma separated) to build, if not provided all surveys in profile will be built

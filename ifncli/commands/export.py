@@ -28,7 +28,7 @@ class ResponseDbSetup(Command):
         parser.add_argument("--data-path", help="Base Path to use for data export", required=False)
         parser.add_argument("--generate", help="What kind of setup to generate (coma separated values of 'export', 'build')", required=False, default="export,build")
         return parser
-        
+
     def take_action(self, parsed_args):
         resources_path = str(self.app.get_platform().get_path())
         generator = ExportSetupGenerator(resources_path)
@@ -193,7 +193,7 @@ class ResponseDbBuildFlat(Command):
     """
         Build an analysis database from an exported database for a single survey
     """
-    name = "response:db:build"
+    name = "response:db:build-survey"
 
     def get_parser(self, prog_name):
         parser = super(ResponseDbBuildFlat, self).get_parser(prog_name)
@@ -245,7 +245,7 @@ class ResponseDbBuildPlan(Command):
         Build an analysis database using a build plan (for several surveys at once)
     """
     
-    name = "response:db:build-plan"
+    name = "response:db:build"
 
     def get_parser(self, prog_name):
         parser = super().get_parser(prog_name)
