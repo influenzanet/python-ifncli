@@ -3,7 +3,21 @@
 
 # Changelog
 
-## v1.x
+
+## v1.7
+
+### General 
+
+Upgrade dependencies influenzanet.api to 1.3, influenzanet.survey to 1.2 
+Optional dependencies to use new export system (requirements-db.txt or uv extra=export)
+Add pyproject enabling use of uv package manager. 
+
+### Response export : new export system
+
+- add commands `response:db:*` with documentation in docs/response-db-export.md, docs/response-db-build.md and docs/response-db.md
+- If dependencies are not installed `response:db:unavailable` will be the only command available (run it shows the missing deps)
+
+## v1.6
 
 ### General
 
