@@ -171,7 +171,7 @@ class ExportSetupGenerator:
                 save_path = input("Where to put the export configuration [{}]".format(default_path))
                 if save_path == "":
                     save_path = default_path
-            self.save_file(save_path, profile_data)
+            self.save_file(save_path, content)
         
     
     def parse_survey_list(self, value):
