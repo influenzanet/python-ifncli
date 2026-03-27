@@ -16,9 +16,10 @@ class ResourcesLayoutPath(_Path_):
         if the directory follows the default layout organization
     """
 
-    def __init__(self, *args, studies_path="study", auto_messages_path="auto_messages", **kwargs):
+    def __init__(self, *args, studies_path="study", auto_messages_path="auto_messages", whatsapp_templates_path="whatsapp_templates", **kwargs):
         self.studies_path = studies_path
         self.auto_messages_path = auto_messages_path
+        self.whatsapp_templates_path = whatsapp_templates_path
 
     def get_survey_file(self, study_key, name):
         return self.get_study_path(study_key) / 'surveys' / (name + ".json")
@@ -34,6 +35,12 @@ class ResourcesLayoutPath(_Path_):
 
     def get_auto_messages_path(self, name)->_Path_:
         return self / self.auto_messages_path / name
+
+    def get_whatsapp_templates_path(self)->_Path_:
+        return self / self.whatsapp_templates_path
+
+    def get_whatsapp_template_file(self, language, name)->_Path_:
+        return self.get_whatsapp_templates_path() / language / (name + ".json")
 
 class PlatformResources:
     """
@@ -92,6 +99,11 @@ class PlatformResources:
             if not p.exists():
                 raise PlatformException("Auto messages path '%s' not found" % p)
             self.path.auto_messages_path = p
+        if 'whatsapp_templates_path' in d:
+            p = self.path.joinpath(d['whatsapp_templates_path'])
+            if not p.exists():
+                raise PlatformException("WhatsApp templates path '%s' not found" % p)
+            self.path.whatsapp_templates_path = p
 
     def get_vars(self)->Dict:
         return self.vars
