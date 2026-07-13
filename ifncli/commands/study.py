@@ -607,13 +607,25 @@ class ShowStudyCurrentRules(Command):
         parser = super(ShowStudyCurrentRules, self).get_parser(prog_name)
         parser.add_argument("--study_key", "--study", help="key of the study", required=True)
         parser.add_argument("--output", help="Output file", required=False, default=None)
+        parser.add_argument("--format", help="output format (json,summary, yaml)", default="summary")
         return parser
     
     def take_action(self, args):
         client = self.app.get_management_api()
         rules = client.current_study_rules(args.study_key)
         output = Output(args.output)
-        output.write(json.dumps(rules))
+
+        if args.format == "json":
+            r = json.dumps(rules)
+        
+        if args.format == "summary":
+            at = rules['uploadedAt']
+            updatedAt = datetime.fromtimestamp(int(at))
+            r = "id={} at {} by '{}'".format(rules['id'], updatedAt, rules['uploadedBy'])
+        if args.format == "yaml":
+            r = readable_yaml(rules)
+        
+        output.write(r)
 
 class ShowStudyRulesHistory(Command):
     """
