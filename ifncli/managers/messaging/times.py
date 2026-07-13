@@ -75,7 +75,7 @@ def parse_time_rules(rules):
     
     for rule in rules:
         if isinstance(rule, str):
-            now = datetime.strptime(rule, "%Y-%m-%d-%H:%M:%S")
+            now = datetime.strptime(rule, "%Y-%m-%d %H:%M:%S")
         elif isinstance(rule, dict):
             if 'relative' in rule and rule['relative']:
                 now = parse_relative_time(rule, now)
