@@ -603,7 +603,7 @@ class ShowStudyCurrentRules(Command):
         parser = super(ShowStudyCurrentRules, self).get_parser(prog_name)
         parser.add_argument("--study_key", "--study", help="key of the study", required=True)
         parser.add_argument("--output", help="Output file", required=False, default=None)
-        parser.add_argument("--format", help="output format (json,summary, yaml)", default="summary")
+        parser.add_argument("--format", help="output format", choices=["summary", "json", "yaml"], default="summary")
         return parser
     
     def take_action(self, args):
