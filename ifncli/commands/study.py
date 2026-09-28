@@ -361,7 +361,7 @@ class ListSurveysVersions(Lister):
                 data
             )
         
-class ListStudies(Command):
+class ListStudies(Lister):
     """
         List studies
     """
