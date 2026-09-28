@@ -306,7 +306,7 @@ class ListSurveys(Command):
 
         print(readable_yaml(data))
 
-class ListSurveysVersions(Lister):
+class ListSurveysVersions(Command):
     """
         List surveys version
     """
@@ -314,13 +314,12 @@ class ListSurveysVersions(Lister):
 
     def get_parser(self, prog_name):
         parser = super(ListSurveysVersions, self).get_parser(prog_name)
+        self.formatter = TableFormatter()
         parser.add_argument("--study_key", "--study", help="key of the study", required=True)
-        parser.add_argument("--survey", "--study", help="key of the survey", required=True)
-        parser.add_argument("--raw", help="get the raw data", required=False, action="store_true")
+        parser.add_argument("--survey", help="key of the survey", required=True)
         parser.add_argument("--json", help="get the json", required=False, action="store_true")
         parser.add_argument("--yaml", help="show readable yaml", required=False, action="store_true")
-        self.formatter = TableFormatter()
-       
+        self.formatter.add_argument_group(parser)
         return parser
 
     def take_action(self, args):
@@ -356,12 +355,9 @@ class ListSurveysVersions(Lister):
                 pub_date = "Unknown"
             d = (survey['id'], pub_date, survey['versionId'], survey['surveyDefinition']['key'])
             data.append(d)
-        return (
-                ('id','published', 'version', 'key'), 
-                data
-            )
+        self.formatter.emit_list(['id','published', 'version', 'key'], data, self.app.stdout, args)
         
-class ListStudies(Command):
+class ListStudies(Lister):
     """
         List studies
     """
@@ -607,7 +603,7 @@ class ShowStudyCurrentRules(Command):
         parser = super(ShowStudyCurrentRules, self).get_parser(prog_name)
         parser.add_argument("--study_key", "--study", help="key of the study", required=True)
         parser.add_argument("--output", help="Output file", required=False, default=None)
-        parser.add_argument("--format", help="output format (json,summary, yaml)", default="summary")
+        parser.add_argument("--format", help="output format", choices=["summary", "json", "yaml"], default="summary")
         return parser
     
     def take_action(self, args):
