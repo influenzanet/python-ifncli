@@ -26,7 +26,7 @@ class ExportProfile:
         if name in data:
             v = data[name]
             if not isinstance(v, bool):
-                raise Exception("Field %s must be boolean" % (name, ))
+                raise ValueError("Field %s must be boolean" % (name, ))
         else:
             v = default
         return v
@@ -36,9 +36,9 @@ class ExportProfile:
         if name in data:
             v = data[name]
             if not isinstance(v, str):
-                raise Exception("Field %s must be string" % (name, ))
+                raise ValueError("Field %s must be string" % (name, ))
             if values is not None and v not in values:
-                raise Exception("Invalid value '%s' in %s, expect: %s" % (v, name, ', '.join(values) ))
+                raise ValueError("Invalid value '%s' in %s, expect: %s" % (v, name, ', '.join(values) ))
         else:
             v = default
         return v
@@ -59,11 +59,29 @@ class ExportProfile:
             o[name] = value
         return o
 
-    def __init__(self, yaml_file):
+    def __init__(self, yaml_file, defaults: dict={}):
         
         profile = read_yaml(yaml_file)
         
-        self.survey_key = profile['survey_key']
+        # surveys : the profile can be defined for several surveys, then survey_key will be set during the loop
+        self.surveys: Optional[list[str]] = None
+        self.survey_key:str = ''
+        self.study_key:str = profile.get('study_key', '')
+        
+        if 'surveys' in profile:
+            self.surveys = profile['surveys']
+            self.survey_key = ''
+        
+        if 'survey_key' in profile:
+            if self.surveys is not None:
+                raise ValueError("`surveys` is already defined, `surveys` and `survey_key` are mutually exclusive")
+            survey = profile['survey_key']
+            if not isinstance(survey, str):
+                raise ValueError("`survey_key` must be a string. To provide several surveys uses `surveys`")
+            self.survey_key = survey
+
+        if self.surveys is None and self.survey_key == '':
+            raise ValueError("`surveys` or `survey_key` must be provided")
 
         if 'survey_info' in profile:
             survey_info = profile['survey_info']
@@ -78,28 +96,54 @@ class ExportProfile:
 
         self.response_extension = 'json' if self.response_format == 'json' else 'csv'
 
-        self.short_keys = self.get_bool(profile, 'short_keys', False)
+        default_short_keys = self.get_bool(defaults,'short_keys', False)
+        default_key_separator = self.get_string(defaults, 'key_separator', '|', None)
+
+        self.short_keys = self.get_bool(profile, 'short_keys', default_short_keys)
    
-        self.key_separator = profile['key_separator']
+        self.key_separator = profile.get('key_separator', default_key_separator)
         
+        # Compressor for db export
+        self.compressor = profile.get('compressor', '')
+
         self.meta_infos = self.get_meta_infos(profile.get('meta', {}))
 
         self.rename_columns = profile.get('rename_columns', None)
 
         if not 'start_time' in profile:
-            raise Exception("start_time must be provided")
+            raise ValueError("start_time must be provided")
             
         self.start_time = datetime.strptime(profile['start_time'], ISO_TIME_FORMAT)
         
         if 'max_time' in profile:
-            self.max_time = datetime.strptime(profile['max_time'], ISO_TIME_FORMAT)
+            max = profile['max_time']
+            if max == 'now':
+                self.max_time = datetime.now()
+            else:
+                self.max_time = datetime.strptime(max, ISO_TIME_FORMAT)
         else:
             self.max_time = self.start_time + timedelta(days=365) 
 
+    def configure_for_survey(self, survey:str):
+        """
+            Configure the profile to 
+        """
+        if self.surveys is None:
+            if survey != self.survey_key:
+                raise ValueError("Cannot use a single survey profile with another survey, profile defined '{}'".format(self.survey_key))
+            # Ok single survey is already defined
+        self.survey_key = survey
+
+    def is_multiple_surveys(self):
+        return self.surveys is not None
+    
+    def survey_list(self):
+        if self.surveys is not None:
+            return self.surveys
+        return [ self.survey_key ]
+
     def __str__(self) -> str:
         return str(self.__dict__)
-    
-        
 
 class ExportCatalog:
     """
@@ -123,8 +167,8 @@ class ExportCatalog:
         data = read_json(self.file)
         previous_end = None
         
-        if not 'period' in data:
-            raise Exception("Missing period entry in catalog")
+        if 'period' not in data:
+            raise ValueError("Missing period entry in catalog")
         
         catalog_period = data['period']
         if catalog_period != self.period:
@@ -149,9 +193,9 @@ class ExportCatalog:
 
     def check_range(self, time:datetime, min_t:datetime, max_t:Optional[datetime], name:str):
         if max_t is not None and time > max_t:
-            raise Exception("%s (%s) after max (%s)" % (name, time, max_t))
+            raise ValueError("%s (%s) after max (%s)" % (name, time, max_t))
         if time < min_t:
-            raise Exception("%s (%s) before max (%s)" % (name, time, min_t))
+            raise ValueError("%s (%s) before max (%s)" % (name, time, min_t))
             
     def append(self, start_time, end_time, file, updated:datetime=None):
         entry = {'start': start_time, 'end': end_time, 'file': file}
@@ -221,7 +265,7 @@ class Exporter:
         if resp is None:
             return None
 
-        if not profile.rename_columns is None:
+        if profile.rename_columns is not None:
             resp = replace_columns(profile.rename_columns, resp)        
 
         os.makedirs(output_folder, exist_ok=True)

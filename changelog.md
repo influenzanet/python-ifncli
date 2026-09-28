@@ -3,16 +3,67 @@
 
 # Changelog
 
+
+## v1.7
+
+### General 
+
+Upgrade dependencies influenzanet.api to 1.3, influenzanet.survey to 1.2 
+Optional dependencies to use new export system (requirements-db.txt or uv extra=export)
+Add pyproject enabling use of uv package manager. 
+
+### Response export : new export system
+
+- add commands `response:db:*` with documentation in docs/response-db-export.md, docs/response-db-build.md and docs/response-db.md
+- If dependencies are not installed `response:db:unavailable` will be the only command available (run it shows the missing deps)
+
+## v1.6
+
+### General
+
+Upgrade dependency to influenzanet.survey v1.1.2 (dependency upgrade needed)
+
+### Survey Repository
+
+New survey repository feature to upload survey definition into centralized Influenzanet Survey Repository
+
+- add commands `survey:repo:import` and `survey:repo:list`
+
+### Participants
+
+- add command `participants:flags:sync` to synchronize flags of participants with an external json file
+
+## v1.5
+
+### General
+
+New methods added, they are dependent on API v1.5.0 and study-service v1.7.0+
+
+### Study management
+
+- add command `study:survey-versions` to show list of surveys version
+- add command `study:rules:bulk` to apply bulk rules on participants (different rules set for each participant)
+- add command `study:rules:current` to get the current study rules (need study-service 1.7.4)
+- add command `study:rules:history` to get history (need study-service 1.7.4)
+
+### Participants
+
+- add command `participants:flags:stats` to build statistics on participant flags
+- add command `participants:surveys:stats` to build statistics on assigned surveys for each participants
+
 ## v1.4
 
 ### General
+
 - Fix dependency for python 3.12
 - Fix api manager when switching context
 
 ### Messages
+
 - handle headerOverrides in email templates
 
 ### Response downloading
+
 - Harmonize output argument handling
 
 ## v1.3
@@ -24,35 +75,43 @@
 - Force renew token before execution of a command to Admin API
 
 ### Messages
+
 - Email layout ca be disabled
 - Improve email layout template processing (detect unknown variable and circular dependency)
 - Can import custom message type for studies
 - email:import-auto : handle next time expression for email template
 - email:import-auto : can separate translations in a file named 'translations.yaml' instead of providing it in settings (to be able to switch settings)
+
 ### Study
+
 - study:create : at least one study key or study def path are required (study key will use default directory layout)
 - study:create :  Fix study property description import (name was used)
 - study:import-survey : Support for uploading  old survey (<=v1.1) into system handling v1.2 surveys
 - study:custom-rules : accepts several format for participants id list (), handle done-file and exclude-done file to be able to resume the action
 
 ### Response downloading
+
 - response:export-plan : fix plan path detection 
 - response export: fix download loop
 
 ## v1.2
 
 ### General:
+
 - Accepts "plugins" module to define local extra commands (not versioned in this repo)
 
 ### Messages
+
 - automessages settings accepts untilTime and condition
 - email:import-auto accepts alternate yaml file name (to send the same automessage with different settings)
 
 ### Study
+
 - standardize args for study:* commands, accepts `--study-key` or `--study`
 - **study:custom-rules** accepts participants ids as argument (coma separated) or from a file
 
 ### Other
+
 - add **stats:user** command to fetch data from user-stats-service (https://github.com/grippenet/user-stats-service)
 
 ## v1.1

@@ -1,0 +1,4 @@
+influenzanet.surveys==1.2.*
+pandas==2.*
+duckdb
+zstd

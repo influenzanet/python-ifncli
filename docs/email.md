@@ -38,7 +38,7 @@ The script will assume the following folder structure to be present (`[email_tem
 ### Email Header configuration
 The file `header-overrides.yaml` is optional. Content is structured like:
 
-``` 
+```yaml
 account-deleted:
   from: "example@org.com"
   sender: "example@org.com"
@@ -63,7 +63,7 @@ Where each message type category could include the following fields:
 
 Note the `subjects.yaml` file - this should contain the translated subject line for each email type in key value pairs:
 
-```
+```yaml
 account-deleted: "Account Deletion Successful"
 account-id-changed: "Email changed"
 password-changed: "Your password was changed"
