@@ -4,10 +4,11 @@ from cliff.command import Command
 from ..platform import PlatformResources
 from . import register
 from ..utils import read_json
+from ..managers.whatsapp import DEFAULT_API_VERSION, bind_template_vars
 
 
 FACEBOOK_API_BASE = "https://graph.facebook.com"
-FACEBOOK_API_VERSION = "v19.0"
+FACEBOOK_API_VERSION = DEFAULT_API_VERSION
 
 
 def get_whatsapp_config(app):
@@ -134,7 +135,7 @@ class WhatsAppRegisterTemplate(Command):
                 continue
 
             try:
-                template_data = read_json(str(template_file))
+                template_data = bind_template_vars(read_json(str(template_file)), platform.get_vars())
             except Exception as e:
                 print("Error reading %s: %s" % (template_file, e))
                 continue
@@ -205,7 +206,7 @@ class WhatsAppRegisterAll(Command):
 
             for template_file in sorted(lang_dir.glob("*.json")):
                 try:
-                    template_data = read_json(str(template_file))
+                    template_data = bind_template_vars(read_json(str(template_file)), platform.get_vars())
                 except Exception as e:
                     print("Error reading %s: %s" % (template_file, e))
                     errors += 1
