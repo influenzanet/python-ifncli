@@ -75,9 +75,11 @@ def read_binding(settings: Dict) -> Tuple[str, Dict[str, str]]:
 
         `params` maps each template parameter to the message content key that fills it.
     """
+    if "whatsapp" not in settings:
+        raise WhatsAppTemplateError("No `whatsapp` section in the settings: add `whatsapp: {template: <name>, params: {...}}`")
     section = settings.get("whatsapp")
     if not isinstance(section, dict):
-        raise WhatsAppTemplateError("No `whatsapp` section in the settings: add `whatsapp: {template: <name>, params: {...}}`")
+        raise WhatsAppTemplateError("The `whatsapp` section must be `{template: <name>, params: {...}}`")
     name = section.get("template")
     if not isinstance(name, str) or name == "":
         raise WhatsAppTemplateError("`whatsapp.template` must be the name of the template registered on Meta")
@@ -103,6 +105,22 @@ def read_template_binding(bindings, message_type: str) -> Tuple[str, Dict[str, s
     if not isinstance(entry, dict):
         raise WhatsAppTemplateError("'%s' in whatsapp.yaml must be `{template: <name>, params: {...}}`" % message_type)
     return read_binding({"whatsapp": entry})
+
+
+# Message types for which the messaging service puts a login token (loginToken, loginUrl) in the
+# content of each send; for every other type a parameter filled with it is missing at send time.
+LOGIN_TOKEN_MESSAGE_TYPES = ("weekly", "study-reminder")
+LOGIN_CONTENT_KEYS = ("loginToken", "loginUrl")
+
+
+def login_params_without_token(message_type: str, params: Dict[str, str]) -> List[str]:
+    """
+        Return, sorted, the template parameters filled with a login token on a message type that does
+        not get one. The platform drops the WhatsApp send of such a message without any error.
+    """
+    if message_type in LOGIN_TOKEN_MESSAGE_TYPES:
+        return []
+    return sorted(name for name, key in params.items() if key in LOGIN_CONTENT_KEYS)
 
 
 def bind(template: Dict, template_name: str, params: Dict[str, str]) -> Dict:

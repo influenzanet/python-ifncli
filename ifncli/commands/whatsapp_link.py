@@ -50,7 +50,7 @@ def check_approved(app, template_name: str, languages: List[str]):
         print("  %-4s %s" % (lang, statuses.get(lang, "NOT FOUND")))
     missing = missing_approvals(statuses, languages)
     if missing:
-        raise WhatsAppTemplateError("Template '%s' is not approved on Meta in: %s. Nothing saved; run it again once Meta has approved it (whatsapp:status)" % (
+        raise WhatsAppTemplateError("Template '%s' is not approved on Meta in: %s. Nothing saved or sent; run it again once Meta has approved it (whatsapp:status)" % (
             template_name, ", ".join("%s (%s)" % item for item in missing)))
 
 

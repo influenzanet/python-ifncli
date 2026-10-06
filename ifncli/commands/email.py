@@ -8,6 +8,8 @@ from ..platform import PlatformResources
 from . import register
 from ..utils import check_keys, read_yaml,  read_content,readable_yaml
 from ..api.messaging import SYSTEM_MESSAGE_TYPES, Message, MessageTranslation, MessageHeaders,AutoMessage
+from ..managers.whatsapp import LOGIN_TOKEN_MESSAGE_TYPES, WhatsAppTemplateError, login_params_without_token, read_binding
+from .whatsapp_link import check_approved
 from ..managers.messaging import read_and_convert_html, find_template_file, TemplateLoader, AutoMessageCollection, parse_time_rules
 
 
@@ -289,6 +291,8 @@ class SendCustom(Command):
         parser = super(SendCustom, self).get_parser(prog_name)
         parser.add_argument("--email_folder", help="path to the custom email folder", default=os.path.join('resources', 'custom_email'))
         parser.add_argument("--study_key", help="to send only to participants of a with this study key", default=None)
+        parser.add_argument("--ignore-weekday", help="send to every user now, not only to those whose weekly day is today", default=False, action="store_true")
+        parser.add_argument("--dry-run", help="check everything and show what would be sent, without sending", default=False, action="store_true")
         return parser
         
     def take_action(self, args):
@@ -311,13 +315,40 @@ class SendCustom(Command):
            trans.setTemplate(read_and_convert_html(os.path.join(email_folder_path, tr['templateFile'])))
            message.addTranslation(trans)
 
+        template = message.toAPI()
+        if "whatsapp" in email_config:
+            template = with_whatsapp_binding(self.app, email_config, template)
+
         condition = email_config.get("condition")
+        if args.dry_run:
+            print("Dry run, nothing sent:")
+            print("  message:   %s, languages %s" % (email_config["messageType"], [tr['lang'] for tr in email_config['translations']]))
+            print("  to:        %s" % ("participants of %s, condition %s" % (study_key, condition or {"dtype": "num", "num": 1}) if study_key else "all users"))
+            print("  WhatsApp:  %s %s" % (template.get("whatsappTemplateName", "(none)"), template.get("whatsappParams", "")))
+            print("  ignore weekday: %s" % args.ignore_weekday)
+            return
         if study_key is not None:
             if condition is None:
                 condition = {"dtype": "num", "num": 1}
-            client.send_message_to_study_participants(study_key, condition, message.toAPI())
+            client.send_message_to_study_participants(study_key, condition, template, ignore_weekday=args.ignore_weekday)
         else:
-            client.send_message_to_all_users(message.toAPI())
+            client.send_message_to_all_users(template, ignore_weekday=args.ignore_weekday)
+
+
+def with_whatsapp_binding(app, email_config: Dict, template: Dict) -> Dict:
+    """
+        Return the message to send with the WhatsApp template named in the `whatsapp` section of the
+        settings, once Meta reports it APPROVED in every language of the message. The platform then
+        sends it on WhatsApp to the users who chose that channel, as it does for auto messages.
+    """
+    template_name, params = read_binding(email_config)
+    wrong = login_params_without_token(email_config["messageType"], params)
+    if wrong:
+        raise WhatsAppTemplateError("%s use loginToken/loginUrl, which the platform only provides for %s messages: the WhatsApp send of a '%s' would be dropped" % (
+            ", ".join(wrong), " and ".join(LOGIN_TOKEN_MESSAGE_TYPES), email_config["messageType"]))
+    print("Meta approval of WhatsApp template '%s':" % template_name)
+    check_approved(app, template_name, [tr['lang'] for tr in email_config['translations']])
+    return {**template, "whatsappTemplateName": template_name, "whatsappParams": params}
 
 register(EmailTemplate)
 register(EmailTemplates)
