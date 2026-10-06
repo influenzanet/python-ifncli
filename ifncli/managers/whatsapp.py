@@ -87,17 +87,41 @@ def read_binding(settings: Dict) -> Tuple[str, Dict[str, str]]:
     return name, dict(params)
 
 
-def with_binding(auto_message: Dict, template_name: str, params: Dict[str, str]) -> Dict:
+def read_template_binding(bindings, message_type: str) -> Tuple[str, Dict[str, str]]:
     """
-        Return a copy of an auto message, as read from the management API, bound to a WhatsApp
+        Read the entry of a message type in the whatsapp.yaml of an e-mail template folder, keyed by
+        message type like subjects.yaml:
+
+            study-reminder:
+              template: study_reminder_v1
+              params:
+                button_0: loginToken
+    """
+    if not isinstance(bindings, dict) or message_type not in bindings:
+        raise WhatsAppTemplateError("whatsapp.yaml has no entry for '%s': add `%s: {template: <name>, params: {...}}`" % (message_type, message_type))
+    entry = bindings[message_type]
+    if not isinstance(entry, dict):
+        raise WhatsAppTemplateError("'%s' in whatsapp.yaml must be `{template: <name>, params: {...}}`" % message_type)
+    return read_binding({"whatsapp": entry})
+
+
+def bind(template: Dict, template_name: str, params: Dict[str, str]) -> Dict:
+    """
+        Return a copy of a message template, as read from the management API, bound to a WhatsApp
         template. An empty name removes the binding: the platform clears it only when the name is
         sent explicitly empty, and parameters without a name are not sent.
     """
-    bound = copy.deepcopy(auto_message)
-    template = bound.setdefault("template", {})
-    template["whatsappTemplateName"] = template_name
+    bound = copy.deepcopy(template)
+    bound["whatsappTemplateName"] = template_name
     if template_name:
-        template["whatsappParams"] = dict(params)
+        bound["whatsappParams"] = dict(params)
     else:
-        template.pop("whatsappParams", None)
+        bound.pop("whatsappParams", None)
+    return bound
+
+
+def with_binding(auto_message: Dict, template_name: str, params: Dict[str, str]) -> Dict:
+    """Return a copy of an auto message, as read from the management API, whose template is bound (see `bind`)."""
+    bound = copy.deepcopy(auto_message)
+    bound["template"] = bind(bound.get("template", {}), template_name, params)
     return bound

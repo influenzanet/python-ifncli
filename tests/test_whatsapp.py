@@ -89,3 +89,9 @@ def test_with_binding_unlink_sends_an_explicit_empty_name_and_no_params():
     unlinked = with_binding(stored, "", {})
     assert unlinked["template"]["whatsappTemplateName"] == ""
     assert "whatsappParams" not in unlinked["template"]
+
+
+def test_with_binding_adds_a_template_to_an_auto_message_without_one():
+    from ifncli.managers.whatsapp import with_binding
+    bound = with_binding({"id": "1"}, "weekly_reminder_v2", {"button_0": "loginToken"})
+    assert bound == {"id": "1", "template": {"whatsappTemplateName": "weekly_reminder_v2", "whatsappParams": {"button_0": "loginToken"}}}
