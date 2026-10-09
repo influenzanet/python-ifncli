@@ -5,6 +5,7 @@ from ..platform import PlatformResources
 from . import register
 from ..utils import read_json
 from ..managers.whatsapp import DEFAULT_API_VERSION, bind_template_vars
+from ..managers.whatsapp_template_rules import validate_template
 
 
 FACEBOOK_API_BASE = "https://graph.facebook.com"
@@ -142,6 +143,13 @@ class WhatsAppRegisterTemplate(Command):
 
             template_name = template_data.get('name', args.name)
 
+            validation_errors = validate_template(template_data)
+            if validation_errors:
+                print("Invalid template '%s' (%s):" % (template_name, lang))
+                for error in validation_errors:
+                    print("  - %s" % error)
+                continue
+
             if args.dry_run:
                 print("[DRY RUN] Would register template '%s' (%s)" % (template_name, lang))
                 print("[DRY RUN] POST %s" % url)
@@ -213,6 +221,14 @@ class WhatsAppRegisterAll(Command):
                     continue
 
                 template_name = template_data.get('name', template_file.stem)
+
+                validation_errors = validate_template(template_data)
+                if validation_errors:
+                    print("Invalid template '%s' (%s):" % (template_name, lang))
+                    for error in validation_errors:
+                        print("  - %s" % error)
+                    errors += 1
+                    continue
 
                 if args.dry_run:
                     print("[DRY RUN] Would register '%s' (%s) from %s" % (template_name, lang, template_file.name))
