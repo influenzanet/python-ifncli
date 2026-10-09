@@ -4,8 +4,9 @@ from cliff.command import Command
 from ..platform import PlatformResources
 from . import register
 from ..utils import read_json
-from ..managers.whatsapp import DEFAULT_API_VERSION, bind_template_vars
+from ..managers.whatsapp import DEFAULT_API_VERSION, WhatsAppTemplateError, bind_template_vars
 from ..managers.whatsapp_template_rules import validate_template
+from ..managers.whatsapp_upload import apply_placeholder_handles, plan_uploads, upload_header_handles
 
 
 FACEBOOK_API_BASE = "https://graph.facebook.com"
@@ -150,13 +151,34 @@ class WhatsAppRegisterTemplate(Command):
                     print("  - %s" % error)
                 continue
 
+            try:
+                upload_plans = plan_uploads(template_data, template_file, templates_path)
+            except WhatsAppTemplateError as e:
+                print("Invalid template '%s' (%s): %s" % (template_name, lang, e))
+                continue
+
             if args.dry_run:
                 print("[DRY RUN] Would register template '%s' (%s)" % (template_name, lang))
+                if upload_plans:
+                    print("[DRY RUN] Would upload header media:")
+                    for plan in upload_plans:
+                        print("  - %s" % plan["resolved"])
+                payload = apply_placeholder_handles(template_data, upload_plans) if upload_plans else template_data
                 print("[DRY RUN] POST %s" % url)
                 print("[DRY RUN] Payload:")
-                print(json.dumps(template_data, indent=2))
+                print(json.dumps(payload, indent=2))
                 print()
                 continue
+
+            if upload_plans:
+                if not wa_config.get('app_id'):
+                    print("Error: template '%s' (%s) needs 'app_id' in the WhatsApp config to upload header media" % (template_name, lang))
+                    continue
+                try:
+                    template_data = upload_header_handles(template_data, template_file, templates_path, wa_config)
+                except WhatsAppTemplateError as e:
+                    print("Error uploading header media for '%s' (%s): %s" % (template_name, lang, e))
+                    continue
 
             print("Registering template '%s' (%s)..." % (template_name, lang))
 
@@ -230,10 +252,33 @@ class WhatsAppRegisterAll(Command):
                     errors += 1
                     continue
 
+                try:
+                    upload_plans = plan_uploads(template_data, template_file, templates_path)
+                except WhatsAppTemplateError as e:
+                    print("Invalid template '%s' (%s): %s" % (template_name, lang, e))
+                    errors += 1
+                    continue
+
                 if args.dry_run:
                     print("[DRY RUN] Would register '%s' (%s) from %s" % (template_name, lang, template_file.name))
+                    if upload_plans:
+                        print("[DRY RUN] Would upload header media:")
+                        for plan in upload_plans:
+                            print("  - %s" % plan["resolved"])
                     count += 1
                     continue
+
+                if upload_plans:
+                    if not wa_config.get('app_id'):
+                        print("Error: template '%s' (%s) needs 'app_id' in the WhatsApp config to upload header media" % (template_name, lang))
+                        errors += 1
+                        continue
+                    try:
+                        template_data = upload_header_handles(template_data, template_file, templates_path, wa_config)
+                    except WhatsAppTemplateError as e:
+                        print("Error uploading header media for '%s' (%s): %s" % (template_name, lang, e))
+                        errors += 1
+                        continue
 
                 print("Registering '%s' (%s)..." % (template_name, lang))
 
