@@ -240,6 +240,11 @@ def _body_text_example_ok(body_text: Any, n: int) -> bool:
             and len(body_text[0]) == n and all(isinstance(v, str) and v != "" for v in body_text[0]))
 
 
+# Meta refuses a body that starts or ends with a variable, and counts trailing punctuation as
+# nothing: "... until {{1}}." is refused like "... until {{1}}".
+_BODY_EDGE_VARIABLE = re.compile(r"^\s*\{\{[^{}]*\}\}|\{\{[^{}]*\}\}[\s.,;:!?\u2026]*$")
+
+
 def _validate_body_text(text: Optional[str], category: Optional[str], parameter_format: Optional[str],
                          limit: int, example: Any, context: str) -> Tuple[List[str], Optional[str]]:
     errors: List[str] = []
@@ -249,6 +254,8 @@ def _validate_body_text(text: Optional[str], category: Optional[str], parameter_
         errors.append("%s: text must be at most %d characters" % (context, limit))
     fmt, tokens, var_errors = _text_variables(text)
     errors.extend("%s: %s" % (context, e) for e in var_errors)
+    if _BODY_EDGE_VARIABLE.search(text):
+        errors.append("%s: text must not start or end with a variable (Meta refuses it, also with only punctuation after it)" % context)
 
     if fmt and parameter_format and fmt != parameter_format:
         errors.append("%s: variables use %s format but the template declares parameter_format=%s" % (context, fmt, parameter_format))

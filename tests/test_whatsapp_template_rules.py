@@ -175,7 +175,7 @@ def test_body_positional_example_count_must_match_variable_count():
 
 
 def test_body_positional_single_variable_example_may_be_a_bare_string():
-    body = utility_body(text="Hi {{1}}", example={"body_text": "Pablo"})
+    body = utility_body(text="Hi {{1}}, welcome", example={"body_text": "Pablo"})
     assert validate_template(base_template(components=[body])) == []
 
 
@@ -193,7 +193,7 @@ def test_body_named_example_must_cover_every_name_with_a_non_empty_value():
 
 
 def test_body_named_example_is_accepted_when_complete():
-    body = utility_body(text="Hi {{first_name}}, order {{order_number}}", example={"body_text_named_params": [
+    body = utility_body(text="Hi {{first_name}}, order {{order_number}} is ready", example={"body_text_named_params": [
         {"param_name": "first_name", "example": "Pablo"},
         {"param_name": "order_number", "example": "860198"},
     ]})
@@ -514,7 +514,7 @@ def test_a_complete_limited_time_offer_template_is_accepted():
     components = [
         {"type": "HEADER", "format": "IMAGE", "example": {"header_handle": ["4::aW..."]}},
         {"type": "LIMITED_TIME_OFFER", "limited_time_offer": {"text": "Expiring offer!", "has_expiration": True}},
-        utility_body(text="Good news, {{1}}! Use code {{2}}!", example={"body_text": [["Pablo", "CARIBE25"]]}),
+        utility_body(text="Good news, {{1}}! Use code {{2}} today!", example={"body_text": [["Pablo", "CARIBE25"]]}),
         {"type": "BUTTONS", "buttons": [
             {"type": "COPY_CODE", "example": "CARIBE25"},
             {"type": "URL", "text": "Book now!", "url": "https://x/offers?code={{1}}", "example": ["https://x/offers?ref=n3mtql"]},
@@ -575,7 +575,41 @@ def test_carousel_product_card_header_is_accepted():
 
 def test_a_complete_media_carousel_is_accepted():
     components = [
-        utility_body(text="Rare succulents! {{1}}", example={"body_text": [["Pablo"]]}),
+        utility_body(text="Rare succulents! {{1}}, have a look", example={"body_text": [["Pablo"]]}),
         {"type": "CAROUSEL", "cards": [media_card("Shop1"), media_card("Shop2")]},
     ]
     assert validate_template(base_template(category="MARKETING", components=components)) == []
+
+
+# Meta refuses a BODY whose text starts or ends with a variable (error 2388299, "Parametri iniziali
+# o finali non consentiti"), also when only punctuation follows the last variable: seen when
+# registering on the test number "... fino al {{2}}." and "... entro il {{scadenza}}.".
+@pytest.mark.parametrize("text", [
+    "{{1}} is ready",
+    "  {{1}} is ready",
+    "Ready until {{1}}",
+    "Ready until {{1}}.",
+    "Ready until {{1}} !",
+    "Ready until {{1}}…",
+])
+def test_body_starting_or_ending_with_a_variable_is_rejected(text):
+    body = utility_body(text=text, example={"body_text": [["x"]]})
+    errors = validate_template(base_template(components=[body]))
+    assert any("must not start or end with a variable" in e for e in errors), errors
+
+
+def test_named_body_ending_with_a_variable_is_rejected():
+    body = utility_body(text="Paid by {{due}}.", example={"body_text_named_params": [{"param_name": "due", "example": "x"}]})
+    errors = validate_template(base_template(parameter_format="NAMED", components=[body]))
+    assert any("must not start or end with a variable" in e for e in errors), errors
+
+
+def test_body_with_variables_inside_the_text_is_accepted():
+    body = utility_body(text="Ready until {{1}}, see you on the site.", example={"body_text": [["x"]]})
+    assert validate_template(base_template(components=[body])) == []
+
+
+def test_card_body_ending_with_a_variable_is_rejected():
+    from ifncli.managers.whatsapp_template_rules import _validate_body_text
+    errors, _ = _validate_body_text("Card {{1}}", "MARKETING", None, 160, {"body_text": [["x"]]}, "CAROUSEL card 0 BODY")
+    assert any("must not start or end with a variable" in e for e in errors), errors
