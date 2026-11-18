@@ -1,4 +1,5 @@
 ## Platform file
+import sys
 from pathlib import Path
 from re import S
 from typing import Dict, Optional,Union
@@ -17,6 +18,9 @@ class ResourcesLayoutPath(_Path_):
     """
 
     def __init__(self, *args, studies_path="study", auto_messages_path="auto_messages", **kwargs):
+        # Since Python 3.12 pathlib initializes Path in __init__ (before, only in __new__)
+        if sys.version_info >= (3, 12):
+            super().__init__(*args)
         self.studies_path = studies_path
         self.auto_messages_path = auto_messages_path
 

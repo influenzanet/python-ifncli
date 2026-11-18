@@ -289,6 +289,8 @@ class SendCustom(Command):
         parser = super(SendCustom, self).get_parser(prog_name)
         parser.add_argument("--email_folder", help="path to the custom email folder", default=os.path.join('resources', 'custom_email'))
         parser.add_argument("--study_key", help="to send only to participants of a with this study key", default=None)
+        parser.add_argument("--ignore-weekday", dest="ignore_weekday", action="store_true", default=False,
+                            help="send regardless of each participant's preferred weekday (also enabled by ignoreWeekday: true in settings.yaml)")
         return parser
         
     def take_action(self, args):
@@ -311,13 +313,15 @@ class SendCustom(Command):
            trans.setTemplate(read_and_convert_html(os.path.join(email_folder_path, tr['templateFile'])))
            message.addTranslation(trans)
 
+        ignore_weekday = args.ignore_weekday or bool(email_config.get("ignoreWeekday", False))
+
         condition = email_config.get("condition")
         if study_key is not None:
             if condition is None:
                 condition = {"dtype": "num", "num": 1}
-            client.send_message_to_study_participants(study_key, condition, message.toAPI())
+            client.send_message_to_study_participants(study_key, condition, message.toAPI(), ignore_weekday=ignore_weekday)
         else:
-            client.send_message_to_all_users(message.toAPI())
+            client.send_message_to_all_users(message.toAPI(), ignore_weekday=ignore_weekday)
 
 register(EmailTemplate)
 register(EmailTemplates)
