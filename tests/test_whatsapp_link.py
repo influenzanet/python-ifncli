@@ -25,6 +25,7 @@ whatsapp:
   template: "weekly_reminder_v2"
   params:
     button_0: "loginToken"
+    button_1: "unsubscribeToken"
 """
 
 
@@ -54,11 +55,11 @@ class FakeClient:
         self.saved.append(copy.deepcopy(payload))
 
 
-def run(tmp_path, monkeypatch, client, statuses=None, argv=()):
+def run(tmp_path, monkeypatch, client, statuses=None, argv=(), settings=SETTINGS, meta_calls=None):
     folder = tmp_path / "auto_messages" / "weekly_reminder"
     folder.mkdir(parents=True)
-    (folder / "settings.yaml").write_text(SETTINGS)
-    meta_calls = []
+    (folder / "settings.yaml").write_text(settings)
+    meta_calls = [] if meta_calls is None else meta_calls
 
     def fake_statuses(wa_config, name):
         meta_calls.append(name)
@@ -83,7 +84,7 @@ def test_link_saves_the_stored_message_with_the_binding_only(tmp_path, monkeypat
     sent = client.saved[0]["autoMessage"]
     expected = stored_weekly(FAR)
     expected["template"]["whatsappTemplateName"] = "weekly_reminder_v2"
-    expected["template"]["whatsappParams"] = {"button_0": "loginToken"}
+    expected["template"]["whatsappParams"] = {"button_0": "loginToken", "button_1": "unsubscribeToken"}
     assert sent == expected
 
 
@@ -123,7 +124,7 @@ def test_dry_run_saves_nothing(tmp_path, monkeypatch):
 
 def test_unlink_sends_an_empty_name_without_asking_meta(tmp_path, monkeypatch):
     linked = stored_weekly(FAR)
-    linked["template"].update(whatsappTemplateName="weekly_reminder_v2", whatsappParams={"button_0": "loginToken"})
+    linked["template"].update(whatsappTemplateName="weekly_reminder_v2", whatsappParams={"button_0": "loginToken", "button_1": "unsubscribeToken"})
     client = FakeClient(linked)
     meta_calls = run(tmp_path, monkeypatch, client, None, ["--unlink"])
     assert meta_calls == []
@@ -137,3 +138,52 @@ def test_link_refuses_a_message_that_is_not_on_the_platform(tmp_path, monkeypatc
     client = FakeClient(other)
     with pytest.raises(WhatsAppTemplateError, match="not found on the platform"):
         run(tmp_path, monkeypatch, client, BOTH)
+
+
+def custom_message(send_to, message_type, sent_to_stored=None):
+    """Settings and stored auto message of another type and recipients than the weekly, bound without the unsubscribe button."""
+    settings = SETTINGS.replace('    button_1: "unsubscribeToken"\n', "").replace('sendTo: "all-users"', 'sendTo: "%s"' % send_to).replace('messageType: "weekly"', 'messageType: "%s"' % message_type)
+    stored = stored_weekly(FAR)
+    stored["type"] = sent_to_stored or send_to
+    stored["template"]["messageType"] = message_type
+    return settings, stored
+
+
+def test_link_refuses_a_login_param_on_an_all_users_message_without_login_token(tmp_path, monkeypatch):
+    settings, stored = custom_message("all-users", "season-start")
+    client = FakeClient(stored)
+    meta_calls = []
+    with pytest.raises(WhatsAppTemplateError, match="button_0 use loginToken/loginUrl, which a 'season-start' message sent to all-users does not get"):
+        run(tmp_path, monkeypatch, client, BOTH, settings=settings, meta_calls=meta_calls)
+    assert client.saved == [] and client.gets == 0 and meta_calls == []
+
+
+def test_link_accepts_a_login_param_on_a_study_participants_message(tmp_path, monkeypatch):
+    settings, stored = custom_message("study-participants", "season-start")
+    client = FakeClient(stored)
+    run(tmp_path, monkeypatch, client, BOTH, settings=settings)
+    assert client.saved[0]["autoMessage"]["template"]["whatsappParams"] == {"button_0": "loginToken"}
+
+
+def test_link_refuses_a_newsletter_without_an_unsubscribe_param(tmp_path, monkeypatch):
+    settings, stored = custom_message("study-participants", "newsletter")
+    client = FakeClient(stored)
+    with pytest.raises(WhatsAppTemplateError, match="needs a parameter filled from unsubscribeToken"):
+        run(tmp_path, monkeypatch, client, BOTH, settings=settings)
+    assert client.saved == [] and client.gets == 0
+
+
+def test_link_refuses_a_weekly_without_an_unsubscribe_param(tmp_path, monkeypatch):
+    settings, stored = custom_message("all-users", "weekly")
+    client = FakeClient(stored)
+    with pytest.raises(WhatsAppTemplateError, match="a 'weekly' on WhatsApp needs a parameter filled from unsubscribeToken"):
+        run(tmp_path, monkeypatch, client, BOTH, settings=settings)
+    assert client.saved == [] and client.gets == 0
+
+
+def test_unlink_needs_no_binding_check(tmp_path, monkeypatch):
+    settings, stored = custom_message("all-users", "newsletter")
+    stored["template"].update(whatsappTemplateName="season_start_v1", whatsappParams={})
+    client = FakeClient(stored)
+    run(tmp_path, monkeypatch, client, None, ["--unlink"], settings=settings)
+    assert client.saved[0]["autoMessage"]["template"]["whatsappTemplateName"] == ""

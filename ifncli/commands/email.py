@@ -20,9 +20,7 @@ from ..managers.messaging import (
     read_and_convert_html,
 )
 from ..managers.whatsapp import (
-    LOGIN_TOKEN_MESSAGE_TYPES,
-    WhatsAppTemplateError,
-    login_params_without_token,
+    check_binding,
     read_binding,
 )
 from ..platform import PlatformResources
@@ -328,14 +326,17 @@ class SendCustom(Command):
 
         message = Message(email_config["messageType"], email_config["defaultLanguage"])
 
+        # The platform variables ({=domain=}, ...) are bound as for the auto messages
+        platform_vars = self.app.appConfigManager.get_platform().get_vars()
         for tr in email_config['translations']:
            trans = MessageTranslation(tr['lang'], tr['subject'])
-           trans.setTemplate(read_and_convert_html(os.path.join(email_folder_path, tr['templateFile'])))
+           trans.setTemplate(read_and_convert_html(os.path.join(email_folder_path, tr['templateFile']),
+                                                   vars={**platform_vars, 'language': tr['lang']}))
            message.addTranslation(trans)
 
         template = message.toAPI()
         if "whatsapp" in email_config:
-            template = with_whatsapp_binding(self.app, email_config, template)
+            template = with_whatsapp_binding(self.app, email_config, template, "study-participants" if study_key is not None else "all-users")
 
         ignore_weekday = args.ignore_weekday or bool(email_config.get("ignoreWeekday", False))
 
@@ -356,17 +357,15 @@ class SendCustom(Command):
             client.send_message_to_all_users(template, ignore_weekday=ignore_weekday)
 
 
-def with_whatsapp_binding(app, email_config: dict, template: dict) -> dict:
+def with_whatsapp_binding(app, email_config: dict, template: dict, send_to: str) -> dict:
     """
         Return the message to send with the WhatsApp template named in the `whatsapp` section of the
         settings, once Meta reports it APPROVED in every language of the message. The platform then
         sends it on WhatsApp to the users who chose that channel, as it does for auto messages.
+        `send_to` (all-users or study-participants) decides which content keys the parameters can use.
     """
     template_name, params = read_binding(email_config)
-    wrong = login_params_without_token(email_config["messageType"], params)
-    if wrong:
-        raise WhatsAppTemplateError("{} use loginToken/loginUrl, which the platform only provides for {} messages: the WhatsApp send of a '{}' would be dropped".format(
-            ", ".join(wrong), " and ".join(LOGIN_TOKEN_MESSAGE_TYPES), email_config["messageType"]))
+    check_binding(email_config["messageType"], send_to, params)
     print("Meta approval of WhatsApp template '{}':".format(template_name))
     check_approved(app, template_name, [tr['lang'] for tr in email_config['translations']])
     return {**template, "whatsappTemplateName": template_name, "whatsappParams": params}

@@ -1,3 +1,4 @@
+import base64
 import copy
 from types import SimpleNamespace
 
@@ -5,7 +6,7 @@ import pytest
 
 from ifncli.commands import whatsapp_link
 from ifncli.commands.email import SendCustom
-from ifncli.managers.whatsapp import WhatsAppTemplateError, login_params_without_token
+from ifncli.managers.whatsapp import WhatsAppTemplateError
 
 SETTINGS = """sendTo: "study-participants"
 studyKey: "influweb"
@@ -20,9 +21,16 @@ translations:
     templateFile: "it.html"
 """
 
-WHATSAPP = """whatsapp:
-  template: "season_start_v1"
-"""
+
+def whatsapp(**params):
+    section = 'whatsapp:\n  template: "season_start_v2"\n'
+    if params:
+        section += "  params:\n" + "".join('    %s: "%s"\n' % item for item in params.items())
+    return section
+
+
+# A newsletter on WhatsApp needs its unsubscribe button.
+WHATSAPP = whatsapp(button_1="unsubscribeToken")
 
 BOTH = {"it": "APPROVED", "en": "APPROVED"}
 
@@ -41,19 +49,25 @@ class FakeClient:
         self.participants.append((study_key, copy.deepcopy(condition), copy.deepcopy(template_object), ignore_weekday))
 
 
-def run(tmp_path, monkeypatch, client, settings=SETTINGS, statuses=None, argv=()):
+PLATFORM_VARS = {"domain": "staging.example.org", "default_language": "it"}
+
+
+def run(tmp_path, monkeypatch, client, settings=SETTINGS, statuses=None, argv=(), meta_calls=None,
+        html=None, platform_vars=PLATFORM_VARS):
     folder = tmp_path / "season_start_email"
     folder.mkdir(exist_ok=True)
     (folder / "settings.yaml").write_text(settings)
-    (folder / "it.html").write_text("<p>ciao</p>")
-    (folder / "en.html").write_text("<p>hello</p>")
-    meta_calls = []
+    html = html or {"it": "<p>ciao</p>", "en": "<p>hello</p>"}
+    for lang, content in html.items():
+        (folder / ("%s.html" % lang)).write_text(content)
+    meta_calls = [] if meta_calls is None else meta_calls
 
     def fake_statuses(wa_config, name):
         meta_calls.append(name)
         return statuses or {}
     monkeypatch.setattr(whatsapp_link, "fetch_template_statuses", fake_statuses)
     manager = SimpleNamespace(get_management_api=lambda: client,
+                              get_platform=lambda: SimpleNamespace(get_vars=lambda: dict(platform_vars)),
                               get_configs=lambda: {"whatsapp": {"business_account_id": "1", "access_token": "t"}})
     command = SendCustom(SimpleNamespace(appConfigManager=manager), None)
     command.take_action(command.get_parser("ifn").parse_args(["--email_folder", str(folder), *argv]))
@@ -81,15 +95,15 @@ def test_without_whatsapp_the_request_to_study_participants_is_unchanged(tmp_pat
 def test_whatsapp_section_is_sent_with_the_message(tmp_path, monkeypatch):
     client = FakeClient()
     meta_calls = run(tmp_path, monkeypatch, client, SETTINGS + WHATSAPP, BOTH, ["--study_key", "influweb"])
-    assert meta_calls == ["season_start_v1"]
+    assert meta_calls == ["season_start_v2"]
     template = client.participants[0][2]
-    assert template["whatsappTemplateName"] == "season_start_v1"
-    assert template["whatsappParams"] == {}
+    assert template["whatsappTemplateName"] == "season_start_v2"
+    assert template["whatsappParams"] == {"button_1": "unsubscribeToken"}
 
 
 def test_whatsapp_params_are_sent(tmp_path, monkeypatch):
     client = FakeClient()
-    settings = SETTINGS.replace('"newsletter"', '"study-reminder"') + WHATSAPP + '  params:\n    button_0: "loginToken"\n'
+    settings = SETTINGS.replace('"newsletter"', '"study-reminder"') + whatsapp(button_0="loginToken")
     run(tmp_path, monkeypatch, client, settings, BOTH)
     assert client.all_users[0][0]["whatsappParams"] == {"button_0": "loginToken"}
 
@@ -101,18 +115,45 @@ def test_nothing_is_sent_when_the_template_is_not_approved_in_a_language(tmp_pat
     assert client.all_users == [] and client.participants == []
 
 
-def test_a_login_param_on_a_message_without_login_token_is_refused(tmp_path, monkeypatch):
+def test_a_login_param_on_a_send_to_all_users_without_login_token_is_refused(tmp_path, monkeypatch):
     client = FakeClient()
-    settings = SETTINGS + WHATSAPP + '  params:\n    button_0: "loginToken"\n'
-    with pytest.raises(WhatsAppTemplateError, match="loginToken"):
-        run(tmp_path, monkeypatch, client, settings, BOTH)
-    assert client.all_users == []
+    meta_calls = []
+    settings = SETTINGS + whatsapp(button_0="loginToken", button_1="unsubscribeToken")
+    with pytest.raises(WhatsAppTemplateError, match="button_0 use loginToken/loginUrl, which a 'newsletter' message sent to all-users does not get"):
+        run(tmp_path, monkeypatch, client, settings, BOTH, meta_calls=meta_calls)
+    assert client.all_users == [] and meta_calls == []
+
+
+def test_a_login_param_on_a_study_send_is_accepted(tmp_path, monkeypatch):
+    # A send to study participants always gets a login token, whatever the message type.
+    client = FakeClient()
+    settings = SETTINGS + whatsapp(button_0="loginToken", button_1="unsubscribeToken")
+    run(tmp_path, monkeypatch, client, settings, BOTH, ["--study_key", "influweb"])
+    template = client.participants[0][2]
+    assert template["whatsappParams"] == {"button_0": "loginToken", "button_1": "unsubscribeToken"}
+
+
+@pytest.mark.parametrize("argv", [(), ("--study_key", "influweb")])
+def test_a_newsletter_without_an_unsubscribe_param_is_refused(tmp_path, monkeypatch, argv):
+    client = FakeClient()
+    meta_calls = []
+    with pytest.raises(WhatsAppTemplateError, match="needs a parameter filled from unsubscribeToken"):
+        run(tmp_path, monkeypatch, client, SETTINGS + whatsapp(), BOTH, argv, meta_calls=meta_calls)
+    assert client.all_users == [] and client.participants == [] and meta_calls == []
+
+
+def test_an_unsubscribe_param_on_another_message_type_is_refused(tmp_path, monkeypatch):
+    client = FakeClient()
+    settings = SETTINGS.replace('"newsletter"', '"study-reminder"') + WHATSAPP
+    with pytest.raises(WhatsAppTemplateError, match="button_1 use unsubscribeToken, which only newsletter and weekly messages get"):
+        run(tmp_path, monkeypatch, client, settings, BOTH, ["--study_key", "influweb"])
+    assert client.participants == []
 
 
 def test_dry_run_sends_nothing(tmp_path, monkeypatch):
     client = FakeClient()
     meta_calls = run(tmp_path, monkeypatch, client, SETTINGS + WHATSAPP, BOTH, ["--dry-run"])
-    assert meta_calls == ["season_start_v1"]
+    assert meta_calls == ["season_start_v2"]
     assert client.all_users == [] and client.participants == []
 
 
@@ -130,18 +171,12 @@ def test_a_malformed_whatsapp_section_is_a_clear_error(tmp_path, monkeypatch):
     assert client.all_users == []
 
 
-def test_login_params_without_token():
-    assert login_params_without_token("newsletter", {"button_0": "loginToken", "body_1": "loginUrl", "x": "subject"}) == ["body_1", "button_0"]
-    assert login_params_without_token("weekly", {"button_0": "loginToken"}) == []
-    assert login_params_without_token("study-reminder", {"button_0": "loginUrl"}) == []
-
-
 def test_dry_run_shows_template_params_and_recipients(tmp_path, monkeypatch, capsys):
     client = FakeClient()
-    settings = SETTINGS.replace('"newsletter"', '"study-reminder"') + WHATSAPP + '  params:\n    button_0: "loginToken"\n'
+    settings = SETTINGS.replace('"newsletter"', '"study-reminder"') + whatsapp(button_0="loginToken")
     run(tmp_path, monkeypatch, client, settings, BOTH, ["--dry-run", "--study_key", "influweb"])
     out = capsys.readouterr().out
-    assert "season_start_v1" in out and "button_0" in out and "influweb" in out and "nothing sent" in out
+    assert "season_start_v2" in out and "button_0" in out and "influweb" in out and "nothing sent" in out
 
 
 def test_dry_run_still_stops_on_a_template_not_approved(tmp_path, monkeypatch):
@@ -162,3 +197,26 @@ def test_a_whatsapp_value_that_is_not_a_section_is_a_clear_error(tmp_path, monke
     with pytest.raises(WhatsAppTemplateError, match="must be"):
         run(tmp_path, monkeypatch, client, SETTINGS + 'whatsapp: true\n', BOTH)
     assert client.all_users == []
+
+
+def sent_html(template):
+    return {tr["lang"]: base64.b64decode(tr["templateDef"]).decode() for tr in template["translations"]}
+
+
+UNSUBSCRIBE_LINK = '''<a href='https://{=domain=}/link/unsubscribe-newsletter?token={{index . "unsubscribeToken"}}'>{=language=}</a>'''
+
+
+def test_the_platform_variables_are_bound_in_every_language(tmp_path, monkeypatch):
+    client = FakeClient()
+    run(tmp_path, monkeypatch, client, html={"it": UNSUBSCRIBE_LINK, "en": UNSUBSCRIBE_LINK})
+    template, _ = client.all_users[0]
+    link = '''<a href='https://staging.example.org/link/unsubscribe-newsletter?token={{index . "unsubscribeToken"}}'>%s</a>'''
+    assert sent_html(template) == {"it": link % "it", "en": link % "en"}
+
+
+def test_a_variable_the_context_does_not_define_stops_the_send(tmp_path, monkeypatch):
+    client = FakeClient()
+    with pytest.raises(Exception, match="domain"):
+        run(tmp_path, monkeypatch, client, html={"it": UNSUBSCRIBE_LINK, "en": "<p>hello</p>"},
+            platform_vars={"default_language": "it"})
+    assert client.all_users == [] and client.participants == []

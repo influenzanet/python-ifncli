@@ -107,20 +107,54 @@ def read_template_binding(bindings, message_type: str) -> Tuple[str, Dict[str, s
     return read_binding({"whatsapp": entry})
 
 
-# Message types for which the messaging service puts a login token (loginToken, loginUrl) in the
-# content of each send; for every other type a parameter filled with it is missing at send time.
+# What the messaging service puts in the content of a send, by recipients (the `sendTo` of an auto
+# message; a send-custom goes to `study-participants` with --study_key, else to `all-users`):
+# - a login token (loginToken, loginUrl): always for study-participants and for the messages study
+#   rules queue for participants; for all-users only on these message types;
+# - an unsubscribeToken: on these message types, whatever the recipients.
+# A WhatsApp parameter filled with a key the send does not get makes the platform drop the
+# WhatsApp copy without any error; the e-mail still goes.
 LOGIN_TOKEN_MESSAGE_TYPES = ("weekly", "study-reminder")
+LOGIN_TOKEN_RECIPIENTS = ("study-participants", "scheduled-participant-messages")
 LOGIN_CONTENT_KEYS = ("loginToken", "loginUrl")
+UNSUBSCRIBE_TOKEN_MESSAGE_TYPES = ("newsletter", "weekly")
+UNSUBSCRIBE_CONTENT_KEY = "unsubscribeToken"
 
 
-def login_params_without_token(message_type: str, params: Dict[str, str]) -> List[str]:
+def gets_login_token(message_type: str, send_to: str) -> bool:
+    """Whether the messaging service puts a login token in a message of this type sent to these recipients."""
+    if send_to in LOGIN_TOKEN_RECIPIENTS:
+        return True
+    return send_to == "all-users" and message_type in LOGIN_TOKEN_MESSAGE_TYPES
+
+
+def binding_problems(message_type: str, send_to: str, params: Dict[str, str]) -> List[str]:
     """
-        Return, sorted, the template parameters filled with a login token on a message type that does
-        not get one. The platform drops the WhatsApp send of such a message without any error.
+        Return why a WhatsApp binding cannot work as wanted, empty when it can: a parameter filled with
+        a key the send does not get, or a newsletter or weekly without an unsubscribe parameter.
     """
-    if message_type in LOGIN_TOKEN_MESSAGE_TYPES:
-        return []
-    return sorted(name for name, key in params.items() if key in LOGIN_CONTENT_KEYS)
+    problems = []
+    if not gets_login_token(message_type, send_to):
+        wrong = sorted(name for name, key in params.items() if key in LOGIN_CONTENT_KEYS)
+        if wrong:
+            problems.append("%s use loginToken/loginUrl, which a '%s' message sent to %s does not get: its WhatsApp copy would be dropped" % (
+                ", ".join(wrong), message_type, send_to))
+    if message_type not in UNSUBSCRIBE_TOKEN_MESSAGE_TYPES:
+        wrong = sorted(name for name, key in params.items() if key == UNSUBSCRIBE_CONTENT_KEY)
+        if wrong:
+            problems.append("%s use %s, which only %s messages get: the WhatsApp copy would be dropped" % (
+                ", ".join(wrong), UNSUBSCRIBE_CONTENT_KEY, " and ".join(UNSUBSCRIBE_TOKEN_MESSAGE_TYPES)))
+    elif UNSUBSCRIBE_CONTENT_KEY not in params.values():
+        problems.append("a '%s' on WhatsApp needs a parameter filled from %s (an unsubscribe button), so that participants can stop it from the message" % (
+            message_type, UNSUBSCRIBE_CONTENT_KEY))
+    return problems
+
+
+def check_binding(message_type: str, send_to: str, params: Dict[str, str]):
+    """Stop, before anything is read from Meta or the platform, when `binding_problems` finds any."""
+    problems = binding_problems(message_type, send_to, params)
+    if problems:
+        raise WhatsAppTemplateError("WhatsApp binding refused: %s. Nothing saved or sent" % "; ".join(problems))
 
 
 def bind(template: Dict, template_name: str, params: Dict[str, str]) -> Dict:
