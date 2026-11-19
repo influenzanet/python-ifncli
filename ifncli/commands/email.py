@@ -1,16 +1,34 @@
 import os
-from datetime import datetime, timedelta
 from argparse import Namespace
+from datetime import datetime
+
 from cliff.command import Command
-from cliff.formatters.table import TableFormatter  
-from typing import Dict, Union,Optional
+from cliff.formatters.table import TableFormatter
+
+from ..api.messaging import (
+    SYSTEM_MESSAGE_TYPES,
+    AutoMessage,
+    Message,
+    MessageHeaders,
+    MessageTranslation,
+)
+from ..managers.messaging import (
+    AutoMessageCollection,
+    TemplateLoader,
+    find_template_file,
+    parse_time_rules,
+    read_and_convert_html,
+)
+from ..managers.whatsapp import (
+    LOGIN_TOKEN_MESSAGE_TYPES,
+    WhatsAppTemplateError,
+    login_params_without_token,
+    read_binding,
+)
 from ..platform import PlatformResources
+from ..utils import read_yaml, readable_yaml
 from . import register
-from ..utils import check_keys, read_yaml,  read_content,readable_yaml
-from ..api.messaging import SYSTEM_MESSAGE_TYPES, Message, MessageTranslation, MessageHeaders,AutoMessage
-from ..managers.whatsapp import LOGIN_TOKEN_MESSAGE_TYPES, WhatsAppTemplateError, login_params_without_token, read_binding
 from .whatsapp_link import check_approved
-from ..managers.messaging import read_and_convert_html, find_template_file, TemplateLoader, AutoMessageCollection, parse_time_rules
 
 
 class UpdateAutoMessage(Command):
@@ -21,7 +39,7 @@ class UpdateAutoMessage(Command):
     name = "email:import-auto"
 
     def get_parser(self, prog_name):
-        parser = super(UpdateAutoMessage, self).get_parser(prog_name)
+        parser = super().get_parser(prog_name)
         self.formatter = TableFormatter()
         parser.add_argument("--dry-run", help="Just prepare template, dont update", default=False, action="store_true")
         parser.add_argument("--force", help="Force replacement of an eventual existing automessage with same type ", action="store_true")
@@ -44,22 +62,22 @@ class UpdateAutoMessage(Command):
         email_folder_path = path.get_auto_messages_path(args.name)
 
         if not email_folder_path.exists():
-            raise Exception("Automessage path '%s' doesnt exists" % (email_folder_path))
+            raise Exception(f"Automessage path '{email_folder_path}' doesnt exists")
         
         default_language = platform.get('default_language', 'en')
         
-        print("Email folder: %s" % email_folder_path)
+        print("Email folder: {}".format(email_folder_path))
 
         settings_file =  'settings.yaml'
         if args.settings is not None:
             settings_file = args.settings
 
-        email_config:Dict = read_yaml(os.path.join(email_folder_path, settings_file))
+        email_config:dict = read_yaml(os.path.join(email_folder_path, settings_file))
 
         if "defaultLanguage" in email_config:
             default_language = email_config["defaultLanguage"]
 
-        print("Default language %s " % default_language)
+        print("Default language {} ".format(default_language))
 
         email = Message(email_config["messageType"], default_language,  )
 
@@ -160,7 +178,7 @@ class ListAutoMessages(Command):
     name = 'email:list-auto'
 
     def get_parser(self, prog_name):
-        parser = super(ListAutoMessages, self).get_parser(prog_name)
+        parser = super().get_parser(prog_name)
         parser.add_argument('--json', help="Export as json")
         return parser
         
@@ -190,7 +208,7 @@ class EmailTemplate(Command):
     name = 'email:import-template'
 
     def get_parser(self, prog_name):
-        parser = super(EmailTemplate, self).get_parser(prog_name)
+        parser = super().get_parser(prog_name)
         parser.add_argument("--dry-run", help="Just prepare template, dont update", default=False, action="store_true")
         parser.add_argument("--email_template_folder", help="Email template folder (by default 'email_templates' in resources directory)", default=None, required=False)
         parser.add_argument("--study_key", "--study", help="Study associated to this email template", default=None, required=False)
@@ -209,8 +227,8 @@ class EmailTemplate(Command):
 
         default_language = platform.get('default_language', 'en')
 
-        print("Using '%s' path " % (email_template_folder))
-        print("Default language : %s" % default_language)
+        print("Using '{}' path ".format(email_template_folder))
+        print("Default language : {}".format(default_language))
 
         # Automatically extract languages:
         languages = []
@@ -228,11 +246,10 @@ class EmailTemplate(Command):
 
         template = Message(args.name, default_language)
 
-        if headerOverrides is not None:
-            if args.name in headerOverrides:
-                headers = MessageHeaders()
-                headers.fromDict(headerOverrides[args.name])
-                template.setHeaders(headers)
+        if headerOverrides is not None and args.name in headerOverrides:
+            headers = MessageHeaders()
+            headers.fromDict(headerOverrides[args.name])
+            template.setHeaders(headers)
 
         if args.study_key is not None:
             template.setStudy(args.study_key)
@@ -251,7 +268,7 @@ class EmailTemplate(Command):
             template.addTranslation(trans)
 
         if dry_run:
-            print("dry-run mode, template %s" % args.name)
+            print("dry-run mode, template {}".format(args.name))
         else:
             client = self.app.appConfigManager.get_management_api()
             r = client.save_email_template(template.toAPI())
@@ -267,7 +284,7 @@ class EmailTemplates(Command):
     name = 'email:import-templates'
 
     def get_parser(self, prog_name):
-        parser = super(EmailTemplates, self).get_parser(prog_name)
+        parser = super().get_parser(prog_name)
         parser.add_argument("--dry-run", help="Just prepare template, dont update", default=False, action="store_true")
         parser.add_argument("--email_template_folder", help="Email template folder (by default 'email_templates' in resources directory)", default=None, required=False)
         return parser
@@ -288,11 +305,12 @@ class SendCustom(Command):
     name = "email:send-custom"
 
     def get_parser(self, prog_name):
-        parser = super(SendCustom, self).get_parser(prog_name)
+        parser = super().get_parser(prog_name)
         parser.add_argument("--email_folder", help="path to the custom email folder", default=os.path.join('resources', 'custom_email'))
         parser.add_argument("--study_key", help="to send only to participants of a with this study key", default=None)
-        parser.add_argument("--ignore-weekday", help="send to every user now, not only to those whose weekly day is today", default=False, action="store_true")
         parser.add_argument("--dry-run", help="check everything and show what would be sent, without sending", default=False, action="store_true")
+        parser.add_argument("--ignore-weekday", dest="ignore_weekday", action="store_true", default=False,
+                            help="send regardless of each participant's preferred weekday (also enabled by ignoreWeekday: true in settings.yaml)")
         return parser
         
     def take_action(self, args):
@@ -319,23 +337,26 @@ class SendCustom(Command):
         if "whatsapp" in email_config:
             template = with_whatsapp_binding(self.app, email_config, template)
 
+        ignore_weekday = args.ignore_weekday or bool(email_config.get("ignoreWeekday", False))
+
         condition = email_config.get("condition")
         if args.dry_run:
             print("Dry run, nothing sent:")
-            print("  message:   %s, languages %s" % (email_config["messageType"], [tr['lang'] for tr in email_config['translations']]))
-            print("  to:        %s" % ("participants of %s, condition %s" % (study_key, condition or {"dtype": "num", "num": 1}) if study_key else "all users"))
-            print("  WhatsApp:  %s %s" % (template.get("whatsappTemplateName", "(none)"), template.get("whatsappParams", "")))
-            print("  ignore weekday: %s" % args.ignore_weekday)
+            print("  message:   {}, languages {}".format(email_config["messageType"], [tr['lang'] for tr in email_config['translations']]))
+            print("  to:        %s" % ("participants of {}, condition {}".format(study_key, condition or {"dtype": "num", "num": 1}) if study_key else "all users"))
+            print("  WhatsApp:  {} {}".format(template.get("whatsappTemplateName", "(none)"), template.get("whatsappParams", "")))
+            print("  ignore weekday: {}".format(args.ignore_weekday))
             return
         if study_key is not None:
             if condition is None:
                 condition = {"dtype": "num", "num": 1}
-            client.send_message_to_study_participants(study_key, condition, template, ignore_weekday=args.ignore_weekday)
+
+            client.send_message_to_study_participants(study_key, condition, template, ignore_weekday=ignore_weekday)
         else:
-            client.send_message_to_all_users(template, ignore_weekday=args.ignore_weekday)
+            client.send_message_to_all_users(template, ignore_weekday=ignore_weekday)
 
 
-def with_whatsapp_binding(app, email_config: Dict, template: Dict) -> Dict:
+def with_whatsapp_binding(app, email_config: dict, template: dict) -> dict:
     """
         Return the message to send with the WhatsApp template named in the `whatsapp` section of the
         settings, once Meta reports it APPROVED in every language of the message. The platform then
@@ -344,9 +365,9 @@ def with_whatsapp_binding(app, email_config: Dict, template: Dict) -> Dict:
     template_name, params = read_binding(email_config)
     wrong = login_params_without_token(email_config["messageType"], params)
     if wrong:
-        raise WhatsAppTemplateError("%s use loginToken/loginUrl, which the platform only provides for %s messages: the WhatsApp send of a '%s' would be dropped" % (
+        raise WhatsAppTemplateError("{} use loginToken/loginUrl, which the platform only provides for {} messages: the WhatsApp send of a '{}' would be dropped".format(
             ", ".join(wrong), " and ".join(LOGIN_TOKEN_MESSAGE_TYPES), email_config["messageType"]))
-    print("Meta approval of WhatsApp template '%s':" % template_name)
+    print("Meta approval of WhatsApp template '{}':".format(template_name))
     check_approved(app, template_name, [tr['lang'] for tr in email_config['translations']])
     return {**template, "whatsappTemplateName": template_name, "whatsappParams": params}
 

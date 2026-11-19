@@ -1,9 +1,10 @@
 ## Platform file
-from pathlib import Path
-from re import S
-from typing import Dict, Optional,Union
-from .utils import read_yaml
+import sys
 from os.path import dirname
+from pathlib import Path
+
+from .utils import read_yaml
+
 
 class PlatformException(Exception):
     pass
@@ -17,6 +18,9 @@ class ResourcesLayoutPath(_Path_):
     """
 
     def __init__(self, *args, studies_path="study", auto_messages_path="auto_messages", whatsapp_templates_path="whatsapp_templates", **kwargs):
+        # Since Python 3.12 pathlib initializes Path in __init__ (before, only in __new__)
+        if sys.version_info >= (3, 12):
+            super().__init__(*args)
         self.studies_path = studies_path
         self.auto_messages_path = auto_messages_path
         self.whatsapp_templates_path = whatsapp_templates_path
@@ -53,7 +57,7 @@ class PlatformResources:
 
     """
 
-    def __init__(self, path: Union[str, Path], overrides:Optional[Dict]):
+    def __init__(self, path: str | Path, overrides:dict | None):
         path =  Path(path)
         
         if not path.is_absolute():
@@ -62,7 +66,7 @@ class PlatformResources:
 
         self.path = ResourcesLayoutPath(path.resolve())
         if not self.path.is_dir():
-            raise PlatformException("Resource path '%s' is not a directory" % (self.path))
+            raise PlatformException("Resource path '{}' is not a directory".format(self.path))
         self.vars = {}
         self.vars_from = {} # Catch the source of the variables
         self.template_layout = None
@@ -70,7 +74,7 @@ class PlatformResources:
         if overrides is not None:
             self._update_vars(overrides, 'config')
 
-    def _update_vars(self, data:Dict, source_name):
+    def _update_vars(self, data:dict, source_name):
         for name, value in data.items():
             self.vars[name] = value
             self.vars_from[name] = source_name
@@ -81,31 +85,31 @@ class PlatformResources:
             return 
         d = read_yaml(p)
         if not isinstance(d, dict):
-            raise PlatformException("Loaded platform.yaml in '%s' is not dictionary" % p)
+            raise PlatformException(f"Loaded platform.yaml in '{p}' is not dictionary")
         if 'vars' in d:
             self._update_vars(d['vars'], 'platform_file')
         if 'template_layout' in d:
             p = self.path.joinpath(d['template_layout'])
             if not p.exists():
-                raise PlatformException("Email template layout '%s' not found" % p)
+                raise PlatformException(f"Email template layout '{p}' not found")
             self.template_layout = p
         if 'studies_path' in d:
             p = self.path.joinpath(d['studies_path'])
             if not p.exists():
-                raise PlatformException("Studies path '%s' not found" % p)
+                raise PlatformException("Studies path '{}' not found".format(p))
             self.path.studies_path = p
         if 'auto_messages_path' in d:
             p = self.path.joinpath(d['auto_messages_path'])
             if not p.exists():
-                raise PlatformException("Auto messages path '%s' not found" % p)
+                raise PlatformException("Auto messages path '{}' not found".format(p))
             self.path.auto_messages_path = p
         if 'whatsapp_templates_path' in d:
             p = self.path.joinpath(d['whatsapp_templates_path'])
             if not p.exists():
-                raise PlatformException("WhatsApp templates path '%s' not found" % p)
+                raise PlatformException("WhatsApp templates path '{}' not found".format(p))
             self.path.whatsapp_templates_path = p
 
-    def get_vars(self)->Dict:
+    def get_vars(self)->dict:
         return self.vars
 
     def get_vars_from(self):
