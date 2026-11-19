@@ -11,6 +11,7 @@ from ..managers.messaging import AutoMessageCollection
 from ..managers.whatsapp import (
     WhatsAppTemplateError,
     bind,
+    check_binding,
     missing_approvals,
     next_time_too_close,
     read_binding,
@@ -91,6 +92,7 @@ class WhatsAppLinkAutoMessage(Command):
             template_name, params = "", {}
         else:
             template_name, params = read_binding(settings)
+            check_binding(settings['messageType'], settings['sendTo'], params)
             self.check_approved(template_name, languages)
 
         client = self.app.appConfigManager.get_management_api()
@@ -174,6 +176,8 @@ class WhatsAppLinkTemplate(Command):
             template_name, params = "", {}
         else:
             template_name, params = read_template_binding(self.read_bindings(args.email_template_folder), args.name)
+            # Study e-mail templates are the messages study rules queue for participants.
+            check_binding(args.name, "scheduled-participant-messages", params)
 
         client = self.app.appConfigManager.get_management_api()
         stored = find_email_template(client, args.name, args.study_key)

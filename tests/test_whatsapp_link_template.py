@@ -46,12 +46,12 @@ class FakeClient:
         return copy.deepcopy(template_object)
 
 
-def run(tmp_path, monkeypatch, client, statuses=None, argv=(), bindings=BINDINGS, name="study-reminder"):
+def run(tmp_path, monkeypatch, client, statuses=None, argv=(), bindings=BINDINGS, name="study-reminder", meta_calls=None):
     folder = tmp_path / "email_templates"
     folder.mkdir(exist_ok=True)
     if bindings is not None:
         (folder / "whatsapp.yaml").write_text(bindings)
-    meta_calls = []
+    meta_calls = [] if meta_calls is None else meta_calls
 
     def fake_statuses(wa_config, template_name):
         meta_calls.append(template_name)
@@ -196,3 +196,34 @@ def test_link_refuses_a_stored_template_without_translations(tmp_path, monkeypat
 def test_read_template_binding_explains_an_entry_that_is_not_a_mapping():
     with pytest.raises(WhatsAppTemplateError, match="'study-reminder' in whatsapp.yaml must be"):
         read_template_binding({"study-reminder": "study_reminder_v1"}, "study-reminder")
+
+
+def stored_of_type(message_type):
+    stored = stored_reminder()
+    stored["messageType"] = message_type
+    return stored
+
+
+def test_link_accepts_a_login_param_on_any_study_message_type(tmp_path, monkeypatch):
+    # Messages queued by study rules always get a login token.
+    bindings = BINDINGS.replace("study-reminder:", "custom-followup:")
+    client = FakeClient([stored_of_type("custom-followup")])
+    run(tmp_path, monkeypatch, client, BOTH, ["--study", "influweb"], bindings=bindings, name="custom-followup")
+    assert client.saved[0]["whatsappParams"] == {"button_0": "loginToken"}
+
+
+def test_link_refuses_a_newsletter_without_an_unsubscribe_param(tmp_path, monkeypatch):
+    bindings = BINDINGS.replace("study-reminder:", "newsletter:")
+    client = FakeClient([stored_of_type("newsletter")])
+    meta_calls = []
+    with pytest.raises(WhatsAppTemplateError, match="needs a parameter filled from unsubscribeToken"):
+        run(tmp_path, monkeypatch, client, BOTH, ["--study", "influweb"], bindings=bindings, name="newsletter", meta_calls=meta_calls)
+    assert client.saved == [] and client.gets == 0 and meta_calls == []
+
+
+def test_link_refuses_an_unsubscribe_param_on_another_type(tmp_path, monkeypatch):
+    bindings = BINDINGS + '    button_1: "unsubscribeToken"\n'
+    client = FakeClient([stored_reminder()])
+    with pytest.raises(WhatsAppTemplateError, match="button_1 use unsubscribeToken"):
+        run(tmp_path, monkeypatch, client, BOTH, ["--study", "influweb"], bindings=bindings)
+    assert client.saved == []
